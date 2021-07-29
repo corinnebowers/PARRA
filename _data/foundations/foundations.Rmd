@@ -1,0 +1,52 @@
+---
+title: "foundations"
+output: html_document
+---
+
+This script creates the dataframe $nsi1.found$, which summarizes aggregate foundation characteristics by census tract in Sonoma County.
+
+Corinne Bowers 
+
+7/28/21
+
+```{r setup, include = FALSE}
+## setup
+knitr::opts_knit$set(root.dir = 'D:/1-PARRA/_data/')
+
+```
+
+```{r message = FALSE}
+## setup information
+source('setup.R')
+
+```
+
+```{r}
+## load NSI data
+nsi1 <- read.csv('foundations/nsi1.csv') %>% 
+  st_as_sf(coords = c('X', 'Y'), crs = 4269) %>% 
+  st_transform(6417)
+
+## summarize NSI foundation info by census tract
+nsi1.found <- nsi1 %>% 
+  st_intersection(sonoma) %>% 
+  st_drop_geometry 
+nsi1.found <- nsi1.found %>% 
+  mutate(GEOID = toNumber(GEOID)) %>% 
+  mutate(counter = 1) %>% 
+  group_by(GEOID, Found_Ht, Found_Type) %>% 
+  summarize(n = sum(counter), .groups = 'drop') %>% 
+  mutate(foundation = paste(Found_Type, Found_Ht, sep = '_')) %>% 
+  pivot_wider(id_cols = 'GEOID', names_from = 'foundation', values_from = 'n') %>% 
+  dplyr::select(-`SolidWall_7`)
+nsi1.found[is.na(nsi1.found)] <- 0
+nsi1.found[,-1] <- nsi1.found[,-1] / apply(nsi1.found[,-1], 1, sum)
+
+```
+
+```{r}
+## save out
+save(nsi1.found, file = 'foundations/foundations.Rdata')
+
+```
+

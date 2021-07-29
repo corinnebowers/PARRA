@@ -1,0 +1,400 @@
+---
+title: "catalog"
+output: html_document
+---
+
+This script creates catalog.Rdata, which is the dataframe of historic AR events in the Russian River watershed.
+
+Corinne Bowers
+
+7/1/2021
+
+```{r setup, include = FALSE}
+## setup
+knitr::opts_knit$set(root.dir = 'D:/1-PARRA/_data/')
+
+```
+
+```{r message = FALSE}
+## setup information
+source('setup.R')
+
+## user-defined constants
+ar.threshold <- 0.5
+num_cores <- 5
+
+```
+
+```{r watershed}
+## load Rutz et al. (2014) gridded catalog
+# contains list of ARs by cell (ar_grid) and a spatial tracker (tracker)
+load('grid_catalog.Rdata')  
+
+## define inlet & outlet watersheds of the study area using USGS StreamStats
+# https://streamstats.usgs.gov/ss/
+inlet <- st_read('catalog/inlet/layers/globalwatershed.shp', quiet = TRUE)
+outlet <- st_read('catalog/outlet/layers/globalwatershed.shp', quiet = TRUE)
+
+## define the watershed area that will be used to generate the historic catalog
+watershed <- inlet
+
+```
+
+```{r catalog}
+#### create a catalog of AR events with IVT & duration information ####
+
+## find which cells cross the area of interest
+tracker.raster <- tracker[,c(2,1,3,4)]
+tracker.raster <- rasterFromXYZ(tracker.raster, crs = "+proj=longlat +datum=NAD83 +no_defs")
+tracker.id <- watershed %>% 
+  st_transform(4269) %>% 
+  rasterize(tracker.raster, getCover = TRUE) %>%
+  raster.df %>% 
+  subset(value > 0) %>%
+  left_join(tracker, by = c('x'='lon', 'y'='lat')) %>%
+  dplyr::select(step) %>%
+  unlist %>% unname %>% sort
+tracker.id <- tracker.id[!(tracker.id %in% c(827,1185))]  ## these ones cause issues
+
+## identify all AR storms in the region of interest
+storm.df <- data.frame(date = seq(ymd('1980-01-01'), ymd('2019-12-31'), 'days'))
+storm.df[,paste(tracker.id)] <- 0
+hour.df <- storm.df
+for (id in 1:length(tracker.id)) {
+  ar_list <- ar_grid[[tracker.id[id]]]
+  ar_list$total_hours <- (ymd_h(paste(ar_list$end_date, ar_list$end_hour)) -
+                            ymd_h(paste(ar_list$start_date, ar_list$start_hour))) %>%
+    as.numeric(units = 'hours')
+  for (i in 1:nrow(ar_list)) {
+    storm <- seq(ymd(ar_list[i, 'start_date']), ymd(ar_list[i, 'end_date']), 'days')
+    storm.df[storm.df$date %in% storm, id+1] <- ar_list[i, 'IVT_max']
+    hour.df[storm.df$date == storm[1], id+1] <- ar_list[i, 'total_hours']
+  }
+}
+
+## subset to rainy season
+storm.df <- storm.df %>% subset(month(date) %in% c(10:12, 1:3))
+hour.df <- hour.df %>% subset(month(date) %in% c(10:12, 1:3))
+storm.df$storm <- apply(storm.df[,2:(length(tracker.id)+1)], 1, function(x) sum(x > 0))
+
+## number AR storms
+storm.df$ar <- 0
+ar <- 0
+for (i in 2:nrow(storm.df)) {
+  if (storm.df[i, 'storm'] >= length(tracker.id)*ar.threshold) {
+    if (storm.df[i-1, 'storm'] < length(tracker.id)*ar.threshold) {
+      ar <- ar + 1
+    }
+    storm.df[i, 'ar'] <- ar
+  }
+}
+
+## make a catalog
+catalog <- data.frame(AR = 1:max(storm.df$ar))
+for (ar in 1:max(storm.df$ar)) {
+  catalog$start_day[ar] <- paste(min(ymd(storm.df[storm.df$ar == ar, 'date'])))
+  catalog$end_day[ar] <- paste(max(ymd(storm.df[storm.df$ar == ar, 'date'])))
+  catalog$IVT_max[ar] <- max(storm.df[storm.df$ar == ar, 2:(ncol(storm.df)-2)])
+  catalog$duration[ar] <- max(apply(hour.df[storm.df$ar == ar, 2:(ncol(storm.df)-2)], 2, sum))
+}
+
+```
+
+```{r precip}
+#### add precipitation information for each event ####
+
+## get precipitation information from CPC
+# pb <- txtProgressBar(min = 0, max = nrow(catalog), style = 3)
+cl <- parallel::makeCluster(num_cores)
+registerDoSNOW(cl)
+catalog$cpc <- 
+  foreach (ar = 1:nrow(catalog), .combine = 'c',
+    # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+    .packages = c('rnoaa', 'exactextractr', 'lubridate', 'foreach', 'sf', 'raster', 'dplyr')) %dopar% {
+      datelist <- seq(ymd(catalog$start_day[ar]), ymd(catalog$end_day[ar]), 'days')
+      foreach (i = 1:length(datelist), .combine = '+') %do% {
+        datelist[i] %>%
+          cpc_prcp %>% mutate(lon = lon-360) %>%
+          rasterFromXYZ(crs = "+proj=longlat +datum=NAD83 +no_defs") %>%
+          exact_extract(watershed %>% st_transform(4269), 'mean', progress = FALSE) %>%
+          unlist
+      }
+    }
+stopCluster(cl)
+
+```
+
+```{r PRISM, include = FALSE}
+# ## get precipitation information from PRISM
+# pb <- txtProgressBar(min = 0, max = nrow(catalog), style = 3)
+# cl <- parallel::makeCluster(num_cores)
+# registerDoSNOW(cl)
+# catalog$prism <- 
+#   foreach (ar = 1:nrow(catalog), 
+#     .combine = 'c',
+#     .packages = c('exactextractr', 'lubridate', 'raster', 'sf', 'stringr', 'dplyr'),
+#     .options.snow = list(progress = function(n) setTxtProgressBar(pb, n))) %dopar% {
+#       if (year(catalog$start_day[ar]) > 1980) {
+#         datelist <- seq(ymd(catalog$start_day[ar]), ymd(catalog$end_day[ar]), 'days')
+#         files <- paste0('D:/Research/_data/PRISM/', year(datelist), 
+#                         '/PRISM_ppt_stable_4kmD2_', str_remove_all(datelist, '-'), '_bil.bil')
+#         stack(files) %>% calc(sum) %>% 
+#           exact_extract(watershed %>% st_transform(4269), 'mean', progress = FALSE) %>% unlist
+#       } else NA
+#     }
+# stopCluster(cl)
+
+# ## plot differences
+# ggplot(catalog) + 
+#   geom_point(aes(x = cpc, y = prism)) + 
+#   scale_x_origin() + scale_y_origin() + 
+#   geom_parity() + coord_fixed() + theme_bw()
+catalog <- catalog %>% rename(precip_mm = cpc)
+
+```
+
+```{r lag}
+#### supplement streamflow record at the inlet with downstream data ####
+
+## find out when streamflow data is available for USGS gages 11463500 & 11464000
+gauge <- c(11463500, 11464000)
+param <- c('00060', '00065'); names(param) <- c('discharge_cfs', 'gageht_ft')
+statcode <- c('00001', '00002', '00003', '00008'); names(statcode) <- c('max', 'min', 'mean', 'median')
+whatNWISdata(siteNumber = gauge, service = 'iv', parameterCd = param[1], statCd = statcode) %>% 
+  select(site_no, begin_date, end_date)
+
+## download data for 11463500 & 11464000
+# pb <- txtProgressBar(min = 0, max = 2020-2013, style = 3)
+cl <- parallel::makeCluster(num_cores)
+registerDoSNOW(cl)
+data <-
+  foreach(wy = 2013:2020, .combine = 'rbind',
+    # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+    .packages = c('tidyverse', 'dataRetrieval')) %dopar% {
+    readNWISdata(
+      sites = c(11463500, 11464000),
+      parameterCd = param,
+      startDate = paste(wy-1, 10, 1, sep = '-'),
+      endDate = paste(wy, 4, 1, sep = '-'),
+      service = 'iv', tz = 'America/Los_Angeles') %>%
+      renameNWISColumns %>%
+      pivot_wider(id_cols = dateTime, names_from = site_no,
+                  values_from = Flow_Inst, values_fn = mean)
+  }
+stopCluster(cl)
+
+## find the linear lagged relationship between the two gauges
+data <- data %>% arrange(dateTime) %>% mutate(wy = wateryear(dateTime))
+crosscorr <- matrix(nrow = 201, ncol = 8)
+for (x in 2013:2020) {
+  temp <- data %>% filter(wy == x)
+  crosscorr[,x-2012] <-
+    ccf(temp$`11464000`, temp$`11463500`, 
+        na.action = na.pass, lag.max = 100, plot = FALSE)$acf
+}
+lag <- crosscorr %>%
+  as.data.frame %>%
+  setNames(paste0('wy', 2013:2020)) %>%
+  mutate(lag = -100:100) %>%
+  pivot_longer(cols = -lag) %>%
+  # ggplot() + geom_line(aes(x = lag, y = value, group = name, color = name))
+  mutate(wy = toNumber(gsub('wy', '', name))) %>%
+  filter(wy > 2015) %>%
+  # ggplot() + geom_line(aes(x = lag, y = value, group = wy, color = factor(wy)))
+  group_by(lag) %>%
+  summarize(acf = mean(value)) %>%
+  # ggplot() + geom_line(aes(x = lag, y = acf))
+  filter(acf == max(acf)) %>%
+  pull(lag)
+
+## find the best-guess values for 11463500 when data is unavailable
+data.lag <- data %>%
+  group_by(wy) %>%
+  mutate(n = length(wy), index = 1:n[1]) %>%
+  mutate(gage.lag = case_when(index <= (n-lag) ~ `11464000`[index+lag]))
+coef.lag <- lm(`11463500` ~ gage.lag+0, data = data.lag)$coef
+
+```
+
+```{r streamflow}
+#### add streamflow information to each event ####
+
+## define when streamflow records start (11464000)
+ar.start <- which(wateryear(catalog$start_day) >= 1988)[1]  
+
+## get runoff & streamflow information
+# pb <- txtProgressBar(min = 0, max = nrow(catalog)-ar.start, style = 3)
+cl <- parallel::makeCluster(num_cores)
+registerDoSNOW(cl)
+flow.catalog <- 
+  foreach(ar = ar.start:nrow(catalog), 
+    # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+    .packages = c('lubridate', 'dataRetrieval', 'foreach', 'raster', 'dplyr', 'tidyr')) %dopar% {
+      site.runoff <- 
+        readNWISdata(
+          sites = gauge, parameterCd = param,
+          startDate = ymd(catalog$start_day[ar]), 
+          endDate = ymd(catalog$end_day[ar])+days(1),
+          service = 'iv', tz = 'America/Los_Angeles') %>% 
+        renameNWISColumns
+      if (nrow(site.runoff) == 0 | !('Flow_Inst' %in% names(site.runoff))) {
+        NA
+      } else {
+        temp <- site.runoff %>% 
+          pivot_wider(id_cols = dateTime, 
+                      names_from = site_no, names_prefix = 'x', 
+                      values_from = Flow_Inst, values_fn = mean) %>% 
+          left_join(data.frame(
+            dateTime = seq(min(ymd_hms(site.runoff$dateTime)), 
+                           max(ymd_hms(site.runoff$dateTime)), by = '15 mins')), ., 
+            by = 'dateTime') %>% 
+          mutate(index = 1:nrow(.)) %>% 
+          mutate(gage.lag = case_when(index <= (nrow(.)-18) ~ x11464000[index+18]))
+        if (!('x11463500' %in% names(temp))) {
+          temp <- temp %>% mutate(x11463500 = coef.lag*gage.lag)
+        }
+        temp %>%
+          filter(complete.cases(.)) %>%
+          transmute(dateTime, Flow_Inst = x11463500)
+      }
+    }
+stopCluster(cl)
+cat('\n')
+
+## attach runoff & streamflow information to catalog
+bad <- data.frame(
+  bad1 = lapply(flow.catalog, function(x) is.null(nrow(x))) %>% unlist, 
+  bad2 = NA) 
+bad[!bad$bad1, 'bad2'] <- lapply(flow.catalog, function(x) nrow(x)==0) %>% unlist
+bad <- bad %>% apply(1, any)
+
+catalog <- 
+  flow.catalog[!bad] %>% 
+  lapply(function(x) x %>% 
+           summarize(Qp_m3s = max(Flow_Inst)/mft^3, 
+                     Qp.date = date(dateTime[which.max(Flow_Inst)]),
+                     sum_flow = sum(Flow_Inst)*60*15) %>% 
+           mutate(site_no = '11463500') %>% 
+           left_join(readNWISsite(11463500) %>% 
+                       select(site_no, drain_area_va), by = 'site_no') %>% 
+           mutate(runoff_ft = sum_flow / (drain_area_va*5280^2),
+                  runoff_mm = runoff_ft*25.4*12)) %>% 
+  do.call(rbind, .) %>% 
+  cbind(AR = (ar.start:nrow(catalog))[!bad]) %>% 
+  select(AR, runoff_mm, Qp_m3s, Qp.date) %>% 
+  as.data.frame %>% 
+  left_join(as.data.frame(catalog), ., by = 'AR')
+
+```
+
+```{r soil moisture}
+#### add soil moisture information to each event ####
+
+## open soil moisture file 
+# https://www.esrl.noaa.gov/psd/data/gridded/data.cpcsoil.html (simulated product)
+# units: mm (height) of water equivalent in the top meter of subsurface
+soil_nc <- nc_open('catalog/soilw.mon.mean.v2.nc')
+soil_lat <- ncvar_get(soil_nc, 'lat')
+soil_lon <- ncvar_get(soil_nc, 'lon') - 180
+soil_time <- ymd('1800-01-01') + days(ncvar_get(soil_nc, 'time'))
+soil_time <- data.frame(month = month(soil_time), year = year(soil_time))
+soil <- ncvar_get(soil_nc, 'soilw')
+nc_close(soil_nc)
+
+## attach soil moisture information to catalog 
+# pb <- txtProgressBar(min = 0, max = nrow(catalog), style = 3)
+cl <- parallel::makeCluster(num_cores)
+registerDoSNOW(cl)
+catalog$sm <- 
+  foreach (ar = 1:nrow(catalog), .combine = 'c',
+    # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)), 
+    .packages = c('raster', 'lubridate', 'exactextractr', 'sf', 'foreach', 'dplyr')) %dopar% {
+        start <- ymd(catalog$start_day[ar]) - days(mday(catalog$start_day[ar])-1)
+        end <- ymd(catalog$end_day[ar]) - days(mday(catalog$end_day[ar])-1)
+        
+        monthrecord <- ifelse(
+          month(start) <= month(end),
+          length(month(start):month(end)), length((month(start)-12):month(end))) - 1
+        SM_stack <- 
+          foreach (i = 0:monthrecord, .combine = 'stack') %do% {
+            mo <- month(start + months(i)); yr <- year(start + months(i))
+            index <- (1:nrow(soil_time))[soil_time$month == mo & soil_time$year == yr]
+            raster(t(soil[,,index]), 
+                   xmn = min(soil_lon), xmx = max(soil_lon), 
+                   ymn = min(soil_lat), ymx = max(soil_lat), 
+                   crs = "+proj=longlat +datum=NAD83 +no_defs")
+          }
+        mean(SM_stack) %>% exact_extract(watershed %>% st_transform(4269), fun = 'mean')
+      }
+stopCluster(cl)
+
+```
+
+```{r tp}
+#### add tp (time to peak streamflow) information to each event ####
+
+## manually estimate tp for selected storms (ones with nice-looking hydrographs)
+## note: tp information comes from inspection of records for USGS gage 11463500
+hydrographs <- read.csv('catalog/hydrographs.csv')
+
+## attach tp information to catalog
+catalog <- catalog %>%
+  left_join(hydrographs %>% transmute(tp, Qp.date = ymd(peak_date)), by = 'Qp.date') %>%
+  rename(tp_hrs = tp)
+
+```
+
+```{r category}
+#### add AR category information to each event ####
+
+## assign category based on Ralph et al. (2019) scale
+assign_AR_cat <- function(IVT, duration) {
+  if (duration >= 48) {
+    return(case_when(IVT>=1000 ~ 5, IVT>=750 ~ 4, IVT>=500 ~ 3, TRUE ~ 2))
+  } else if (duration >= 24) {
+    return(case_when(IVT>=1250 ~ 5, IVT>=1000 ~ 4, IVT>=750 ~ 3, IVT>=500 ~ 2, TRUE ~ 1))
+  } else {
+    return(case_when(IVT>=1250 ~ 4, IVT>=1000 ~ 3, IVT>=750 ~ 2, IVT>=500 ~ 1, TRUE ~ 0))
+  }
+}
+catalog <- catalog %>% 
+  mutate(cat = map2_dbl(.x = IVT_max, .y = duration, .f = ~assign_AR_cat(.x, .y)))
+
+```
+
+```{r wateryear}
+#### add water year information to each event ####
+catalog$wy <- wateryear(catalog$start_day)
+
+```
+
+
+```{r save}
+#### save the catalog as an .Rdata file ####
+
+## keep only good records 
+catalog <- catalog %>% 
+  filter(complete.cases(select(.,-tp_hrs))) %>% 
+  filter(duration > 0) %>% 
+  mutate(precip_mm = case_when(precip_mm < 0 ~ 0, TRUE ~ precip_mm))
+
+## save out 
+save(catalog, file = 'catalog/catalog.Rdata')
+
+```
+
+```{r statistics, include = FALSE}
+## perform statistics
+catalog %>% 
+  group_by(cat) %>% 
+  mutate(n = length(cat)) %>% 
+  summarize(across(c('n', 'precip_mm', 'runoff_mm', 'Qp_m3s', 'sm', 'tp_hrs'), .fns = Mean))
+
+catalog %>% 
+  mutate(cat = case_when(cat==0 ~ 1, TRUE ~ cat)) %>%
+  group_by(cat) %>% 
+  mutate(n = length(cat)) %>% 
+  summarize(across(c('n', 'precip_mm', 'runoff_mm', 'Qp_m3s', 'sm', 'tp_hrs'), .fns = Mean))
+
+```
+
