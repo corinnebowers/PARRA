@@ -1,0 +1,42 @@
+---
+title: "aoi"
+output: html_document
+---
+
+This script creates aoi.Rdata, which contains ext (an extent object defining the study area) and aoi (a rectangular sf object defining the study area). 
+
+Corinne Bowers
+
+7/1/2021
+
+
+```{r setup, include = FALSE}
+## setup
+knitr::opts_knit$set(root.dir = 'D:/1-PARRA/_data/')
+
+```
+
+```{r message = FALSE}
+## setup information
+source('setup.R')
+
+```
+
+```{r}
+#### define area of interest (aoi) ####
+
+ext <- extent(1895000, 1935000, 579500, 616500)
+aoi <- ext %>% as('SpatialPolygons') %>% st_as_sf %>% st_set_crs(6417)
+
+## plot area of interest
+ggplot() + 
+  geom_sf(data = sonoma %>% st_transform(6417), color = 'grey70', fill = 'grey90') + 
+  geom_sf(data = russian %>% st_transform(6417) %>% 
+            st_crop(sonoma %>% st_transform(6417)), size = 1) + 
+  geom_sf(data = aoi, color = 'red', fill = NA) + 
+  theme_void()
+
+## save out
+save(aoi, ext, file = 'aoi/aoi.Rdata')
+
+```
