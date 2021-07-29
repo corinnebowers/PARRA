@@ -1,0 +1,946 @@
+---
+title: "rp100"
+output: html_document
+---
+
+The purpose of this script is (a) to find out which parameters produce the best-fit LISFLOOD model of the 100-year floodplain in Sonoma County, and (b) to determine which parameters the results are sensitive to. 
+
+```{r setup, include = FALSE}
+## setup
+knitr::opts_knit$set(root.dir = 'D:/1-PARRA/')
+
+```
+
+```{r message = FALSE}
+## setup information
+source('_data/setup.R')
+
+num_cores <- 5
+
+load('_data/lisflood/dem.Rdata')
+
+require(ggpubr)
+require(grid)
+require(gridExtra)
+require(gt)
+
+```
+
+## 1. Generate LISFLOOD simulations
+
+The first goal is to define the parameters of interest and calculate inundation maps for those sets of parameters. 
+We generate 1,000 Latin hypercube samples of 20 uniform variables and transform them to match the distributions of the parameters under consideration. 
+We run the script $generate\_files.sh$ create .bci, .bdy, .n.asc, and .par files based on these samples. 
+The samples and associated files are then run through LISFLOOD to produce 1,000 inundation maps using the script $run\_lisflood.sh$. 
+All of these files can be found in the rp100/sherlock folder. 
+An explanation of the various files and the simulation process can be found in the LISFLOOD documentation.
+
+
+## 2. Determine accuracy metrics
+
+The next goal is to determine some measure of accuracy, i.e. how well the LISFLOOD simulations are able to recreate the "true" case. 
+In this case the data used as a source of truth is the Federal Emergency Management Program (FEMA) 100-year floodplain as downloaded from the National Flood Hazard Layer (NFHL). 
+We estimated the peak inflow at USGS gage 11463500 to be $Q_p = 112,000 \; cfs = 3,171 \; m^3/s$ using the USGS StreamStats tool. 
+This value is fixed, and several other parameters are varied to find the best-fit LISFLOOD model. 
+We consider twenty different parameters that can be changed in the LISFLOOD model to modify the resulting inundation map.
+A table of these parameters and the values considered for each parameter is included below.
+
+We then compare these 1,000 simulated inundation maps to the FEMA NFHL using two different accuracy metrics: the critical success ratio (fstat) and the Hausdorff distance (hausdorff). 
+The critical success ratio is a the ratio of correctly predicted flood cells (i.e. true positives) over all flood cells (i.e. true positives + true negatives + false positives). 
+This produces a balanced measure of over- vs. under-prediction. 
+The Hausdorff distance is a spatial measure of how well the shape of the simulated floodplain matches the shape of the FEMA NFHL. 
+It is important to note that both of these accuracy metrics are meant to measure the goodness-of-fit of binary (i.e. wet/dry) outcomes. 
+While LISFLOOD outputs a flood depth at every location, the NFHL data does not provide this information, and therefore all validation was performed only on the quality of the fit between the "true" vs. simulated 100-year flood extents. 
+
+
+```{r accuracy}
+#### compute accuracy statistics for each inundation map ####
+
+## load NFHL "observed" data
+load('_data/NFHL/NFHL.Rdata')
+
+## load simulated data
+sim.list <- list.files('_sensitivity/rp100/sherlock/results') %>% 
+  gsub('rpflow', '', .) %>% gsub('.max', '', .) %>% toNumber
+  
+## write a function to generate the reduced confusion matrix
+confusion <- function(obs, sim) {
+  ifelse(obs > 0 & sim > 0, 0, 
+         ifelse(obs > 0 & sim <= 0, -1, 
+                ifelse(obs <= 0 & sim > 0, 1, NA)))
+}
+
+## write a function to collapse simulation into wet/dry binary
+binary <- function(x) {
+  mat <- as.matrix(x) 
+  mat <- ifelse(is.na(mat[]), 0, ifelse(mat[]>0, 1, 0))
+  return(mat)
+}
+
+# ## compute accuracy metrics
+# start <- Sys.time()
+# # pb <- txtProgressBar(min = 0, max = length(sim.list), style = 3)
+# cl <- parallel::makeCluster(num_cores)
+# registerDoSNOW(cl)
+# accuracy <-
+#   foreach(i = sim.list, .inorder = FALSE,
+#     .combine = 'rbind', .export = c('confusion', 'binary'),
+#     # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+#     .packages = c('raster', 'dplyr', 'pracma')) %dopar% {
+#       sim <- paste0('_sensitivity/rp100/sherlock/results/rpflow', i, '.max') %>%
+#         raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+# 
+#       ## calculate confusion matrix statistics
+#       tb <- overlay(obs, sim, fun = confusion)[] %>% table
+# 
+#       ## calculate Hausdorff distance
+#       hd <- hausdorff_dist(binary(sim), as.matrix(obs))
+# 
+#       ## save metrics as dataframe
+#       c(id = i,
+#         hitrate = unname(tb['0'] / (tb['-1'] + tb['0'])),
+#         falsalarm = unname(tb['1'] / (tb['0'] + tb['1'])),
+#         fstat = unname(tb['0'] / sum(tb)),
+#         bias = unname(tb['1'] / tb['-1']),
+#         hausdorff = hd)
+#     }
+# stopCluster(cl)
+# Sys.time() - start
+# 
+# ## save checkpoint
+# save(accuracy, file = '_sensitivity/rp100/checkpoints/accuracy.Rdata')
+load('_sensitivity/rp100/checkpoints/accuracy.Rdata')
+
+## join to samples dataframe
+samples.rp100 <- read.table('_sensitivity/rp100/sherlock/samples_rp100.txt', header = TRUE) 
+vars <- names(samples.rp100)
+samples.rp100 <- samples.rp100 %>%
+  mutate(id = 1:nrow(.)) %>% 
+  left_join(data.frame(accuracy), by = 'id')
+
+```
+
+```{r vars.df, echo = FALSE}
+vars.df <- data.frame(
+  vars = vars %>% gsub('X', '', .),
+  description = c('Emergent Herbaceous Wetlands', 'Woody Wetlands',
+                  'Cultivated Crops', 'Pasture/Hay',
+                  'Grassland/Herbaceous', 'Shrub/Scrub', 
+                  'Mixed Forest', 'Evergreen Forest', 'Deciduous Forest', 
+                  'Barren Land', 'Developed - High Intensity', 
+                  'Developed - Medium Intensity', 'Developed - Low Intensity', 
+                  'Developed - Open Space', 'Open Water', 
+                  'Channel Roughness Parameter', 'Time to Peak Flow (hrs)', 
+                  'Hydrograph Shape Parameter', 'Channel Shape Parameter', 
+                  'Inlet Channel Width (m)'),
+  group = c(rep('Floodplain Roughness Parameters', 15), 'Channel Parameters', 
+            rep('Hydrograph Parameters', 2), rep('Channel Parameters', 2)),
+  var.min = c(0.035, 0.045, 0.02, 0.025, 0.025, 0.05, 0.08, 0.08, 0.10, 0.023, 0.12, 
+              0.06, 0.06, 0.03, 0.02, 0.015, 0, 0, 0.01, 10),
+  var.max = c(0.12, 0.15, 0.10, 0.09, 0.07, 0.16, 0.20, 0.18, 0.20, 0.10, 0.20, 0.16, 
+              0.12, 0.09, 0.05, 0.075, 200, 10, 0.15, 25))
+
+vars.df %>%
+  gt(groupname_col = 'group') %>% 
+  tab_spanner(label = 'Parameters', columns = c('vars', 'description')) %>% 
+  tab_spanner(label = 'Values', columns = c('var.min', 'var.max')) %>% 
+  tab_footnote(footnote = 'All parameters are assumed to be uniformly distributed.',
+    locations = cells_column_spanners('Values')) %>%
+  fmt_number(columns = c(var.min, var.max), n_sigfig = 2) %>% 
+  cols_label(vars = 'Name', description = 'Description', 
+             var.min = 'Min', var.max = 'Max') %>% 
+  tab_header(title = 'LISFLOOD Sensitivity Testing') %>% 
+  tab_options(row_group.background.color = '#f2f2f2', 
+              heading.background.color = '#d9d9d9', 
+              column_labels.background.color = '#e5e5e5')
+
+```
+
+
+## 3. attempt model falsification 
+
+The third goal is to attempt model falsification. 
+This process helps us to understand whether or not the parameter ranges we have chosen are reasonable, and whether the LISFLOOD model with the chosen parameter ranges is even capable of reproducing the FEMA NFHL under best-case circumstances. 
+We do this with multi-dimensional scaling (MDS). 
+We create a matrix where the "distance" (inverse of accuracy) is measured between every pair of simulations, then we reduce the dimensionality of that matrix so that it can be displayed on a 2D plot. 
+If the point representing the FEMA NFHL map falls outside of the point cloud representing the suite of LISFLOOD simulations, then the parameter ranges and the model are such that it will never be able to perfectly reproduce the "true" case, and the model is falsified. 
+If the point representing the FEMA NFHL map falls within the simulation point cloud then the model is deemed acceptable. 
+
+As mentioned in the previous section, we have 1,000 LISFLOOD simulations. 
+There is substantial similarity between the inundation maps for these simulations, and creating a $1000 \times 1000$ distance matrix is computationally expensive. 
+Therefore we first use k-means clustering to identify 100 representative simulations and perform the MDS falsification process with that reduced set. 
+
+```{r mds.clusters}
+#### cluster points to reduce computational demand ####
+
+## run k-means clustering algorithm
+n <- 100
+# samples.k <- samples.rp100 %>% 
+#   filter(complete.cases(.)) %>% 
+#   mutate(bias.odds = bias / (1 + bias),
+#          hausdorff = hausdorff/max(hausdorff)) %>% 
+#   dplyr::select(hitrate, falsalarm, fstat, bias.odds, hausdorff) %>% 
+#   kmeans(centers = n, iter.max = 1e3, nstart = 100, trace = FALSE)
+# samples.rp100$mds.cluster[complete.cases(samples.rp100)] <- samples.k$cluster
+# 
+# ## find the best-fitting simulation within each cluster
+# cluster.id <- samples.rp100 %>% 
+#   mutate(test = hausdorff/Max(hausdorff) + (1-fstat)) %>% 
+#   group_by(mds.cluster) %>% 
+#   summarize(id = id[which.min(test)], .groups = 'drop') %>% pull(id)
+# 
+# ## save checkpoint
+# save(samples.rp100, cluster.id, file = '_sensitivity/rp100/checkpoints/samples_cluster.Rdata')
+load('_sensitivity/rp100/checkpoints/samples_cluster.Rdata')
+
+```
+
+```{r dist.fstat}
+#### create distance matrix based on fstat/critical success ratio ####
+
+# ## generate matrix
+# start <- Sys.time()
+# # pb <- txtProgressBar(min = 0, max = n, style = 3)
+# cl <- parallel::makeCluster(num_cores)
+# registerDoSNOW(cl)
+# fstat <-
+#   foreach(i = 1:n,
+#     .combine = 'rbind', .export = 'confusion',
+#     # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+#     .packages = c('raster', 'dplyr', 'pracma', 'foreach')) %dopar% {
+#       sim.i <- paste0('_sensitivity/rp100/sherlock/results/rpflow', cluster.id[i], '.max') %>%
+#         raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+#       foreach(j = 1:n, .combine = 'c') %do% {
+#         if (i >= j) 0 else {
+#           sim.j <- paste0('_sensitivity/rp100/sherlock/results/rpflow', cluster.id[j], '.max') %>%
+#             raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+#           tb <- overlay(sim.i, sim.j, fun = confusion)[] %>% table
+#           1 - tb['0']/sum(tb)
+#         }
+#       }
+#     }
+# stopCluster(cl)
+# Sys.time() - start
+# 
+# ## add "observed" NFHL point
+# fstat <- fstat %>%
+#   cbind(1-samples.rp100$fstat[cluster.id]) %>%
+#   rbind(rep(0, n+1))
+# 
+# ## format matrix for MDS
+# fstat <- fstat + t(fstat)
+# 
+# ## save checkpoint
+# save(fstat, file = '_sensitivity/rp100/checkpoints/fstat.Rdata')
+load('_sensitivity/rp100/checkpoints/fstat.Rdata')
+
+```
+
+```{r dist.hausdorff}
+#### create distance matrix based on hausdorff distance ####
+
+# ## generate matrix
+# start <- Sys.time()
+# # pb <- txtProgressBar(min = 0, max = n, style = 3)
+# cl <- parallel::makeCluster(num_cores)
+# registerDoSNOW(cl)
+# hausdorff <-
+#   foreach(i = 1:n,
+#     .combine = 'rbind', .export = 'binary',
+#     # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+#     .packages = c('raster', 'dplyr', 'pracma', 'foreach')) %dopar% {
+#       sim.i <- paste0('_sensitivity/rp100/sherlock/results/rpflow', cluster.id[i], '.max') %>%
+#         raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+#       foreach(j = 1:n, .combine = 'c') %do% {
+#         if (i >= j) 0 else {
+#           sim.j <- paste0('_sensitivity/rp100/sherlock/results/rpflow', cluster.id[j], '.max') %>%
+#             raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+#           hausdorff_dist(binary(sim.i), binary(sim.j))
+#         }
+#       }
+#     }
+# stopCluster(cl)
+# Sys.time() - start
+# 
+# ## add "observed" NFHL point
+# hausdorff <- hausdorff %>%
+#   cbind(samples.rp100$hausdorff[cluster.id]) %>%
+#   rbind(rep(0, n+1))
+# 
+# ## format matrix for MDS
+# hausdorff <- hausdorff + t(hausdorff)
+# 
+# ## save checkpoint
+# save(hausdorff, file = '_sensitivity/rp100/checkpoints/hausdorff.Rdata')
+load('_sensitivity/rp100/checkpoints/hausdorff.Rdata')
+
+```
+
+```{r mds}
+#### report results of multi-dimensional scaling (MDS) ####
+
+## perform MDS computation
+mds.fstat <- cmdscale(fstat, eig = TRUE, k = n/2)
+mds.hd <- cmdscale(hausdorff, eig = TRUE, k = n/2)
+
+## scale eigenvalues to represent % variance explained
+mds.fstat$var <- abs(mds.fstat$eig)/sum(abs(mds.fstat$eig))
+mds.hd$var <- abs(mds.hd$eig)/sum(abs(mds.hd$eig))
+
+## determine how many dimensions it requires to get to 90% of variance explained
+mds.fstat$dim90 <- min(which(cumsum(mds.fstat$var) > 0.9))
+mds.hd$dim90 <- min(which(cumsum(mds.hd$var) > 0.9))
+
+```
+
+```{r plot.mds, echo = FALSE}
+## plot first two MDS dimensions
+g1 <- ggplot(data.frame(mds.fstat$points[,1:2]) %>% 
+         setNames(c('x', 'y')) %>% 
+         mutate(num = 1:(n+1))) +
+  geom_point(aes(x=x, y=y, color = num==n+1, size = num==n+1), show.legend = FALSE) + 
+  scale_color_manual(values = c('black', 'red')) + 
+  scale_size_manual(values = c(1.5, 3)) + 
+  labs(x = paste0('Dimension 1 (', percent(mds.fstat$var[1], accuracy = 0.1), ')'),
+       y = paste0('Dimension 2 (', percent(mds.fstat$var[2], accuracy = 0.1), ')')) +
+  ggtitle('MDS Scatterplot (2D)', subtitle = 'Critical Success Index')
+g2 <- ggplot(data.frame(mds.hd$points[,1:2]) %>% 
+         setNames(c('x', 'y')) %>% 
+         mutate(num = 1:(n+1))) +
+  geom_point(aes(x=x, y=y, color = num==n+1, size = num==n+1), show.legend = FALSE) + 
+  scale_color_manual(values = c('black', 'red')) + 
+  scale_size_manual(values = c(1.5, 3)) + 
+  labs(x = paste0('Dimension 1 (', percent(mds.hd$var[1], accuracy = 0.1), ')'),
+       y = paste0('Dimension 2 (', percent(mds.hd$var[2], accuracy = 0.1), ')')) +
+  ggtitle('MDS Scatterplot (2D)', subtitle = 'Hausdorff Distance')
+ggarrange(g1, g2, ncol = 2)
+
+## plot first five MDS dimensions
+xmin <- mds.fstat$points[,1:5] %>% apply(2, min) %>% min
+g3 <- mds.fstat$points[,1:5] %>% 
+  as.data.frame %>% 
+  mutate(num = 1:(n+1)) %>%
+  pivot_longer(cols = -num, names_to = 'dim') %>% 
+  mutate(dim = toNumber(gsub('V', '', dim))) %>% 
+  mutate(dim = factor(dim, levels = 5:1)) %>% 
+  ggplot() + 
+  geom_boxplot(aes(x = value, y = dim, group = dim)) + 
+  geom_point(data = . %>% filter(num==n+1), aes(x = value, y = dim), 
+             color = 'red', size = 3) + 
+  geom_text(data = data.frame(dim = 5:1, var = cumsum(mds.fstat$var[1:5])) %>% 
+               mutate(var = percent(var, accuracy = 0.1)), 
+             aes(x = xmin*1.2, y = dim, label = var), family = 'Segoe UI', size = 3.5) + 
+  coord_cartesian(xlim = c(xmin*1.21, NA)) + 
+  annotate('text', x = xmin*1.1, y = 3, label = 'Cumulative Variance Explained', 
+           family = 'Segoe UI', angle = 90) + 
+  theme(axis.line.y = element_blank(), axis.title = element_blank(),
+        axis.text.y = element_text(face = 'bold', color = 'black')) + 
+  ggtitle('MDS Distribution (5D)', subtitle = 'Critical Success Index')
+xmin <- mds.hd$points[,1:5] %>% apply(2, min) %>% min
+g4 <- mds.hd$points[,1:5] %>% 
+  as.data.frame %>% 
+  mutate(num = 1:(n+1)) %>%
+  pivot_longer(cols = -num, names_to = 'dim') %>% 
+  mutate(dim = toNumber(gsub('V', '', dim))) %>% 
+  mutate(dim = factor(dim, levels = 5:1)) %>% 
+  ggplot() + 
+  geom_boxplot(aes(x = value, y = dim, group = dim)) + 
+  geom_point(data = . %>% filter(num==n+1), aes(x = value, y = dim), 
+             color = 'red', size = 3) + 
+  geom_text(data = data.frame(dim = 5:1, var = cumsum(mds.hd$var[1:5])) %>% 
+               mutate(var = percent(var, accuracy = 0.1)), 
+             aes(x = xmin*1.2, y = dim, label = var), family = 'Segoe UI', size = 3.5) + 
+  coord_cartesian(xlim = c(xmin*1.21, NA)) + 
+  annotate('text', x = xmin*1.1, y = 3, label = 'Cumulative Variance Explained', 
+           family = 'Segoe UI', angle = 90) + 
+  theme(axis.line.y = element_blank(), axis.title = element_blank(),
+        axis.text.y = element_text(face = 'bold', color = 'black')) + 
+  ggtitle('MDS Distribution (5D)', subtitle = 'Hausdorff Distance')
+ggarrange(g3, g4, ncol = 2)
+
+## plot % variance explained
+ggplot() + 
+  geom_step(data = data.frame(var = cumsum(mds.fstat$var)) %>% 
+              mutate(dim = 1:nrow(.)) %>% rbind(c(0,0), .),
+             aes(x = dim, y = var, col = 'fstat'), size = 1) + 
+  geom_step(data = data.frame(var = cumsum(mds.hd$var)) %>% 
+              mutate(dim = 1:nrow(.)) %>% rbind(c(0,0), .),
+             aes(x = dim, y = var, col = 'hausdorff'), size = 1) + 
+  geom_hline(yintercept = 0.9, linetype = 'dashed') + 
+  scale_x_origin('MDS Dimension', breaks = seq(0, n, 10)) + 
+  scale_y_origin('Cumulative Variance Explained') + 
+  theme(panel.grid.major.x = element_line(color = 'grey90')) + 
+  scale_color_manual('Accuracy \nMetric', values = c('black', 'grey70'))
+
+```
+
+In the plots above, we see that the FEMA NFHL point falls within the range of and/or along the line of LISFLOOD simulations using both the critical success ratio and the Hausdorff distance as metrics. 
+Therefore we are unable to falsify the model and we assume that the parameter ranges we have chosen are reasonable. 
+
+
+## 4. examine parameter sensitivity
+
+The next task to determine which of the twenty parameters of interest actually have a significant effect on the resulting inundation maps using regional sensitivity analysis (RSA). 
+The RSA process is as follows: 
+
+* Use k-means clustering to divide the MDS sample space into a specified number of classes.
+* For each parameter, look at the frequency distributions of the full sample set vs. the individual classes.
+* Use a bootstrapped estimate to determine if the frequency distributions of the classes differ significantly $(\alpha = 0.05)$ from the frequency distribution of the full sample (i.e. measure the L1-norm between the two lines).
+
+We use the Hausdorff MDS distance matrix for this analysis, and we repeat the RSA process for a variety of $k$ values. 
+The results are shown in the plots below.
+
+```{r L1_boot}
+#### write L1-norm bootstrap function ####
+
+L1_boot <- function(data, col, cl, var, boot = 1e3) {
+  # data: dataframe with parameter values & clustering information
+  # col: name of clustering column
+  # cl: cluster number to consider
+  # var: parameter to consider
+  # boot: number of bootstrapping samples to draw
+  
+  x <- sort(data[data[,col] == cl, var])
+  x.all <- sort(data[,var])
+  p <- (1:length(x))/(length(x)+1)
+  p.all <- (1:length(x.all))/(length(x.all)+1)
+  x.interp <- interp1(x = p.all, y = x.all, xi = p)
+  
+  if (is.na(boot)) {
+    return(cbind(x, x.interp) %>% apply(1, diff) %>% abs %>% sum)
+  } else {
+    L1 <- 
+      foreach (b = 1:boot, .combine = 'c') %do% {
+        sample(x.all, size = length(x), replace = TRUE) %>% sort %>% 
+          cbind(x.interp) %>% apply(1, diff) %>% abs %>% sum
+      }
+    return(L1)
+  }
+}
+
+```
+
+```{r plot.L1_boot, include = FALSE}
+#### L1_boot diagnostic plots ####
+
+# g <- ggplot()
+# for (b in 1:100) {
+#   g <- g + geom_line(aes(x = sort(sample(x.all, size = length(x), replace = TRUE)), y = p), alpha = 0.1)
+# }
+# g +
+#   geom_step(data = data.frame(x.all, p.all),
+#             aes(x = x.all, y = p.all, color = 'x.all'), size = 1) +
+#   geom_step(data = data.frame(x, p, x.interp),
+#             aes(x = x, y = p, color = 'x'), size = 1) +
+#   geom_step(data = data.frame(x, p, x.interp),
+#             aes(x = x.interp, y = p, color = 'x.interp'), size = 1) +
+#   scale_x_origin() + scale_y_origin() +
+#   scale_color_manual(values = c('red', 'black', 'blue'))
+
+# ggplot() +
+#   geom_histogram(aes(x = L1), color = 'black', fill = 'white') +
+#   geom_vline(aes(xintercept = quantile(L1, 0.95), color = 'd95'),
+#              size = 1) +
+#   geom_vline(aes(xintercept = cbind(x, x.interp) %>%
+#                    apply(1, diff) %>% abs %>% sum, color = 'd'),
+#              size = 1) +
+#   scale_color_manual(values = c('black', 'red')) +
+#   scale_y_origin()
+
+```
+
+```{r RSA}
+#### write RSA function ####
+
+RSA <- function(k, plot = FALSE, data = FALSE) {
+  # k: number of clusters to evaluate
+  # plot: determines which diagnostic plots to output
+        # (can be TRUE, FALSE, or any combination of c('k', 'var', 'rsa'))
+  # data: determines whether to output the RSA hypothesis testing values
+  
+  ## perform k-means clustering on MDS distances
+  kclust <- 
+    mds.hd$points[-(n+1), 1:mds.hd$dim90] %>% 
+    kmeans(centers = k, iter.max = 1000, nstart = 10)
+  cluster.colors <- scico(palette = 'bamako', n = k+2)[2:(k+1)]
+  
+  ## attach MDS distances to parameter information
+  df.cluster <- mds.hd$points[-(n+1), 1:2] %>% 
+    as.data.frame %>% 
+    setNames(c('x','y')) %>%
+    mutate(id = cluster.id) %>% 
+    left_join(samples.rp100, by = 'id') %>% 
+    mutate(rsa.cluster = factor(kclust$cluster))
+  
+  ## generate 95% confidence intervals for every parameter & cluster
+  cl <- parallel::makeCluster(num_cores)
+  registerDoSNOW(cl)
+  d <- 
+    foreach(cl = 1:k, .combine = 'rbind', 
+      .export = 'L1_boot', .packages = c('dplyr', 'pracma', 'foreach'), .inorder = FALSE) %:%
+    foreach(var = vars, .combine = 'rbind', .inorder = FALSE) %dopar% {
+      data.frame(
+        cl = cl, var = var, 
+        d = L1_boot(df.cluster, 'rsa.cluster', cl, var, NA),
+        d95 = L1_boot(df.cluster, 'rsa.cluster', cl, var) %>% quantile(0.95) %>% unname)
+    }
+  stopCluster(cl)
+  
+  ## standardize L1-norm coefficients 
+  d <- d %>% mutate(d.norm = d/d95, pass = d.norm>1)
+  
+  ## return results
+  plot.RSA(plot, k, df.cluster, d, cluster.colors)
+  if (data) df.cluster <<- df.cluster; return(d)
+}
+
+```
+
+```{r plot.RSA, echo = FALSE}
+#### write a function to generate RSA diagnostic plots ####
+
+plot.RSA <- function(plot, k, df.cluster, d, cluster.colors) {
+  ## determine which plots to display
+  plot.k <- ifelse(any(plot == TRUE) | 'k' %in% plot, TRUE, FALSE)
+  plot.var <- ifelse(any(plot == TRUE) | 'var' %in% plot, TRUE, FALSE)
+  plot.rsa <- ifelse(any(plot == TRUE) | 'rsa' %in% plot, TRUE, FALSE)
+  
+  ## plot k-means clustering in MDS space
+  if (plot.k) {
+    g <- ggplot(df.cluster) +
+      geom_point(aes(x = x, y = y, color = factor(rsa.cluster)), size = 2) +
+      labs(x = paste0('Dimension 1 (', percent(mds.hd$var[1], accuracy = 0.1), ')'),
+           y = paste0('Dimension 2 (', percent(mds.hd$var[2], accuracy = 0.1), ')')) +
+      scale_color_manual('Cluster', values = cluster.colors)
+    print(g)
+  }
+  
+  ## plot clustered vs. full parameter distributions
+  if (plot.var) {
+    for (var in vars) {
+      lab <- vars.df[which(vars.df$vars == gsub('X', '', var)), 'description']
+      g <- df.cluster %>%
+        arrange(get(var)) %>%
+        mutate(p = (1:n)/(n+1)) %>%
+        group_by(rsa.cluster) %>%
+        mutate(p.cluster = (1:length(rsa.cluster))/(length(rsa.cluster)+1)) %>%
+        ggplot() +
+        geom_step(aes(x = get(var), y = p), size = 1) +
+        geom_step(aes(x = get(var), y = p.cluster,
+                      group = factor(rsa.cluster), color = factor(rsa.cluster)),
+                  size = 1, show.legend = FALSE) +
+        scale_x_continuous(paste0(gsub('X', '', var), ': ', lab)) +
+        scale_y_origin('Cumulative Probability') +
+        scale_color_manual('Cluster', values = cluster.colors)
+      print(g)
+    }
+  }
+
+  ## plot regional sensitivity analysis results
+  if (plot.rsa) {
+    g <- ggplot(d %>% mutate(cl = factor(cl, levels = rev(levels(factor(cl)))))) + 
+      geom_col(aes(x = var, y = d.norm, group = cl, fill = cl, alpha = factor(pass)), 
+               position = 'dodge', width = 0.5) + 
+      geom_hline(yintercept = 1, linetype = 'dashed') + 
+      scale_fill_manual(name = 'Clusters', values = rev(cluster.colors), 
+                        guide = guide_legend(reverse = TRUE)) + 
+      scale_alpha_manual(values = c(0.4, 1)) + guides(alpha = 'none') + 
+      scale_y_origin(breaks = seq(0, 2, 0.25)) + 
+      ggtitle(paste0('Regional Sensitivity Analysis Results (k = ', k, ')')) + 
+      labs(y = 'Normalized L1-norm Coefficient') + 
+      coord_flip(ylim = c(0, 2)) + 
+      theme(axis.title.y = element_blank())
+    print(g)
+  }
+}
+
+```
+
+```{r run.RSA}
+#### perform regional sensitivity analysis (RSA) ####
+
+## run RSA for different values of k
+d2 <- RSA(2, plot = 'rsa', data = TRUE)
+d3 <- RSA(3, plot = 'rsa', data = TRUE)
+d5 <- RSA(5, plot = 'rsa', data = TRUE)
+
+```
+
+```{r stability}
+#### perform RSA sensitivity/stability testing ####
+
+# ## run RSA for k=3 several times
+# rsa.k3 <- map(.x = 1:10, .f = ~RSA(3, data = TRUE) %>%
+#                 filter(pass) %>% pull(var) %>% unique)
+# 
+# ## run RSA for k=2:10
+# rsa.ktest <- map(.x = 2:10, .f = ~RSA(.x, data = TRUE) %>%
+#                    filter(pass) %>% pull(var) %>% unique)
+# 
+# ## save checkpoint 
+# save(rsa.k3, rsa.ktest, file = '_sensitivity/rp100/checkpoints/rsa.Rdata')
+# load('_sensitivity/rp100/checkpoints/rsa.Rdata')
+
+```
+
+```{r plot.stability, echo = FALSE}
+# ## plot k=3 results
+# rsa.k3 %>% 
+#   lapply(function(x) vars %in% x) %>% 
+#   do.call(cbind, .) %>% cbind(vars) %>% 
+#   as.data.frame %>% 
+#   pivot_longer(cols = -vars, names_to = 'sim', values_to = 'pass') %>% 
+#   mutate(sim = gsub('V', '', sim) %>% toNumber) %>%
+#   ggplot() + 
+#   geom_tile(aes(x = vars, y = sim, fill = pass), color = 'grey60') +
+#   scale_y_continuous(breaks = 1:10) +
+#   scale_fill_manual(values = c('grey90', 'black')) + 
+#   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.2))
+
+# ## plot k=2:10 results
+# rsa.ktest %>% 
+#   lapply(function(x) vars %in% x) %>% 
+#   do.call(cbind, .) %>% cbind(vars, .) %>% 
+#   as.data.frame %>% 
+#   pivot_longer(cols = -vars, names_to = 'k', values_to = 'pass') %>% 
+#   mutate(k = gsub('V', '', k) %>% toNumber) %>%
+#   ggplot() + 
+#   geom_tile(aes(x = vars, y = k, fill = pass), color = 'grey60') +
+#   ggtitle('RSA Results by Cluster Size') + 
+#   scale_x_discrete('Parameter') + 
+#   scale_y_continuous('Cluster Size (k)', breaks = 2:10) +
+#   scale_fill_manual('Significance', values = c('grey90', 'black')) + 
+#   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.2))
+
+# rsa.ktest %>% 
+#   lapply(function(x) vars %in% x) %>% 
+#   do.call(cbind, .) %>% cbind(vars, .) %>% 
+#   as.data.frame %>% 
+#   pivot_longer(cols = -vars, names_to = 'k', values_to = 'pass') %>% 
+#   mutate(k = gsub('V', '', k) %>% toNumber,
+#          pass = as.logical(pass)) %>%
+#   mutate(weight = case_when(pass ~ 1/k, TRUE ~ 0)) %>% 
+#   group_by(vars) %>% 
+#   summarize(importance = sum(weight), .groups = 'drop') %>% 
+#   arrange(desc(importance)) %>% 
+#   mutate(vars = factor(vars, levels = vars)) %>% 
+#   ggplot() + 
+#   geom_col(aes(x = vars, y = importance), color = 'black', fill = 'grey70') + 
+#   scale_y_origin()
+
+```
+
+```{r echo = FALSE}
+# start <- Sys.time()
+# rsa.mc <- map(.x = 2:10, 
+#   .f = function(k) {
+#     map(.x = 1:10, .f = ~RSA(k, data = TRUE) %>% 
+#           filter(pass) %>% pull(var) %>% unique)})
+# Sys.time() - start
+# 
+# ## save checkpoint 
+# save(rsa.mc, file = '_sensitivity/rp100/checkpoints/rsa_mc.Rdata')
+load('_sensitivity/rp100/checkpoints/rsa_mc.Rdata')
+
+rsa.mc %>% 
+  lapply(function(x) {
+    lapply(x, function(xx) (vars %in% xx)) %>% 
+      do.call(cbind, .) %>% rowMeans %>% cbind(vars, .) %>% as.data.frame}) %>% 
+  reduce(full_join, by = 'vars') %>% 
+  setNames(c('vars', 2:10)) %>% 
+  pivot_longer(cols = -vars, names_to = 'k', values_to = 'pass') %>% 
+  mutate(k = toNumber(k), pass = toNumber(pass)) %>%
+  ggplot() + 
+  geom_tile(aes(x = vars, y = k, fill = pass), color = 'grey60') +
+  ggtitle('RSA Results by Cluster Size') + 
+  scale_x_discrete('Parameter') + 
+  scale_y_continuous('Cluster Size (k)', breaks = 2:10) +
+  scale_fill_scico('Significance', palette = 'davos', direction = -1, labels = percent) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.2))
+
+```
+
+```{r}
+important <- c('edge', 'SGCr', 'tp', 'X11', 'X22', 'X23', 'X71')
+
+```
+
+* make a list of which parameters make the cut
+* explain the interactions plot, which is a slightly different beast 
+
+```{r interactions}
+#### create DGSA interactions matrix ####
+
+# ## create 3 MDS clusters
+# k <- 3
+# df <- RSA(k, data = TRUE)
+# 
+# ## find parameter interactions within those clusters
+# start <- Sys.time()
+# # pb <- txtProgressBar(min = 0, max = length(vars)^2, style = 3)
+# cl <- parallel::makeCluster(num_cores)
+# registerDoSNOW(cl)
+# interactions <- 
+#   foreach (i = 1:length(vars), .combine = 'rbind', 
+#     # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+#     .export = 'L1_boot', .packages = c('pracma', 'tidyverse', 'foreach')) %:%
+#   foreach (j = 1:length(vars), .combine = 'c') %dopar% {
+#     if (i == j) {
+#       ## fill in the main diagonal
+#       df %>% filter(var == vars[i]) %>% pull(d.norm) %>% max
+# 
+#     } else {
+#       ## fill in the off-diagonals
+#       foreach (cl = 1:k, .combine = 'max') %do% {
+#         df.subset <- df.cluster %>% filter(rsa.cluster == cl)
+#         df.subset$dgsa.cluster <- 
+#           kmeans(df.subset %>% pull(vars[j]), 
+#                  centers = 2, iter.max = 1000, nstart = 100)$cluster
+#         d <- L1_boot(df.subset, 'dgsa.cluster', 1, vars[i], NA)
+#         d95 <- L1_boot(df.subset, 'dgsa.cluster', 1, vars[i]) %>% quantile(0.95)
+#         val.1 <- d/d95
+#         d <- L1_boot(df.subset, 'dgsa.cluster', 2, vars[i], boot = NA)
+#         d95 <- L1_boot(df.subset, 'dgsa.cluster', 2, vars[i]) %>% quantile(0.95)
+#         val.2 <- d/d95
+#         max(val.1, val.2)
+#       }
+#     }
+#   }
+# stopCluster(cl)
+# Sys.time() - start
+# 
+# ## save checkpoint
+# save(interactions, file = '_sensitivity/rp100/checkpoints/interactions.Rdata')
+load('_sensitivity/rp100/checkpoints/interactions.Rdata')
+
+```
+
+```{r plot.interactions, echo = FALSE}
+interactions %>% 
+  as.data.frame %>% 
+  setNames(vars) %>%
+  mutate(i = vars) %>%
+  pivot_longer(cols = -i, names_to = 'j') %>%
+  # mutate(i = factor(i), j = factor(j, levels = rev(levels(i)))) %>% 
+  # filter(i %in% important & j %in% important) %>% 
+  mutate(i = factor(i, levels = c(important, vars[!(vars %in% important)])), 
+         j = factor(j, levels = rev(levels(i)))) %>% 
+  ggplot() + 
+  geom_tile(aes(x = i, y = j, fill = value), color = 'black') + 
+  scale_fill_stepsn(name = 'Coefficient', colours = scico(6, palette = 'lajolla'), 
+                    n.breaks = 6, nice.breaks = TRUE) + 
+  geom_tile(aes(x = i, y = j, alpha = value>1), 
+            fill = 'white', color = NA, show.legend = FALSE) + 
+  geom_vline(xintercept = 0.5+length(important), size = 1) + 
+  geom_hline(yintercept = 20.5-length(important), size = 1) + 
+  scale_alpha_manual(values = c(0.45, 0)) + 
+  scale_x_discrete(name = 'Conditioning (j)', expand = c(0,0)) + 
+  scale_y_discrete(name = 'Conditioned (i)', expand = c(0,0)) + 
+  theme(axis.line = element_blank(), 
+        axis.ticks = element_blank(),
+        # axis.text = element_text(color = 'black', size = 10),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.2),
+        plot.title = element_text(hjust = 0.5)) + 
+  ggtitle('Normalized Interactions Plot (i|j)') 
+
+```
+
+make some conclusions here re: which variables we actually care about
+
+
+## 4. choose best-fit simulation
+
+```{r bestfit}
+## figure out which points are closest in MDS space
+hd.dist <- map_dbl(.x = 1:n, 
+  .f = ~sqrt(sum((mds.hd$points[.x,1:mds.hd$dim90] - mds.hd$points[n+1,1:mds.hd$dim90])^2)))
+
+## subset to the top 5% of clusters (~50 samples)
+temp <- data.frame(mds.hd$points[,1:2]) %>% 
+  setNames(c('x', 'y')) %>% 
+  mutate(num = 1:(n+1)) %>% 
+  filter(num <= n) %>% 
+  mutate(dist = hd.dist) %>% 
+  dplyr::select(num, dist) %>% 
+  left_join(samples.rp100, ., by = c('mds.cluster' = 'num'))
+bestfit.id <- temp %>% 
+  arrange(dist) %>% 
+  filter(mds.cluster %in% unique(mds.cluster[1:50])) %>% 
+  pull(id)
+
+```
+
+```{r plot.bestfit, echo = FALSE}
+
+# g <- ggplot(data.frame(mds.hd$points[,1:2]) %>% 
+#          setNames(c('x', 'y')) %>% 
+#          mutate(num = 1:(n+1)) %>% 
+#          mutate(dist = c(hd.dist, 0))) +
+#   geom_point(aes(x=x, y=y, size = num==n+1, color = dist), show.legend = FALSE) + 
+#   scale_color_scico(palette = 'davos') + 
+#   scale_size_manual(values = c(2, 3)) + 
+#   labs(x = paste0('Dimension 1 (', percent(mds.hd$var[1], accuracy = 0.1), ')'),
+#        y = paste0('Dimension 2 (', percent(mds.hd$var[2], accuracy = 0.1), ')')) +
+#   ggtitle('Hausdorff Distance: MDS Plot')
+# plotly::ggplotly(g)  
+
+# ## visualize accuracy for these points
+# ggplot(temp) + 
+#   geom_point(aes(x = fstat, y = dist, color = id %in% bestfit.id)) + 
+#   scale_color_manual(values = c('grey70', 'black'))
+# ggplot(temp) + 
+#   geom_point(aes(x = hausdorff, y = dist, color = id %in% bestfit.id)) + 
+#   scale_color_manual(values = c('grey70', 'black'))
+
+## visualize parameters for these points
+lapply(important, function(var) {
+  vmin <- vars.df[which(var==vars), 'var.min']
+  vmax <- vars.df[which(var==vars), 'var.max']
+  lab <- vars.df[which(vars.df$vars == gsub('X', '', var)), 'description']
+  ggplot() + 
+    geom_rect(aes(xmin = vmin, xmax = vmax, ymin = 0, ymax = 1/(vmax-vmin)), 
+              fill = 'black', alpha = 0.1) +
+    geom_histogram(data = temp %>% filter(id %in% bestfit.id),
+                   aes(x = get(var), y = ..density..), 
+                   color = 'black', fill = 'black', alpha = 0.2,
+                   breaks = seq(vmin, vmax, length.out = 9)) + 
+    scale_x_continuous(paste0(gsub('X', '', var), ': ', lab)) + 
+    scale_y_origin() + 
+    theme(axis.title.y = element_blank())
+}) %>% do.call(ggarrange, .)
+
+```
+
+```{r dist.bestfit}
+#### create distance matrix based on fstat/critical success ratio ####
+
+n <- length(bestfit.id)
+# start <- Sys.time()
+# # pb <- txtProgressBar(min = 0, max = n, style = 3)
+# cl <- parallel::makeCluster(num_cores)
+# registerDoSNOW(cl)
+# fstat2 <-
+#   foreach(i = 1:n,
+#     .combine = 'rbind', .export = 'confusion',
+#     # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+#     .packages = c('raster', 'dplyr', 'pracma', 'foreach')) %dopar% {
+#       sim.i <- paste0('_sensitivity/rp100/sherlock/results/rpflow', bestfit.id[i], '.max') %>%
+#         raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+#       foreach(j = 1:n, .combine = 'c') %do% {
+#         if (i >= j) 0 else {
+#           sim.j <- paste0('_sensitivity/rp100/sherlock/results/rpflow', bestfit.id[j], '.max') %>%
+#             raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+#           tb <- overlay(sim.i, sim.j, fun = confusion)[] %>% table
+#           1 - tb['0']/sum(tb)
+#         }
+#       }
+#     }
+# stopCluster(cl)
+# Sys.time() - start
+# 
+# fstat2 <- fstat2 %>%
+#   cbind(1-samples.rp100$fstat[bestfit.id]) %>%
+#   rbind(rep(0, n+1))
+# fstat2 <- fstat2 + t(fstat2)
+# 
+# #### create distance matrix based on hausdorff distance ####
+# start <- Sys.time()
+# # pb <- txtProgressBar(min = 0, max = n, style = 3)
+# cl <- parallel::makeCluster(num_cores)
+# registerDoSNOW(cl)
+# hausdorff2 <-
+#   foreach(i = 1:n,
+#     .combine = 'rbind', .export = 'binary',
+#     # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+#     .packages = c('raster', 'dplyr', 'pracma', 'foreach')) %dopar% {
+#       sim.i <- paste0('_sensitivity/rp100/sherlock/results/rpflow', bestfit.id[i], '.max') %>%
+#         raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+#       foreach(j = 1:n, .combine = 'c') %do% {
+#         if (i >= j) 0 else {
+#           sim.j <- paste0('_sensitivity/rp100/sherlock/results/rpflow', bestfit.id[j], '.max') %>%
+#             raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+#           hausdorff_dist(binary(sim.i), binary(sim.j))
+#         }
+#       }
+#     }
+# stopCluster(cl)
+# Sys.time() - start
+# 
+# hausdorff2 <- hausdorff2 %>%
+#   cbind(samples.rp100$hausdorff[bestfit.id]) %>%
+#   rbind(rep(0, n+1))
+# hausdorff2 <- hausdorff2 + t(hausdorff2)
+# 
+# ## save checkpoint
+# save(fstat2, hausdorff2, file = '_sensitivity/rp100/checkpoints/distances2.Rdata')
+load('_sensitivity/rp100/checkpoints/distances2.Rdata')
+
+```
+
+```{r mds.bestfit}
+## perform multi-dimensional scaling
+mds.fstat2 <- cmdscale(fstat2, eig = TRUE, k = 5)
+mds.hd2 <- cmdscale(hausdorff2, eig = TRUE, k = 5)
+
+## scale eigenvalues to represent % variance explained
+mds.fstat2$var <- abs(mds.fstat2$eig)/sum(abs(mds.fstat2$eig))
+mds.hd2$var <- abs(mds.hd2$eig)/sum(abs(mds.hd2$eig))
+
+```
+
+```{r plot.mds.bestfit, echo = FALSE}
+## plot first two MDS dimensions
+g1 <- ggplot(data.frame(mds.fstat2$points[,1:2]) %>%
+         setNames(c('x', 'y')) %>%
+         mutate(num = 1:(n+1))) +
+  geom_point(aes(x=x, y=y, color = num==n+1, size = num==n+1), show.legend = FALSE) +
+  scale_color_manual(values = c('black', 'red')) +
+  scale_size_manual(values = c(1.5, 3)) +
+  labs(x = paste0('Dimension 1 (', percent(mds.fstat2$var[1], accuracy = 0.1), ')'),
+       y = paste0('Dimension 2 (', percent(mds.fstat2$var[2], accuracy = 0.1), ')')) +
+  ggtitle('Critical Success Index: MDS Plot')
+g2 <- ggplot(data.frame(mds.hd2$points[,1:2]) %>%
+         setNames(c('x', 'y')) %>% mutate(num = 1:(n+1))) +
+  geom_point(aes(x=x, y=y, color = num==n+1, size = num==n+1), show.legend = FALSE) +
+  scale_color_manual(values = c('black', 'red')) +
+  scale_size_manual(values = c(1.5, 3)) +
+  labs(x = paste0('Dimension 1 (', percent(mds.hd2$var[1], accuracy = 0.1), ')'),
+       y = paste0('Dimension 2 (', percent(mds.hd2$var[2], accuracy = 0.1), ')')) +
+  ggtitle('Hausdorff Distance: MDS Plot')
+ggarrange(g1, g2, ncol = 2)
+
+```
+
+```{r}
+df.bestfit <- data.frame(mds.hd2$points[1:n,1:2]) %>% 
+  setNames(c('x', 'y')) %>% 
+  mutate(id = bestfit.id) %>% 
+  dplyr::select(x, y, id) %>% 
+  left_join(samples.rp100, by = 'id') %>% 
+  select(c('x', 'y', 'id', 'fstat', 'hausdorff', important))
+lapply(X = important, FUN = function(var) {
+  ggplot(df.bestfit) + 
+    geom_point(aes(x = x, y = y, color = get(var)), size = 2, show.legend = FALSE) + 
+    geom_point(aes(x = mds.hd2$points[n+1,1], y = mds.hd2$points[n+1,2]), size = 3) + 
+    ggtitle(gsub('X', '', var), 
+      subtitle = vars.df[vars.df$vars == gsub('X', '', var), 'description']) + 
+    scale_color_scico(palette = 'roma')
+  }) %>% do.call(ggarrange, .)
+
+# df.bestfit <- data.frame(mds.fstat2$points[1:n,1:2]) %>% 
+#   setNames(c('x', 'y')) %>% 
+#   mutate(id = bestfit.id) %>% 
+#   dplyr::select(x, y, id) %>% 
+#   left_join(samples.rp100, by = 'id') %>% 
+#   select(c('x', 'y', 'id', 'fstat', 'hausdorff', important))
+# lapply(X = important, FUN = function(var) {
+#   ggplot(df.bestfit) + 
+#     geom_point(aes(x = x, y = y, color = get(var)), size = 2, show.legend = FALSE) + 
+#     geom_point(aes(x = mds.fstat2$points[n+1,1], y = mds.fstat2$points[n+1,2]), size = 3) + 
+#     ggtitle(gsub('X', '', var), 
+#       subtitle = vars.df[vars.df$vars == gsub('X', '', var), 'description']) + 
+#     scale_color_scico(palette = 'roma')
+#   }) %>% do.call(ggarrange, .)
+
+```
+
