@@ -11,13 +11,16 @@
 #### setup information ############################################################################
 
 ## load packages
-require(sf)
-require(raster)
-require(dplyr)
-require(foreach)
-require(parallel)
-require(doSNOW)require(lhs) 
-require(tidyverse)
+suppressPackageStartupMessages({
+  require(sf)
+  require(raster)
+  require(dplyr)
+  require(foreach)
+  require(parallel)
+  require(doSNOW)
+  require(lhs) 
+  require(tidyverse)
+})
 
 ## define constants
 mft <- 3.28084
@@ -39,10 +42,11 @@ Qp <- 112000 / (mft^3)  	#peak streamflow @ USGS 11463500 (m3/s)
 #### generate samples #############################################################################
 
 ## generate LHS samples
-samples.lhs <- improvedLHS(n = n, k = 20) 
-samples.lhs <- samples.lhs %>% 
-  as.data.frame %>%
-  setNames(paste0('x', 1:20)) 
+samples.lhs <- improvedLHS(n = n, k = 20) %>% 
+  as.data.frame %>% setNames(paste0('x', 1:20)) 
+
+## load LULC-Manning file
+manning_sherlock <- read.table('manning_sherlock.txt', header = TRUE) %>% as.data.frame
 
 ## convert uniform numbers of distributions of interest
 samples <- map_dfc(.x = 1:15,
@@ -50,7 +54,7 @@ samples <- map_dfc(.x = 1:15,
               max = unlist(manning_sherlock[.x, 'n.max']))) %>% 
   setNames(unlist(manning_sherlock[,'code'])) %>% 
   mutate(SGCn = qunif(samples.lhs$x16, min = 0.015, max = 0.075),
-         tp = qunif(samples.lhs$x17, min = 0, max = 200),
+         tp = qunif(samples.lhs$x17, min = 0, max = 80),
          m = qunif(samples.lhs$x18, min = 0, max = 10),
          SGCr = qunif(samples.lhs$x19, min = 0.01, max = 0.15),
          edge = qunif(samples.lhs$x20, min = 10, max = 25))
@@ -118,7 +122,7 @@ vals <- unique(lulc[])
 ## convert LULC to Manning's n
 cl <- parallel::makeCluster(num_cores)
 registerDoSNOW(cl)
-foreach (i = 1:nrow(samples), 
+foreach (i = 1:n, 
   .packages = c('sf', 'raster', 'dplyr'), 
   .export = 'toNumber') %dopar% {
     ## grab the Manning's n values of interest
@@ -136,5 +140,6 @@ foreach (i = 1:nrow(samples),
                 filename = paste0('manning/russian.n', i, '.asc'))
 }
 stopCluster(cl)
+
 
 ###################################################################################################
