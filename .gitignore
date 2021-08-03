@@ -2,7 +2,7 @@ _data/catalog/soilw.mon.mean.v2.nc
 _data/lisflood/SonomaVegMap*
 _data/NFHL/NFHL_06_20190810.gdb/*
 _data/NHD/NHD_H_California_State_GDB.gdb/*
-_sensitivity/rp100/sherlock/results_old
+_sensitivity/rp100/sherlock/results_old*
 _sensitivity/rp100/sherlock/bci_bdy
 _sensitivity/rp100/sherlock/logfiles
 _sensitivity/rp100/sherlock/manning
