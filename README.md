@@ -12,3 +12,4 @@ This is the theoretical outline of the PARRA framework. Here we show the impleme
 * componentmodels.Rmd:
 * lossexceedance.Rmd:
 
+<iframe src="file:///C:/Users/Corinne/OneDrive/datartathon2.svg" width="200" height="200" >
