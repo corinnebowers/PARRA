@@ -13,5 +13,5 @@ This is the theoretical outline of the PARRA framework. Here we show the impleme
 * lossexceedance.Rmd:
 
 <a>
-  <img src="datartathon2.svg" width="100%" height="144">
+  <img src="datartathon2.svg" width="100%" height="4000">
 </a>
