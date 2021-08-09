@@ -2,7 +2,7 @@
 
 This repository provides supplementary information to the paper XX (doi:XX). It contains the code to implement the Performance-Based Atmospheric River Risk Analysis (PARRA) framework, which is illustrated in the following figure (Figure 1 from the paper):
 
-![Screenshot 2021-08-03 115703](https://user-images.githubusercontent.com/49569602/128727103-e81cd681-d8bc-42f0-9b67-97f4d7eec394.png)
+![PARRA Figure](https://user-images.githubusercontent.com/49569602/128727103-e81cd681-d8bc-42f0-9b67-97f4d7eec394.png | width = 200)
 
 This is the theoretical outline of the PARRA framework. Here we show the implementation. 
 
