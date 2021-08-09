@@ -21,3 +21,4 @@ notes to self:
 * INUN.R is nowhere on the flowchart
 * on the flowchart: add explanatory text about the rollovers \& discourage mobile use
 * figure out in Github how to open these links in separate tabs
+* include a new .Rmd file that does component-level sensitivity analysis (i.e. PRCP contributes the most to the variability in the loss histogram)
