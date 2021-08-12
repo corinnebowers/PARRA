@@ -1,0 +1,841 @@
+---
+title: "componentmodels"
+output:
+  html_document:
+    toc: true 
+    toc_float: true
+    #toc_depth: 3  
+    code_folding: hide
+    number_sections: true 
+    theme: spacelab   #https://www.datadreaming.org/post/r-markdown-theme-gallery/
+    highlight: tango  #https://www.garrickadenbuie.com/blog/pandoc-syntax-highlighting-examples/
+---
+
+The purpose of this script is to ...
+
+```{r setup, include = FALSE}
+knitr::opts_knit$set(root.dir = 'D:/1-PARRA/')
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+
+```
+
+```{r}
+## setup information
+source('_data/setup.R')
+
+## set parallel backend
+num_cores <- 5
+
+## load catalog
+load('_data/catalog/catalog.Rdata')
+
+## load location information
+load('_data/lisflood/dem.Rdata')
+load('_data/aoi/aoi.Rdata')
+
+## load required packages
+require(ggpubr)
+require(grid)
+require(gridExtra)
+require(gt)
+
+## set random seed for reproducibility
+set.seed(7395)
+
+```
+
+# f(AR)
+
+## Identify case study storm
+```{r}
+casestudy <- catalog %>% filter(start_day == ymd('2019-02-25'))
+print(casestudy)
+
+```
+
+
+## Generate AR figure
+
+This figure summarizes the historic catalog generated for Sonoma County, and highlights the 2019 case study AR in relation to the rest of the catalog.
+
+```{r}
+g.void <- ggplot() + theme_void()
+
+g.ivt <- ggplot(catalog) + 
+  geom_histogram(aes(x = IVT_max), color = 'black', fill = 'grey90', 
+                 bins = sqrt(nrow(catalog)), boundary = 250) + 
+  scale_x_continuous('Maximum IVT (kg/m/s)', breaks = seq(0, 1e5, 250),
+                     expand = c(0,0), limits = c(250,1500)) + 
+  scale_y_origin() + 
+  coord_cartesian(xlim = c(250, NA), clip = 'off') + 
+  theme(axis.title.y = element_blank(), axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank(), axis.line.y = element_line(color = NA))
+
+g.dur <- ggplot(catalog) + 
+  geom_histogram(aes(x = duration), color = 'black', fill = 'grey90',
+                 bins = sqrt(nrow(catalog)), boundary = 0) + 
+  scale_x_continuous('Storm Duration (hrs)', expand = c(0,0), 
+                     breaks = seq(0, 240, 24), minor_breaks = seq(0, 240, 24)) + 
+  scale_y_origin() + 
+  coord_flip(xlim = c(0,192), clip = 'off') +
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank(), 
+        axis.ticks.x = element_blank(), axis.line.x = element_line(color = NA))
+```
+
+```{r}
+## create category underlay
+IVT_breaks <- seq(250, 1250, 250) + 125
+duration_breaks <- seq(0, 168, 24) + 12
+df <- expand.grid(IVT = IVT_breaks, duration = duration_breaks)
+ARcat <- function(IVT, duration) {
+  if (duration >= 48) {
+    case_when(
+      IVT>=1000 ~ 5, IVT>=750 ~ 4, IVT>=500 ~ 3, TRUE ~ 2)
+  } else if (duration >= 24) {
+    case_when(
+      IVT>=1250 ~ 5, IVT>=1000 ~ 4, IVT>=750 ~ 3, IVT>=500 ~ 2, TRUE ~ 1)
+  } else {
+    case_when(
+      IVT>=1250 ~ 4, IVT>=1000 ~ 3, IVT>=750 ~ 2, IVT>=500 ~ 1, TRUE ~ 0)
+  }
+}
+for (i in 1:nrow(df)) {df$cat[i] <- ARcat(df$IVT[i], df$duration[i])}
+df <- df %>% mutate(cat = ifelse(cat == 0, 1, cat))
+
+```
+
+```{r}
+g <- ggplot(df) + 
+  geom_raster(aes(x = IVT, y = duration, fill = factor(cat)), alpha = 0.75) + 
+  geom_point(data = catalog, aes(x = IVT_max, y = duration), color = 'grey10') + 
+  geom_vline(xintercept = casestudy$IVT_max, linetype = 'dashed') + 
+  geom_hline(yintercept = casestudy$duration, linetype = 'dashed') + 
+  scale_fill_scico_d('Intensity \nCategory', palette = 'roma', direction = -1) + 
+  scale_x_continuous('Maximum IVT (kg/m/s)', limits = c(250, NA), expand = c(0,0), 
+                     breaks = seq(250, 1500, 250), minor_breaks = seq(250, 1500, 250)) + 
+  scale_y_continuous('Storm Duration (hrs)', expand = c(0,0), 
+                     breaks = seq(0, 240, 24), minor_breaks = seq(0, 240, 24)) + 
+  coord_cartesian(ylim = c(0,192)) + 
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
+        axis.title.y = element_blank(), axis.text.y = element_blank(),
+        axis.ticks.length = unit(5, 'pt'),
+        plot.margin = margin(5.5, 20, 5.5, 5.5))
+```
+
+```{r}
+plot_grid(g, g.ivt, nrow = 2, align = 'v', axis = 'lr', rel_heights = c(4,1)) %>% 
+  plot_grid(
+    plot_grid(g.dur, g.void, nrow = 2, rel_heights = c(4,1)), ., 
+    align = 'v', rel_widths = c(1,4)) 
+ggsave('_figures/fig3_AR.png', height = 4, width = 5)
+
+```
+
+
+# f(PRCP|AR)
+
+## Generate simulated precipitation values
+```{r}
+## define pinch point AR using the observed AR characteristics for the case study storm
+AR <- casestudy %>% 
+  transmute(n.AR = 1, IVT_max, duration)
+
+## generate probabilistic realizations of PRCP
+source('_scripts/PRCP_sherlock.R')
+catalog <- catalog %>% 
+  rename(precip_obs = precip_mm, runoff_obs = runoff_mm, Qp_obs = Qp_m3s)
+precip <- 
+  generate_precip(
+    AR = AR, 
+    catalog = catalog,
+    probabilistic = TRUE,
+    n.precip = 1e3)
+
+## display fitted model values
+model.prcp$tau
+model.prcp$coefficients %>% scientific(digits = 4)
+
+```
+
+### Plot precipitation scatterplots
+```{r}
+g1 <- ggplot(catalog) + 
+  geom_point(aes(x = IVT_max, y = precip_obs)) + 
+  geom_point(data = casestudy, aes(x = IVT_max, y = precip_mm), color = 'red') + 
+  geom_line(aes(x = IVT_max,
+    y = catalog %>% select(IVT_max) %>% 
+      mutate(duration = 6) %>% predict.rq(model.prcp, .),
+    color = '6'), size = 1) + 
+  geom_line(aes(x = IVT_max,
+    y = catalog %>% select(IVT_max) %>% 
+      mutate(duration = 24) %>% predict.rq(model.prcp, .),
+    color = '24'), size = 1) + 
+  geom_line(aes(x = IVT_max,
+    y = catalog %>% select(IVT_max) %>% 
+      mutate(duration = 72) %>% predict.rq(model.prcp, .),
+    color = '72'), size = 1) + 
+  scale_x_continuous(
+    'Maximum IVT (kg/m/s)', limits = c(250, NA), expand = c(0,0), 
+    breaks = seq(250, 1500, 250), minor_breaks = seq(250, 1500, 250)) + 
+  scale_y_origin('Storm Total Precipitation (mm)') + 
+  scale_color_manual('DUR (hrs) = ', 
+    values = scico(n = 4, palette = 'davos')[3:1], 
+    breaks = c('6', '24', '72')) + 
+  coord_cartesian(clip = 'off') + 
+  theme(plot.margin = margin(10, 30, 10, 10))
+
+g2 <- ggplot(catalog) + 
+  geom_point(aes(x = duration, y = precip_obs)) + 
+  geom_point(data = casestudy, aes(x = duration, y = precip_mm), color = 'red') + 
+  geom_line(aes(x = duration,
+    y = catalog %>% select(duration) %>% 
+      mutate(IVT_max = 250) %>% predict.rq(model.prcp, .),
+    color = '250'), size = 1) + 
+  geom_line(aes(x = duration,
+    y = catalog %>% select(duration) %>% 
+      mutate(IVT_max = 500) %>% predict.rq(model.prcp, .),
+    color = '500'), size = 1) + 
+  geom_line(aes(x = duration,
+    y = catalog %>% select(duration) %>% 
+      mutate(IVT_max = 1000) %>% predict.rq(model.prcp, .),
+    color = '1000'), size = 1) + 
+  scale_x_continuous(
+    'Storm Duration (hrs)', expand = c(0,0), 
+    breaks = seq(0, 240, 24), minor_breaks = seq(0, 240, 24)) + 
+  scale_y_origin('Storm Total Precipitation (mm)') + 
+  scale_color_manual(TeX('IVT $\\left( \\frac{kg}{m \\cdot s} \\right) =$'), 
+    values = scico(n = 4, palette = 'davos')[3:1], 
+    breaks = c('250', '500', '1000')) + 
+  coord_cartesian(clip = 'off') + 
+  theme(plot.margin = margin(10, 40, 10, 10))
+
+```
+
+### Plot precipitation quantile plot
+```{r}
+catalog <- catalog %>% 
+  mutate(precip_sim = predict.rq(model.prcp, catalog)) 
+precip.max <- max(c(max(catalog$precip_obs), max(catalog$precip_sim)))
+
+g3 <- ggplot(catalog) + 
+  geom_point(aes(x = sort(precip_obs), y = sort(precip_sim))) + 
+  geom_parity() + 
+  coord_fixed(xlim = c(NA, precip.max), ylim = c(NA, precip.max)) + 
+  scale_x_continuous('Observed Precipitation Quantile (mm)', 
+    expand = expansion(mult = c(0, 0.05))) + 
+  scale_y_continuous('Simulated Precipitation Quantile (mm)', 
+    expand = expansion(mult = c(0, 0.05))) + 
+  theme_bw() + theme(text = element_text(family = 'Segoe UI'))
+
+## calculate K-S statistic here
+  
+```
+
+
+### Plot observed vs. simulated precipitation histogram
+```{r}
+g4 <- ggplot(precip) + 
+  geom_histogram(aes(x = precip_sim, y = ..count../nrow(precip)), 
+                 color = 'black', fill = 'grey90', 
+                 bins = sqrt(nrow(precip)), boundary = 0) + 
+  geom_vline(xintercept = casestudy$precip_mm, size = 1, linetype = 'dashed') + 
+  annotate(geom = 'text', 
+           x = casestudy$precip_mm - 10, y = 0.06, 
+           label = 'Observed Precipitation', family = 'Segoe UI', size = 12/.pt,
+           angle = 90) + 
+  scale_x_origin('Storm Total Precipitation (mm)') + 
+  scale_y_origin('Frequency of Occurrence')
+
+## display event percentile
+sum(casestudy$precip_mm > precip$precip_sim)/nrow(precip)
+
+```
+
+```{r}
+plot_grid(
+  g1, g2, g3, g4,
+  align = 'h', nrow = 2, rel_widths = c(1,1), rel_heights = c(6,7), 
+  labels = paste0('(', letters[1:4], ')'), label_fontfamily = 'Segoe UI', 
+  label_x = c(0.18, 0.18, 0.22, 0.22), 
+  label_y = 0.95)
+
+ggsave('C:/Users/cbowers/Desktop/precip.png', width = 7, height = 6)
+
+```
+
+
+# f(Q|PRCP, HC)
+
+```{r}
+source('_scripts/Q_sherlock.R')
+
+```
+
+## Generate simulated values for HC (antecedent soil moisture)
+```{r}
+precip <- generate_soilmoisture(precip, catalog, n.hc = 1)
+
+```
+
+```{r}
+## find percentile of 2019 event
+plnorm(casestudy$sm, meanlog = fit.sm[1], sdlog = fit.sm[2])
+
+```
+
+
+#### Plot observed soil moisture data vs. simulated lognormal distribution
+```{r}
+g5 <- data.frame(dx = seq(0, 200, length.out = 1e3)) %>% 
+  mutate(fit = dlnorm(dx, meanlog = fit.sm[1], sdlog = fit.sm[2])) %>% 
+  ggplot() + 
+  geom_histogram(data = catalog, aes(x = sm, y = ..density.., 
+                                     fill = 'Observed Historic Catalog'),
+                 color = 'black') + 
+  geom_line(aes(x = dx, y = fit, size = 'Lognormal Distribution')) + 
+  scale_fill_manual(values = 'grey90') + 
+  scale_size_manual(values = 1) + 
+  scale_x_origin('Soil Moisture (mm)') + 
+  scale_y_origin('Frequency of Occurrence') + 
+  theme(legend.title = element_blank(),
+        legend.position = c(0.85, 0.75))
+
+```
+
+### Plot lognormal quantile plot
+```{r}
+temp <- catalog %>% 
+  select(sm) %>% 
+  arrange(sm) %>% 
+  mutate(p = (1:nrow(.))/(nrow(.)+1)) %>% 
+  mutate(fit = qlnorm(p, meanlog = fit.sm[1], sdlog = fit.sm[2]))
+xmax <- max(c(max(temp$sm), max(temp$fit)))
+ggplot(temp) + 
+  geom_point(aes(x = fit, y = sm)) + 
+  scale_x_origin('Theoretical Lognormal Quantile') + 
+  scale_y_origin('Observed Historic Catalog') + 
+  geom_parity() + coord_fixed(xlim = c(0, xmax), ylim = c(0, xmax)) + 
+  theme_bw() + theme(text = element_text(family = 'Segoe UI'))
+
+```
+
+## Generate simulated values for Qp & tp
+
+```{r}
+## define pinch point PRCP using the observed storm-total precipitation for the case study storm
+precip <- casestudy %>% 
+  transmute(n.AR = 1, n.precip = 1, IVT_max, duration, precip_mm, sm) %>% 
+  mutate(p = plnorm(q = sm, meanlog = fit.sm[1], sdlog = fit.sm[2]))
+
+## generate probabilistic realizations of R, runoff
+runoff <- 
+  generate_runoff(
+    precip = precip, 
+    catalog = catalog, 
+    probabilistic = TRUE,
+    n.runoff = 1e3)
+
+## generate probabilistic realizations of Q, streamflow 
+hydrograph <-
+  generate_hydrograph(
+    precip = precip,
+    runoff = runoff,
+    catalog = catalog,
+    probabilistic = TRUE,
+    n.hydro = 1)
+
+```
+
+```{r}
+## prove that this is better than the default
+caret::R2(
+  catalog$runoff_obs * (readNWISsite(11463500)$drain_area_va * 1609.344^2) / catalog$duration,
+  catalog$Qp_obs)
+caret::R2(predict(model.Qp), catalog$Qp_obs)
+
+```
+
+#### Plot observed time to peak data vs. simulated lognormal distribution
+```{r}
+g6 <- data.frame(dx = seq(0, 60, length.out = 1e3)) %>% 
+  mutate(fit = dlnorm(dx, meanlog = fit.tp[1], sdlog = fit.tp[2])) %>% 
+  ggplot() + 
+  geom_histogram(data = catalog, aes(x = tp_hrs, y = ..density.., 
+                                     fill = 'Observed Historic Catalog'),
+                 color = 'black') + 
+  geom_line(aes(x = dx, y = fit, size = 'Lognormal Distribution')) + 
+  scale_fill_manual(values = 'grey90') + 
+  scale_size_manual(values = 1) + 
+  scale_x_origin('Time to Peak Streamflow @ USGS 11463500 (hrs)') + 
+  scale_y_origin('Frequency of Occurrence') + 
+  theme(legend.title = element_blank(),
+        legend.position = c(0.85, 0.75))
+
+```
+
+
+```{r}
+ggpubr::ggarrange(
+  g5, g6, 
+  common.legend = TRUE, legend = 'bottom',
+  labels = paste0('(', letters[1:2], ')'), font.label = list(family = 'Segoe UI'), 
+  label.x = 0.18, label.y = 1)
+ggsave('C:/Users/cbowers/Desktop/lognormal.png', width = 7, height = 3)
+
+?ggarrange
+
+```
+
+### Plot peak streamflow quantile plot
+```{r}
+catalog <- catalog %>% 
+  rename(runoff = runoff_obs, precip = precip_obs) %>% 
+  mutate(Qp_sim = predict(model.Qp, .)) 
+Qp.max <- max(c(max(catalog$Qp_obs), max(catalog$Qp_sim)))
+
+g7 <- ggplot(catalog) + 
+  geom_point(aes(x = sort(Qp_obs), y = sort(Qp_sim))) + 
+  geom_parity() + 
+  coord_fixed(xlim = c(NA, Qp.max), ylim = c(NA, Qp.max)) + 
+  scale_x_continuous(expression(paste('Observed ', Q[p], ' Quantile ', (m^3/s))), 
+    expand = expansion(mult = c(0, 0.05)), labels = comma) + 
+  scale_y_continuous(expression(paste('Simulated ', Q[p], ' Quantile ', (m^3/s))), 
+    expand = expansion(mult = c(0, 0.05)), labels = comma) + 
+  annotation_custom(grobTree(
+    textGrob('(a)', x = unit(0.1,'npc'), y = unit(0.92,'npc'),
+             gp = gpar(fontfamily = 'Segoe UI', fontface = 'bold', fontsize = 14)))) +
+  theme_bw() + theme(text = element_text(family = 'Segoe UI'))
+
+```
+
+### Plot real vs. simulated streamflow hydrograph
+```{r}
+## download real gauge info
+param <- c('00060', '00065'); names(param) <- c('discharge_cfs', 'gageht_ft')
+statcode <- c('00001', '00002', '00003', '00008'); names(statcode) <- c('max', 'min', 'mean', 'median')
+sites <- readNWISsite(11463500)
+flow <- readNWISdata(
+  sites = gauge, parameterCd = param, 
+  startDate = ymd(casestudy$start_day) - days(1), 
+  endDate = ymd(casestudy$end_day) + days(2), 
+  service = 'iv', tz = 'America/Los_Angeles') %>% 
+  renameNWISColumns
+
+## set constants
+baseflow <- 3
+simlength <- 10 * 24 * 3600
+t <- seq(0, simlength, 360)
+m <- 4
+
+## create synthetic streamflow timeseries records
+num_cores <- 5
+cl <- parallel::makeCluster(num_cores)
+registerDoSNOW(cl)
+pb <- txtProgressBar(min = 0, max = nrow(hydrograph), style = 3)
+flow.sim <- 
+  foreach (i = 1:nrow(hydrograph), .packages = 'lubridate',
+    .options.snow = list(progress = function(n) setTxtProgressBar(pb, n))) %dopar% {
+    Qp <- hydrograph$Qp_sim[i]
+    tp <- hydrograph$tp_sim[i]*60^2
+    q <- apply(cbind(exp(m*(1-t/tp)) * (t/tp)^m * Qp, rep(baseflow, length(t))), 1, max)
+    sim <- data.frame(t = lubridate::now() + seconds(t), q = q)
+    dt <- sim[which.max(sim$q), 't'] - flow[which.max(flow$Flow_Inst), 'dateTime']
+    sim$t <- sim$t - dt
+    sim
+  } %>% reduce(full_join, by = 't')
+stopCluster(cl)
+flow.sim[is.na(flow.sim)] <- baseflow
+
+## calculate statistics of synthetic streamflow timeseries records
+sequence <- flow.sim$t
+flow.matrix <- flow.sim %>% select(-t) %>% as.matrix %>% unname
+flow.df <- data.frame(t = sequence) %>% 
+  mutate(min = apply(flow.matrix, 1, Min), 
+         q05 = apply(flow.matrix, 1, function(x) quantile(x, 0.05, na.rm = TRUE)),
+         q25 = apply(flow.matrix, 1, function(x) quantile(x, 0.25, na.rm = TRUE)),
+         med = apply(flow.matrix, 1, function(x) median(x, na.rm = TRUE)),
+         mean = apply(flow.matrix, 1, Mean), 
+         q75 = apply(flow.matrix, 1, function(x) quantile(x, 0.75, na.rm = TRUE)),
+         q95 = apply(flow.matrix, 1, function(x) quantile(x, 0.95, na.rm = TRUE)), 
+         max = apply(flow.matrix, 1, Max)) %>% 
+  mutate(min = ifelse(is.infinite(min), NA, min),
+         mean = ifelse(is.nan(mean), NA, mean), 
+         max = ifelse(is.infinite(max), NA, max))
+
+```
+
+```{r}
+g8 <- ggplot(flow.df) + 
+  geom_ribbon(aes(x = t, ymin = q05, ymax = q95, fill = '90th p.')) + 
+  geom_ribbon(aes(x = t, ymin = q25, ymax = q75, fill = '50th p.')) +
+  geom_line(aes(x = t, y = med, fill = 'Median'), color = 'grey25') + 
+  scale_fill_manual('Simulated \nStreamflow',
+    breaks = c('Median', '50th p.', '90th p.'),
+    values = c('grey25', 'grey70', 'grey90')) + 
+  geom_line(data = flow, 
+    aes(x = ymd_hms(dateTime, tz = 'America/Los_Angeles'), y = Flow_Inst/mft^3, 
+        color = '2019 Event'), size = 1) + 
+  scale_color_manual('Recorded \nStreamflow', values = 'black') + 
+  scale_y_origin('Streamflow (m3/s)', labels = comma) + 
+  scale_x_datetime('Date',
+    limits = c(ymd_hms('2019-02-24 12:00:00PM', tz = 'America/Los_Angeles'),
+               ymd_hms('2019-03-02 12:00:00AM', tz = 'America/Los_Angeles')), 
+    date_breaks = 'day', date_labels = '%b %d', expand = c(0,0)) + 
+  annotation_custom(grobTree(
+    textGrob('(b)', x = unit(0.1,'npc'), y = unit(0.92,'npc'),
+             gp = gpar(fontfamily = 'Segoe UI', fontface = 'bold', fontsize = 14)))) +
+  theme(legend.position = c(0.9,0.65), 
+        legend.margin = margin(-1, 0, -1, 0), 
+        plot.margin = margin(10,20,10,10))
+
+```
+
+```{r}
+library(egg)
+egg::ggarrange(g7, g8, nrow = 1, widths = c(5,8), draw = FALSE) %>% 
+  plot_grid()
+ggsave('C:/Users/cbowers/Desktop/hydrograph.png', width = 7, height = 3)
+
+```
+
+
+# f(INUN|Q) 
+
+## Validate river channel 
+
+* need to run the 2019 streamflow hydrograph in LISFLOOD
+
+```{r}
+## get real discharge & gage height data
+gauges <- whatNWISsites(stateCd = '06', countyCd = '097') 
+gauges <- gauges %>% 
+  filter(grepl('RUSSIAN', station_nm)) %>% 
+  filter(str_length(site_no) == 8)
+flow <- readNWISdata(
+  sites = gauges$site_no, parameterCd = param, 
+  startDate = catalog$start_day[year.id], 
+  endDate = ymd(catalog$end_day[year.id]) + days(1), 
+  service = 'iv', tz = 'America/Los_Angeles') %>% 
+  renameNWISColumns %>% 
+  filter(!is.na(Flow_Inst) | !is.na(GH_Inst))
+gauges <- gauges %>% 
+  filter(site_no %in% unique(flow$site_no)) %>% 
+  arrange(site_no)
+
+## load in real vs. simulated discharge & gage height data 
+flow <- readNWISdata(
+  sites = sort(toNumber(gauges$site_no))[-1], parameterCd = param, 
+  startDate = ymd(catalog$start_day[year.id]) - days(30), 
+  endDate = ymd(catalog$end_day[year.id]) + days(5), 
+  service = 'iv', tz = 'America/Los_Angeles') %>% 
+  renameNWISColumns %>% 
+  filter(!is.na(Flow_Inst) | !is.na(GH_Inst))
+stage <-
+  read.table(paste0('D:/Research/_sherlock/2. LISFLOOD/timeseries10/flow2019.stage'), skip = 11) %>%
+  setNames(c('t', gauges$site_no[-1])) %>%
+  pivot_longer(cols = -t, names_to = 'site_no', values_to = 'h') %>%
+  mutate(dateTime = flow$dateTime[1] + seconds(t) - seconds(86400*30)) %>%  # 
+  right_join(flow %>% select(dateTime, site_no, GH_Inst), by = c('dateTime', 'site_no')) %>% 
+  rename(h.obs = GH_Inst, h.sim = h)
+
+## correct the linear offset in stage timeseries
+gauges.elev <- gauges.write[-1,1:2] %>%
+  apply(2, toNumber) %>%
+  data.frame %>%
+  st_as_sf(coords = c('x', 'y'), crs = 6417) %>%
+  elevatr::get_elev_point() %>%
+  mutate(lisflood_m = raster::extract(dem, .)) %>%
+  cbind(readNWISsite(c(11463682, 11463980, 11464000, 11467000, 11467002)) %>%
+          select(site_no, alt_va, alt_datum_cd))
+
+## get the datum conversion (lisflood/SonomaVegMap is in NAVD88 (Geoid 12A))
+gauges.elev <- gauges.elev %>%
+  mutate(datum_conversion_m = c(0, NA, 0.873, 0.854, 0.863)) %>%
+  mutate(usgs_m = alt_va/mft + datum_conversion_m)
+
+## plot real vs. simulated gage height
+stage %>% left_join(gauges.elev, by = 'site_no') %>% 
+  mutate(h.sim = h.sim-usgs_m+lisflood_m, h.obs = (h.obs/mft)) %>% 
+  filter(site_no != 11463980) %>% 
+  ggplot() + 
+  geom_rect(aes(xmin = ymd_hms('2019-02-25 12:00:00AM'), 
+                xmax = ymd_hms('2019-02-28 12:00:00AM'),
+                ymin = 0, ymax = max(h.obs)*1.1),
+            fill = 'grey90', alpha = 0.25) + 
+  geom_line(aes(x = dateTime, y = h.obs, color = site_no, linetype = 'Recorded'), size = 1) +
+  geom_line(aes(x = dateTime, y = h.sim-3, color = site_no, linetype = 'Simulated'), size = 1) + 
+  facet_wrap(vars(paste('USGS', site_no)), nrow = 2, 
+             labeller = labeller(.default = function(x) {
+               paste0(x, ' (', LETTERS[1:4], ')')})) + 
+  scale_color_manual('USGS Gauge', values = baker, guide = FALSE) +
+  scale_linetype_manual('Data Type', values = c(1,2)) + 
+  scale_x_datetime(labels = function(z) gsub("^0", "", strftime(z, "%m/%d")), 
+                   date_breaks = 'day', minor_breaks = 'day',
+                   limits = c(ymd_hms('2019-02-24 12:00:00AM'), ymd_hms('2019-03-03 12:00:00AM'))) + 
+  scale_y_origin('Water Surface Height (m)') + 
+  ggtitle('Observed vs. Simulated Streamflow') + 
+  theme_bw() + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5),
+        axis.title.x = element_blank(),
+        text = element_text(family = 'Segoe UI'),
+        plot.title = element_text(family = 'Segoe UI Semibold'))
+# ggsave('C:/Users/cbowers/Desktop/INUN_channel_2019.png', height = 4, width = 6)
+
+## plot gages of interest
+gauges %>% 
+  filter(site_no != 11463980) %>% 
+  st_as_sf(coords = c('dec_long_va', 'dec_lat_va'), crs = st_crs(sonoma)) %>% 
+  ggplot() + 
+  geom_sf(data = sonoma, color = 'grey70', fill = 'grey95') + 
+  geom_sf(data = st_union(sonoma), color = 'grey50', fill = NA) + 
+  geom_sf(data = aoi, fill = 'grey50', alpha = 0.1, color = 'black') + 
+  geom_sf(data = russian %>% st_crop(sonoma), color = 'grey30', size = 1) + 
+  geom_sf(aes(color = site_no), size = 3) + 
+  geom_sf_text(label = c('', LETTERS[1:4]), 
+               nudge_x = c(0, 0.025, 0.015, 0, -0.025), 
+               nudge_y = c(0, 0.025, -0.025, 0.03, 0.025),
+               family = 'Segoe UI Semibold') + 
+  scale_color_manual('USGS Gauge', values = c('black', baker), guide = FALSE,
+    labels = paste(gauges$site_no[-2], c('', paste0('(', LETTERS[1:4], ')')))) + 
+  theme_void() +
+  theme(text = element_text(family = 'Segoe UI'),
+        plot.title = element_text(family = 'Segoe UI Semibold'))
+# ggsave('C:/Users/cbowers/Desktop/gauges.png', height = 4, width = 6)
+
+
+#### note: this has some sketchy adjustment factors --> clean it up
+```
+
+## validate f(INUN|Q): floodplain
+```{r}
+#### compare LISFLOOD model vs. HEC-RAS
+
+## match rasters
+lisflood <- raster('D:/Research/_sherlock/2. LISFLOOD/timeseries10/flow2019.max', 
+                   crs = projection(aoi)) %>% 
+  overlay(dem.hydro, fun = function(x,y) ifelse(y < 1, NA, x))
+lisflood.df <- lisflood %>% raster.df %>% filter(value > 0)
+
+load('C:/Users/cbowers/Desktop/flood_sonoma.Rdata')
+flood.sonoma <- flood45*0.64 + flood46*0.36
+flood.df <- flood.sonoma %>%
+  projectRaster(lisflood) %>%
+  raster.df %>% filter(value > 0)
+
+## wet/dry comparison
+laguna <- blank %>% raster.df %>% 
+  mutate(value = ifelse(x > 1924400 & y < 593000, TRUE, FALSE)) %>% 
+  mutate(value = ifelse(x > 1925700 & y < 594000, TRUE, value)) %>% 
+  mutate(value = ifelse(x > 1926300 & y < 595000, TRUE, value)) %>% 
+  rasterFromXYZ
+flood.map <- flood.sonoma %>% 
+  projectRaster(lisflood) %>% 
+  overlay(lisflood, fun = function(x,y) {
+    ifelse(x > 0 & y > 0, 0, ifelse (x > 0 & y <= 0, -1, ifelse(x <= 0 & y > 0, 1, NA)))})
+
+## check number of inundated buildings
+buildings.coord <- buildings %>% 
+  st_as_sf(coords = c('X', 'Y'), crs = 4269) %>% 
+  st_transform(6417) %>% 
+  st_coordinates
+Sum(terra::extract(rast(flood.map), buildings.coord) >= 0) #simulated number
+Sum(terra::extract(rast(flood.map), buildings.coord) <= 0) #"true" number
+
+```
+
+```{r}
+ggplot() + 
+  geom_sf(data = sonoma %>% st_transform(6417) %>% st_crop(aoi),
+          color = 'grey70', fill = 'grey95') + 
+  geom_sf(data = aoi, color = 'black', fill = NA) + 
+  geom_raster(data = flood.map %>% raster.df %>% filter(!is.na(value)),
+              aes(x=x, y=y), fill = 'grey40', alpha = 0.5) +
+  geom_raster(data = flood.map %>% 
+                overlay(laguna, fun = function(x,y) ifelse(y, NA, x)) %>% 
+                raster.df %>% filter(!is.na(value)),
+              aes(x=x, y=y, fill = factor(value))) +
+  # ggtitle('Observed vs. Simulated Inundation') +
+  scale_fill_manual('Legend', values = scico(11, palette = 'lisbon')[c(3,6,10)],
+                    labels = c('False \nNegative', 'Correct', 'False \nPositive')) +
+  geom_sf(data = russian %>% st_transform(6417) %>% st_crop(aoi)) + 
+  annotation_scale(width_hint = 0.2, unit_category = 'imperial', 
+                   height = unit(0.25, 'cm'), text_cex = 0.8, location = 'tl') +
+  scale_x_continuous(expand = expansion(mult = c(0,0))) + 
+  scale_y_continuous(expand = expansion(mult = c(0,0))) + 
+  coord_sf(clip = 'off', crs = 6417) + 
+  theme(legend.background = element_rect(fill = 'white', color = 'grey80'),
+        legend.position = c(0.01, 0.01), legend.justification = c(0,0), ## bottom left
+        legend.text = element_text(margin = margin(r = 10)),
+        legend.margin = margin(0, 0, 0.2, 0.2, unit = 'cm'),
+        legend.title = element_blank(),
+        plot.margin = margin(20,10,10,10)) + 
+  theme(axis.title = element_text(color = 'white'), 
+        axis.text = element_text(color = 'white'), 
+        axis.ticks = element_line(color = NA)) +
+  guides(fill = guide_legend(nrow = 1))
+
+flood.bldg <- cbind(
+  rast(lisflood) %>% terra::extract(buildings.coord),
+  rast(flood.sonoma %>% projectRaster(lisflood)) %>% terra::extract(buildings.coord)) %>% 
+  setNames(c('sim', 'obs')) %>% 
+  mutate(resid = sim*mft-obs) %>% 
+  cbind(buildings.coord) %>% 
+  filter(!is.na(resid)) %>% 
+  filter(sim>0 | obs>0) %>% 
+  arrange(abs(resid)) %>% 
+  st_as_sf(coords = c('X', 'Y'), crs = 6417)
+ggplot(flood.bldg) + 
+  geom_point(aes(x = obs, y = sim*mft)) + 
+  # ggtitle('Observed vs. Simulated Inundation') +
+  scale_x_origin('HEC-RAS Inundation (ft)') + scale_y_origin('LISFLOOD Inundation (ft)') + 
+  geom_parity() + coord_fixed(clip = 'off')
+
+# plot_grid(g3, g4, nrow = 1, 
+#           align = 'h', axis = 'tb', greedy = FALSE, rel_widths = c(7.1, 5),
+#           labels = 'auto', label_x = 0.225, label_y = 0.8, label_fontfamily = 'Segoe UI')
+
+```
+
+```{r}
+## calculate accuracy metrics
+temp <- flood.sonoma %>% 
+  projectRaster(lisflood) %>% 
+  overlay(
+    lisflood, fun = function(x,y) {
+      ifelse(x > 0 & y > 0, 0, 
+             ifelse (x > 0 & y <= 0, -1, 
+                     ifelse(x <= 0 & y > 0, 1, NA))) 
+    }) %>% 
+  overlay(dem, fun = function(x,y) ifelse(y>1, x, NA)) 
+
+tb <- table(temp[])
+hitrate = tb[2] / sum(tb[1:2])
+falsealarm = tb[3] / sum(tb[2:3])
+fstat = tb[2] / sum(tb)
+c('hitrate' = unname(hitrate), 
+  'falsealarm' = unname(falsealarm), 
+  'fstat' = unname(fstat)) %>% percent(accuracy = 0.01)
+
+## get rid of Laguna de Santa Rosa & calculate again
+temp.laguna <- temp %>% overlay(laguna, fun = function(x,y) ifelse(y, NA, x))
+tb <- table(temp.laguna[])
+hitrate = tb[2] / sum(tb[1:2])
+falsealarm = tb[3] / sum(tb[2:3])
+fstat = tb[2] / sum(tb)
+c('hitrate' = unname(hitrate),
+  'falsealarm' = unname(falsealarm),
+  'fstat' = unname(fstat)) %>% percent(accuracy = 0.01)
+
+```
+
+## validate f(DM|INUN)
+```{r}
+# ## load damage information
+# resa <- read.csv('C:/Users/cbowers/Desktop/resa.csv')
+# resa[resa == '<Null>'] <- NA
+# 
+# ## match buildings to damage tags
+# buildings <- buildings %>% 
+#   mutate(bldg = 1:nrow(.)) %>% 
+#   left_join(resa %>% transmute(id = OBJECTID, APN, RESA_Status_GIS, Within46ftInundation), by = 'APN')
+# 
+# ## edit buildings dataframe
+# buildings <- buildings %>%
+#   st_as_sf(coords = c('X', 'Y'), crs = 4269) %>% 
+#   st_transform(6417) 
+# buildings <- buildings %>% 
+#   mutate(inun = flood.sonoma %>% projectRaster(dem) %>% rast %>%
+#            terra::extract(st_coordinates(buildings)) %>%
+#            mutate(layer = case_when(is.na(layer) ~ 0, TRUE ~ layer)) %>% unlist) %>%
+#   mutate(inun = inun/mft) %>%
+#   mutate(status = case_when(RESA_Status_GIS != 'Orange' ~ RESA_Status_GIS)) %>%
+#   mutate(status = factor(status, levels = c('Red', 'Yellow', 'Green', 'N/A')))
+
+## I don't know how much of this is still necessary with the updated buildings.R
+
+```
+
+```{r}
+## calculate damage due to the Sonoma inundation map
+wet.bldg <- which(buildings$inun > 0)
+inundation <- list(matrix(buildings$inun[wet.bldg]))
+attributes(inundation)$n.inun <- NA
+attributes(inundation)$buildings <-
+  st_coordinates(buildings) %>%
+  cbind(id = 1:nrow(.), .) %>%
+  .[wet.bldg,]
+attributes(inundation)$wet.bldg <- wet.bldg
+
+## ignore the effect of randomly adding foundations
+load('C:/Users/cbowers/Desktop/foundations.Rdata')
+nsi1.base <- nsi1.found
+names(nsi1.base)[-1] <- 
+  names(nsi1.found)[-1] %>% 
+  str_split('_') %>% 
+  lapply(function(x) x[1]) %>% unlist %>% 
+  paste(., '0', sep = '_')
+nsi1.base <- nsi1.base %>% 
+  pivot_longer(cols = -GEOID, names_to = 'type') %>% 
+  group_by(GEOID, type) %>% 
+  summarize(value = sum(value), .groups = 'drop') %>%
+  pivot_wider(id_cols = GEOID, names_from = 'type')
+
+```
+
+```{r}
+source('D:/Research/_scripts/research2020/functions/DM_sherlock.R')
+damage <- generate_damage(
+  inundation, 
+  buildings = buildings,
+  foundations = nsi1.base,
+  curve = 'beta', 
+  probabilistic = TRUE,
+  n.damage = 1e4)
+damage <- damage[[1]] %>% left_join(buildings %>% st_drop_geometry, by = 'bldg')
+
+g1 <- ggplot(buildings) + 
+  geom_density_ridges(aes(x = inun, y = status, color = status, fill = status),
+                      alpha = 0.5, size = 1, show.legend = FALSE,
+                      quantile_lines = TRUE, quantiles = 2) + 
+  # geom_text(data = buildings %>% group_by(status) %>% summarize(n = length(status)),
+  #           aes(x = 4.75, y = status, label = paste('n =', comma(n))),
+  #           family = 'Segoe UI', vjust = -1) + 
+  scale_color_manual(values = c(baker[c(5,4)], 'darkgreen'), na.value = 'grey50') + 
+  scale_fill_manual(values = c(baker[c(5,4)], 'darkgreen'), na.value = 'grey50') +
+  scale_x_origin('HEC-RAS Projected Inundation (m)') + 
+  scale_y_discrete('RESA Tag') + 
+  coord_cartesian(xlim = c(0,5)) #+ 
+  # theme(plot.margin = margin(0,0,0,0), plot.background = element_rect(fill = 'pink'))
+
+g2 <- damage %>% 
+  group_by(bldg) %>% 
+  summarize(dm = median(dm), status = status[1]) %>% 
+  left_join(buildings %>% st_drop_geometry %>% select(bldg), ., by = 'bldg') %>% 
+  mutate(dm = case_when(is.na(dm) ~ 0, TRUE ~ dm)) %>% 
+  ggplot() + 
+  geom_density_ridges(aes(x = dm, y = status, color = status, fill = status),
+                      alpha = 0.5, size = 1, show.legend = FALSE,
+                      quantile_lines = TRUE, quantiles = 2) + 
+  geom_text(data = buildings %>% group_by(status) %>% summarize(n = length(status)),
+            aes(x = 0.95, y = status, label = paste('n =', comma(n))),
+            family = 'Segoe UI', hjust = 1, vjust = 1.25) +
+  scale_color_manual(values = c(baker[c(5,4)], 'darkgreen'), na.value = 'grey50') + 
+  scale_fill_manual(values = c(baker[c(5,4)], 'darkgreen'), na.value = 'grey50') +
+  scale_x_continuous('Simulated Median Damage Ratio', limits = c(0,1), expand = c(0,0),
+                     labels = percent_format(accuracy = 1)) +
+  scale_y_discrete('RESA Tag') + 
+  theme(axis.title.y = element_blank(), 
+        axis.text.y = element_blank(),
+        plot.margin = margin(10,20,10,10))
+
+plot_grid(g1, g2, nrow = 1, labels = 'auto', axis = 'trbl', align = 'h',
+          label_fontfamily = 'Segoe UI', label_x = c(0.28, 0.15), label_y = 0.96)
+ggsave('C:/Users/cbowers/Desktop/DM_2019.png', width = 6, height = 3.5)
+
+```
+
+
+
+
+
+

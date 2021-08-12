@@ -1,0 +1,125 @@
+---
+title: "sonoma"
+output:
+  html_document:
+    toc: true 
+    toc_float: true
+    code_folding: hide
+    number_sections: true 
+    theme: spacelab   #https://www.datadreaming.org/post/r-markdown-theme-gallery/
+    highlight: tango  #https://www.garrickadenbuie.com/blog/pandoc-syntax-highlighting-examples/
+---
+
+```{r setup, include = FALSE}
+## setup
+knitr::opts_knit$set(root.dir = 'D:/1-PARRA/')
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+
+```
+
+```{r message = FALSE}
+## setup information
+source('_data/setup.R')
+
+## load location information
+load('_data/lisflood/dem.Rdata')
+load('_data/aoi/aoi.Rdata')
+
+## load historic catalog 
+load('_data/catalog/catalog.Rdata')
+
+## load required packages
+require(ggspatial)
+require(cowplot)
+
+```
+
+# Figure 1
+
+Figure 1 in the paper shows the context of the case study location. 
+It is a two-part figure: the first plot is a map of Sonoma County, with important cities/towns and rivers/creeks identified, and the second plot is a map of California with the Russian River and Sonoma County highlighted.
+This code will generate the two plots separately and then show how the resulting figure looks after a few modifications in an imaging editing software such as Inkscape.
+
+## Define important geographies 
+```{r}
+## load California county polygons
+california <- counties(state = 'CA', class= 'sf') %>% st_transform(6417)
+
+## define highlighted cities within Sonoma County
+cities <- matrix(
+  c(38.507930, -122.985860, 'Guerneville', 1, 
+    38.616588, -122.858989, 'Healdsburg', 2, 
+    38.46539312043779, -123.00905110596939, 'Monte Rio', 1, 
+    38.4404523596653, -122.71364215955094, 'Santa Rosa', 3,
+    38.708491304036954, -122.9028864411151, 'Geyserville', 1 #, 
+    # 38.80555800294669, -123.0181033641384, 'Cloverdale', 1
+    ), byrow = TRUE, ncol = 4) %>%
+  data.frame %>%
+  setNames(c('lat', 'long', 'city', 'importance')) %>%
+  mutate(lat = toNumber(lat), long = toNumber(long)) %>%
+  st_as_sf(coords = c('long', 'lat'), crs = 4269) %>% 
+  st_transform(6417)
+
+## identify nearby creeks
+temp <- st_read('_data/NHD/MajorRiversAndCreeks.shp', quiet = TRUE) %>% 
+  st_zm %>% 
+  st_transform(6417) %>% 
+  st_crop(st_union(sonoma))
+creeks <- temp %>% 
+  filter(GNIS_Name %in% c('Dry Creek', 'Mark West Creek', 'Austin Creek') | 
+           grepl('Russian', GNIS_Name)) %>% 
+  group_by(GNIS_Name) %>% 
+  summarize(Shape_Leng = sum(Shape_Leng)) %>% 
+  st_buffer(50) %>% st_cast('MULTIPOLYGON') %>% st_cast('POLYGON') %>% 
+  mutate(id = 1:nrow(.)) %>% 
+  filter(id %in% c(1,4,6,7)) %>%
+  st_intersection(temp) %>% 
+  group_by(id) %>% 
+  summarize(GNIS_Name = GNIS_Name[1])
+
+```
+
+## Plot Sonoma County
+
+```{r}
+#### plot Sonoma County ####
+
+ggplot() + 
+  geom_sf(data = st_union(sonoma), fill = 'grey90', color = NA, alpha = 0.5) + 
+  geom_sf(data = aoi, fill = 'grey70', color = 'grey40', alpha = 0.35) + 
+  geom_sf(data = st_union(sonoma), fill = NA, color = 'grey25', size = 1) + 
+  geom_sf(data = russian %>% summarize(GNIS_Name = GNIS_Name[1]) %>% 
+            st_transform(6417) %>% st_crop(st_union(sonoma)), 
+          color = baker[1], size = 1.25) + 
+  geom_sf(data = creeks %>% st_intersection(st_union(sonoma)),
+          color = baker[1]) +
+  geom_sf(data = cities, aes(size = importance), show.legend = FALSE) + 
+  scale_size_manual(values = c(2, 3, 4)) + 
+  annotation_scale(width_hint = 0.25, height = unit(0.25, 'cm'),
+                   pad_x = unit(2.5, 'cm'), pad_y = unit(2.5, 'cm'),
+                   text_family = 'Segoe UI', text_cex = 0.9) + 
+  theme_void() 
+ggsave('_figures/fig2_sonoma.png', height = 8)
+
+```
+
+## Plot California
+
+```{r}
+#### plot California ####
+
+ggplot() + 
+  geom_sf(data = california, fill = 'grey90', color = 'grey50', alpha = 0.5) + 
+  geom_sf(data = california %>% filter(NAME == 'Sonoma'),
+          fill = 'grey50', color = 'grey25', alpha = 0.5, size = 1) +
+  geom_sf(data = st_union(california), fill = NA, color = 'grey25', size = 1) + 
+  geom_sf(data = russian %>% st_transform(st_crs(california)), 
+          color = baker[1], size = 0.75) +
+  theme_void() 
+ggsave('_figures/fig2_california.png', height = 8)
+
+```
+
+## Annotate and combine figures in Inkscape
+
+Here we have added subtitles, added labels to the cities/towns and rivers/creeks in Sonoma, and sized the two plots so that they fit nicely into one figure. 

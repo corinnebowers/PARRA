@@ -1,0 +1,738 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup}
+source('../_data/setup.R')
+
+```
+
+## FIGURE 3: AR
+```{r}
+load('C:/Users/cbowers/Desktop/catalog.Rdata')
+
+g1 <- ggplot(catalog) + 
+  geom_histogram(aes(x = IVT_max), color = 'black', fill = 'grey90', 
+                 bins = sqrt(nrow(catalog)), boundary = 250) + 
+  scale_x_origin('Maximum IVT (kg/m/s)', breaks = seq(0, 1e5, 250)) + 
+  scale_y_origin() + theme(axis.title.y = element_blank())
+g2 <- ggplot(catalog) + 
+  geom_histogram(aes(x = duration), color = 'black', fill = 'grey90',
+                 bins = sqrt(nrow(catalog)), boundary = 6) + 
+  scale_x_origin('Storm Duration (hrs)', breaks = seq(0, 500, 24)) + 
+  scale_y_origin() + theme(axis.title.y = element_blank())
+
+```
+
+```{r}
+# ## create exceedance raster
+# IVT_seq <- seq(0, max(catalog$IVT_max)+50, 10)
+# dur_seq <- seq(0, max(catalog$duration)+5, 1)
+# exceed <- 
+#   foreach (i = IVT_seq, .combine = 'rbind') %:%
+#   foreach (j = dur_seq, .combine = 'c') %do% {
+#     catalog %>% filter(IVT_max >= i & duration >= j) %>% nrow
+#   } %>% 
+#   as.data.frame %>% 
+#   setNames(dur_seq) %>% 
+#   cbind(IVT = IVT_seq) %>% 
+#   pivot_longer(cols = -IVT, names_to = 'duration', values_to = 'freq') %>% 
+#   mutate(duration = toNumber(duration))
+
+## create category underlay
+IVT_breaks <- seq(250, 1250, 250) + 125
+duration_breaks <- seq(0, 168, 24) + 12
+df <- expand.grid(IVT = IVT_breaks, duration = duration_breaks)
+ARcat <- function(IVT, duration) {
+  if (duration >= 48) {
+    # case_when(IVT >= 1000 ~ 5, IVT >= 750 ~ 4, IVT >= 500 ~ 3, TRUE ~ 2)
+    return(ifelse(IVT >= 1000, 5, 
+                  ifelse(IVT >= 750, 4, 
+                         ifelse(IVT >= 500, 3, 2))))
+  } else if (duration >= 24) {
+    # case_when(IVT >= 1250 ~ 5, IVT >= 1000 ~ 4, IVT >= 750 ~ 3, IVT >= 500 ~ 2, TRUE ~ 1)
+    return(ifelse(IVT >= 1250, 5, 
+                  ifelse(IVT >= 1000, 4, 
+                         ifelse(IVT >= 750, 3, 
+                                ifelse(IVT >= 500, 2, 1)))))
+  } else {
+    # case_when(IVT >= 1250 ~ 4, IVT >= 1000 ~ 3, IVT >= 750 ~ 2, IVT >= 500 ~ 1, TRUE ~ 0)
+    return(ifelse(IVT >= 1250, 4, 
+                  ifelse(IVT >= 1000, 3, 
+                         ifelse(IVT >= 750, 2, 
+                                ifelse(IVT >= 500, 1, 0)))))
+  }
+}
+for (i in 1:nrow(df)) {df$cat[i] <- ARcat(df$IVT[i], df$duration[i])}
+df <- df %>% mutate(cat = ifelse(cat == 0, 1, cat))
+
+# ggplot() + 
+#   geom_raster(data = exceed, aes(x = IVT, y = duration, fill = freq/40)) +
+#   ggtitle('AR Exceedance Rate') +
+#   labs(x = 'Max Storm IVT (kg/m/s)', y = 'Storm Duration (hrs)', 
+#        fill = 'ARs/year') +
+#   coord_fixed(ratio = 7) +
+#   scale_fill_scico(palette = 'lajolla') + 
+#   ggnewscale::new_scale('fill') + 
+#   geom_raster(data = exceed, show.legend = FALSE,
+#               aes(x = IVT, y = duration, fill = cbind(freq, 40) %>% apply(1, min))) +
+#   scale_fill_gradient(low = 'white', high = NA) + 
+#   ggnewscale::new_scale('fill') + 
+#   geom_hline(yintercept = duration_breaks[1:2] + 12, color = 'gray50', linetype = 'dashed') + 
+#   geom_vline(xintercept = IVT_breaks[1:4] + 125, color = 'gray50', linetype = 'dashed') + 
+#   geom_label(data = df %>% subset(duration <= 60), aes(x = IVT, y = duration, 
+#                             label = paste0('Cat ', cat), fill = factor(cat)),
+#              show.legend = FALSE) +
+#   scale_fill_brewer(palette = 'Spectral', direction = -1) + 
+#   geom_point(data = catalog, aes(x = IVT_max, y = duration)) + 
+#   scale_x_continuous(limits = c(250, NA), expand = c(0,0), 
+#                      breaks = seq(250, 1500, 250), minor_breaks = seq(250, 1500, 250)) + 
+#   scale_y_origin(breaks = seq(0, 240, 24), minor_breaks = seq(0, 240, 24))
+  
+## try plotting in a slightly different way
+g <- ggplot(df) + 
+  geom_raster(aes(x = IVT, y = duration, fill = factor(cat)), alpha = 0.75) + 
+  geom_point(data = catalog, aes(x = IVT_max, y = duration), color = 'grey10') + 
+  geom_point(data = catalog[411,], aes(x = IVT_max, y = duration), 
+             size = 2, shape = 23, stroke = 1, color = 'red', fill = 'white') + 
+  # scale_fill_brewer('AR Intensity \nCategory', palette = 'Spectral', direction = -1) + 
+  scale_fill_scico_d('Intensity \nCategory', palette = 'roma', direction = -1) + 
+  scale_x_continuous('Maximum IVT (kg/m/s)', limits = c(250, NA), expand = c(0,0), 
+                     breaks = seq(250, 1500, 250), minor_breaks = seq(250, 1500, 250)) + 
+  scale_y_origin('Storm Duration (hrs)', breaks = seq(0, 240, 24), minor_breaks = seq(0, 240, 24)) + 
+  theme(legend.position = 'bottom', legend.key = element_rect(color = 'white', size = 2), 
+        plot.margin = margin(10,10,10,10)) + 
+  guides(fill = guide_legend(nrow = 1))
+
+```
+
+```{r}
+grid.arrange(g1, g2, nrow = 2, 
+  left = textGrob('Number of ARs in Catalog', rot = 90, 
+                  gp = gpar(fontfamily = 'Segoe UI'))) %>% 
+  ggarrange(g, ncol = 2)
+ggsave('C:/Users/cbowers/Desktop/AR.png', width = 6, height = 4)
+
+```
+
+```{r}
+g.void <- ggplot() + theme_void()
+
+g.ivt <- ggplot(catalog) + 
+  geom_histogram(aes(x = IVT_max), color = 'black', fill = 'grey90', 
+                 bins = sqrt(nrow(catalog)), boundary = 250) + 
+  scale_x_continuous('Maximum IVT (kg/m/s)', breaks = seq(0, 1e5, 250),
+                     expand = c(0,0), limits = c(250,1500)) + 
+  scale_y_origin() + 
+  coord_cartesian(xlim = c(250, NA), clip = 'off') + 
+  theme(axis.title.y = element_blank(), axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank(), axis.line.y = element_line(color = NA))
+
+g.dur <- ggplot(catalog) + 
+  geom_histogram(aes(x = duration), color = 'black', fill = 'grey90',
+                 bins = sqrt(nrow(catalog)), boundary = 0) + 
+  scale_x_continuous('Storm Duration (hrs)', expand = c(0,0), 
+                     breaks = seq(0, 240, 24), minor_breaks = seq(0, 240, 24)) + 
+  scale_y_origin() + 
+  coord_flip(xlim = c(0,192), clip = 'off') +
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank(), 
+        axis.ticks.x = element_blank(), axis.line.x = element_line(color = NA))
+
+
+g <- ggplot(df) + 
+  geom_raster(aes(x = IVT, y = duration, fill = factor(cat)), alpha = 0.75) + 
+  geom_point(data = catalog, aes(x = IVT_max, y = duration), color = 'grey10') + 
+  # geom_point(data = catalog[411,], aes(x = IVT_max, y = duration), 
+  #            size = 2, shape = 23, stroke = 1, color = 'red', fill = 'white') + 
+  geom_point(data = catalog[411,], aes(x = IVT_max, y = duration), color = 'darkred') + 
+  geom_vline(xintercept = catalog[411, 'IVT_max'], linetype = 'dashed') + 
+  geom_hline(yintercept = catalog[411, 'duration'], linetype = 'dashed') + 
+  scale_fill_scico_d('Intensity \nCategory', palette = 'roma', direction = -1) + 
+  scale_x_continuous('Maximum IVT (kg/m/s)', limits = c(250, NA), expand = c(0,0), 
+                     breaks = seq(250, 1500, 250), minor_breaks = seq(250, 1500, 250)) + 
+  scale_y_continuous('Storm Duration (hrs)', expand = c(0,0), 
+                     breaks = seq(0, 240, 24), minor_breaks = seq(0, 240, 24)) + 
+  coord_cartesian(ylim = c(0,192)) + 
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
+        axis.title.y = element_blank(), axis.text.y = element_blank(),
+        axis.ticks.length = unit(5, 'pt'),
+        plot.margin = margin(5.5, 20, 5.5, 5.5))
+
+require(cowplot)
+title <- ggdraw() + 
+  draw_label('Sonoma County ARs, 1979-2018', 
+             fontfamily = 'Segoe UI Semibold',
+             x = 0, hjust = 0) +
+  theme(plot.margin = margin(0, 0, 0, 80))
+plot_grid(g, g.ivt, nrow = 2, align = 'v', axis = 'lr', rel_heights = c(4,1)) %>% 
+  plot_grid(
+    plot_grid(g.dur, g.void, nrow = 2, rel_heights = c(4,1)), ., 
+    align = 'v', rel_widths = c(1,4)) %>% 
+  plot_grid(title, ., nrow = 2, rel_heights = c(1,12))
+ggsave('C:/Users/cbowers/Desktop/AR2.png', height = 4, width = 5)
+
+
+```
+
+```{r}
+## label ARs in catalog with intensity category
+catalog <- catalog %>% 
+  mutate(cat = map2_dbl(.x = catalog$IVT_max, .y = catalog$duration, .f = ~ARcat(.x, .y)))
+
+catalog %>% 
+  left_join(combined %>% transmute(AR, tp = tp3), by = 'AR') %>% 
+  mutate(counter = 1) %>% 
+  mutate(cat = ifelse(cat == 0, 1, cat)) %>% 
+  group_by(cat) %>% 
+  summarize(n = sum(counter),
+            precip = mean(precip) %>% comma(accuracy = 0.01), 
+            runoff = mean(runoff) %>% comma(accuracy = 0.01),
+            sm = mean(sm) %>% comma(accuracy = 0.01),
+            Qp = mean(Qp) %>% comma(accuracy = 1),
+            tp = Mean(tp) %>% comma(accuracy = 0.01))
+
+mean(catalog$IVT_max)
+sd(catalog$IVT_max)
+mean(catalog$duration)
+sd(catalog$duration)
+
+```
+
+```{r}
+## plot distribution fits: precip
+load('C:/Users/cbowers/Desktop/catalog.Rdata')
+source('D:/Research/_scripts/research2020/functions/PRCP_sherlock.R')
+
+precip <- generate_precip(
+  AR = catalog %>% transmute(n.AR = 1:nrow(.), IVT_max, duration),
+  catalog = catalog, 
+  probabilistic = TRUE,
+  n.precip = 1000)
+precip.plot <- precip %>% 
+  group_by(n.AR) %>% 
+  summarize(precip.median = median(precip_mm), precip.sd = sd(precip_mm)) %>% 
+  left_join(catalog %>% 
+              transmute(n.AR = 1:nrow(.), IVT_max, duration, 
+                        precip.obs = precip), by = 'n.AR')
+
+precip.max <- max(c(max(precip.plot$precip.obs), max(precip.plot$precip.median)))
+ggplot(precip.plot) + 
+  geom_point(aes(x = sort(precip.obs), y = sort(precip.median))) + 
+  scale_x_origin('Recorded Precipitation (in)', 
+                 labels = comma_format(scale = 1/25.4, accuracy = 1),
+                 breaks = seq(0, 20, 4)*25.4) + 
+  scale_y_origin('Median Simulated Precipitation (in)', 
+                 labels = comma_format(scale = 1/25.4, accuracy = 1),
+                 breaks = seq(0, 20, 4)*25.4) + 
+  coord_fixed(xlim = c(0, precip.max), ylim = c(0, precip.max)) + 
+  geom_parity() + theme_bw() + 
+  theme(legend.position = 'bottom', 
+        plot.subtitle = element_text(face = 'bold'), 
+        text = element_text(family = 'Segoe UI'))
+ggsave('C:/Users/cbowers/Desktop/q_prcp.png', height = 4)
+
+```
+
+```{r}
+precip.plot %>% 
+  mutate(precip.obs = sort(precip.obs)/25.4, 
+         precip.sim = sort(precip.median)/25.4) %>% 
+  mutate(p = (1:nrow(.))/(nrow(.)+1)) %>% 
+  filter(p > 0.5)
+
+```
+
+
+```{r}
+d.crit <- 1.731 * sqrt(2/nrow(catalog))
+
+ks.value <- c()
+ks.upper <- c()
+pb <- txtProgressBar(min = 0, max = 100, style = 3)
+for (i in 1:100) {
+  precip <- generate_precip(
+    AR = catalog %>% transmute(n.AR = 1:nrow(.), IVT_max, duration),
+    catalog = catalog, 
+    probabilistic = TRUE,
+    n.precip = 100
+    ) %>%
+    group_by(n.AR) %>% 
+    summarize(precip_mm = median(precip_mm))
+  
+  prcp <- catalog %>% 
+    mutate(n.AR = 1:nrow(.)) %>% 
+    left_join(precip, by = 'n.AR') %>% 
+    transmute(n.AR, precip.obs = sort(precip)/25.5, 
+              precip.sim = sort(precip_mm)/25.4) %>% 
+    mutate(p = n.AR/(nrow(.)+1)) 
+  
+  ks <- data.frame(
+    precip = seq(0, min(c(max(prcp$precip.obs), max(prcp$precip.sim))), 
+                 length.out = 1000)) %>% 
+    mutate(p.obs = pracma::interp1(x = prcp$precip.obs, y = prcp$p, xi = precip)) %>% 
+    mutate(p.sim = pracma::interp1(x = prcp$precip.sim, y = prcp$p, xi = precip)) %>% 
+    mutate(diff = abs(p.obs-p.sim)) %>% 
+    mutate(ks = diff/d.crit) %>% 
+    arrange(desc(ks)) %>% 
+    mutate(pass = case_when(ks > 1 ~ FALSE, TRUE ~ TRUE))
+  ks.value[i] <- max(ks$ks)
+  ks.upper[i] <- ks %>% filter(p.obs > 0.5 | p.sim > 0.5) %>% pull(ks) %>% max
+  
+  # ggplot() +
+  #   geom_ribbon(data = prcp,
+  #               aes(ymin = p-d.crit, ymax = p+d.crit,
+  #                   x = precip.obs), fill = 'grey90') +
+  #   geom_line(data = prcp, aes(x = precip.obs, y = p), size = 1, color = 'grey60') +
+  #   geom_line(data = ks %>% arrange(p.sim), size = 1,
+  #             aes(x = precip, y = p.sim, color = pass, group = 1)) +
+  #   scale_color_manual(values = c(baker[2], 'grey25')) +
+  #   scale_x_origin() + scale_y_origin()
+  
+  setTxtProgressBar(pb, i)
+}
+
+ggplot(data = data.frame(x = ks.value)) + 
+  geom_histogram(aes(x = x), color = 'black', fill = 'grey90', bins = 20) + 
+  geom_vline(xintercept = 1, linetype = 'dashed', size = 1) + 
+  scale_y_origin()
+ggplot(data = data.frame(x = ks.upper)) + 
+  geom_histogram(aes(x = x), color = 'black', fill = 'grey90', bins = 20) + 
+  geom_vline(xintercept = 1, linetype = 'dashed', size = 1) + 
+  scale_y_origin()
+
+mean(ks.upper)
+
+```
+
+```{r}
+precip <- generate_precip(
+  AR = catalog[411,] %>% 
+    transmute(n.AR = 1:nrow(.), IVT_max, duration),
+  catalog = catalog, 
+  probabilistic = TRUE,
+  n.precip = 1000)
+
+ggplot(precip) + 
+  geom_histogram(aes(x = precip_mm, y = ..count../nrow(precip)), color = 'black', fill = 'grey90', 
+                 bins = 30, boundary = 0) + 
+  geom_vline(xintercept = catalog[411, 'precip'], linetype = 'dashed', size = 1) + 
+  annotate(geom = 'text', 
+           x = catalog[411, 'precip'] - 10, y = 0.09, 
+           label = '2019', family = 'Segoe UI', size = 14/.pt,
+           angle = 90) + 
+  ggtitle('Observed vs. Simulated Precipitation',
+          subtitle = '2019 Case Study Event') +
+  scale_x_origin('Storm-Total Precipitation (in)', 
+                 labels = comma_format(scale = 1/25.4, accuracy = 1),
+                 breaks = seq(0, 20, 4)*25.4) + 
+  scale_y_origin('Frequency of Occurrence') + 
+  theme(plot.title = element_text(family = 'Segoe UI Semibold'))
+ggsave('C:/Users/cbowers/Desktop/PRCP_2019.png', height = 4, width = 3.5*4/2.5)
+
+## what percentile is the recorded precip in this simulated distribution?
+q.prcp <- c()
+pb <- txtProgressBar(min = 0, max = 100, style = 3)
+for (i in 1:100) {
+  precip <- generate_precip(
+    AR = catalog[411,] %>% 
+      transmute(n.AR = 1:nrow(.), IVT_max, duration),
+    catalog = catalog, 
+    probabilistic = TRUE,
+    n.precip = 1000)
+  q.prcp[i] <- sum(precip$precip_mm < catalog[411, 'precip'])/nrow(precip)
+  setTxtProgressBar(pb, i)
+}
+mean(q.prcp)
+
+```
+
+```{r}
+## plot distribution fits: Qp
+hydrograph <- generate_hydrograph(
+  precip = catalog %>% 
+    transmute(n.AR = 1:nrow(.), n.precip = 1, 
+              IVT_max, duration, precip_mm = precip),
+  runoff = catalog %>% 
+    transmute(n.AR = 1:nrow(.), n.precip = 1, n.runoff = 1, 
+              IVT_max, duration,
+              precip_mm = precip, runoff_mm = runoff),
+  catalog = catalog,
+  probabilistic = TRUE,
+  n.hydro = 1000
+)
+hydrograph.plot <- hydrograph %>% 
+  group_by(n.AR) %>% 
+  summarize(Qp.median = median(Qp_m3s), Qp.sd = sd(Qp_m3s),
+            tp.median = median(tp_hrs), tp.sd = sd(tp_hrs)) %>% 
+  left_join(catalog %>% transmute(n.AR = 1:nrow(.), Qp.obs = Qp/mft^3), by = 'n.AR') #%>% 
+  # left_join(hydrograph.det %>% transmute(n.AR, Qp.det = Qp_m3s), by = 'n.AR')
+
+hydro.max <- max(c(max(hydrograph.plot$Qp.obs), max(hydrograph.plot$Qp.median)))*mft^3
+ggplot(hydrograph.plot) + 
+  geom_point(aes(x = sort(Qp.obs)*mft^3, y = sort(Qp.median)*mft^3)) + 
+  scale_x_origin('Recorded Peak Streamflow (cfs)', labels = comma) + 
+  scale_y_origin('Median Simulated Peak Streamflow (cfs)', labels = comma) + 
+  geom_parity() + theme_bw() + 
+  coord_fixed(xlim = c(0, hydro.max), ylim = c(0, hydro.max)) + 
+  theme(legend.position = 'bottom', text = element_text(family = 'Segoe UI'))
+ggsave('C:/Users/cbowers/Desktop/q_hydro.png', height = 4)
+
+```
+
+```{r}
+## calculate K-S statistic for the Q-Q plot above
+d.crit <- 1.731 * sqrt(2/nrow(hydrograph.plot))
+
+hydrograph.plot %>% 
+  mutate(p = (1:nrow(.))/(nrow(.)+1)) %>% 
+  ggplot() + 
+  geom_ribbon(aes(ymin = p-d.crit, ymax = p+d.crit, 
+                  x = sort(Qp.obs)*mft^3), fill = 'grey90') + 
+  geom_step(aes(y = p, x = sort(Qp.median)*mft^3, color = 'Simulated'), size = 1) + 
+  geom_step(aes(y = p, x = sort(Qp.obs)*mft^3, color = 'Observed'), size = 1) + 
+  scale_color_manual('', values = baker) + 
+  scale_x_origin('Peak Flow (cfs)', labels = comma) + 
+  scale_y_continuous('1 - Exceedance Probability', expand = c(0,0)) +
+  coord_cartesian(ylim = c(0,1)) +
+  theme(legend.position = c(0.8, 0.35))
+
+```
+
+```{r}
+d.crit <- 1.731 * sqrt(2/nrow(catalog))
+
+ks.value <- c()
+ks.upper <- c()
+pb <- txtProgressBar(min = 0, max = 100, style = 3)
+for (i in 1:100) {
+  hydrograph <- generate_hydrograph(
+    precip = catalog %>% 
+      transmute(n.AR = 1:nrow(.), n.precip = 1, 
+                IVT_max, duration, precip_mm = precip),
+    runoff = catalog %>% 
+      transmute(n.AR = 1:nrow(.), n.precip = 1, n.runoff = 1, 
+                IVT_max, duration,
+                precip_mm = precip, runoff_mm = runoff),
+    catalog = catalog,
+    probabilistic = TRUE,
+    n.hydro = 1000
+    ) %>% 
+    group_by(n.AR) %>% 
+    summarize(Qp_m3s = median(Qp_m3s))
+  
+  hydro <- catalog %>% 
+    mutate(n.AR = 1:nrow(.)) %>% 
+    left_join(hydrograph, by = 'n.AR') %>% 
+    transmute(n.AR, Qp.obs = sort(Qp), 
+              Qp.sim = sort(Qp_m3s) * mft^3) %>% 
+    mutate(p = n.AR/(nrow(.)+1)) 
+  
+  ks <- data.frame(
+    Q = seq(min(hydro$Qp.obs), min(c(max(hydro$Qp.obs), max(hydro$Qp.sim))), 
+            length.out = 1000)) %>% 
+    mutate(p.obs = pracma::interp1(x = hydro$Qp.obs, y = hydro$p, xi = Q)) %>% 
+    mutate(p.sim = pracma::interp1(x = hydro$Qp.sim, y = hydro$p, xi = Q)) %>% 
+    mutate(diff = abs(p.obs-p.sim)) %>% 
+    mutate(ks = diff/d.crit) %>% 
+    arrange(desc(ks)) %>% 
+    mutate(pass = case_when(ks > 1 ~ FALSE, TRUE ~ TRUE))
+  ks.value[i] <- max(ks$ks)
+  ks.upper[i] <- ks %>% filter(p.obs > 0.5 | p.sim > 0.5) %>% pull(ks) %>% max
+  
+  # ggplot() +
+  #   geom_ribbon(data = hydro,
+  #               aes(ymin = p-d.crit, ymax = p+d.crit,
+  #                   x = Qp.obs), fill = 'grey90') +
+  #   geom_line(data = hydro, aes(x = Qp.obs, y = p), size = 1, color = 'grey60') +
+  #   geom_line(data = ks %>% arrange(p.sim), size = 1,
+  #             aes(x = Q, y = p.sim, color = pass, group = 1)) +
+  #   scale_color_manual(values = c(baker[2], 'grey25')) +
+  #   scale_x_origin() + scale_y_origin()
+  
+  setTxtProgressBar(pb, i)
+}
+
+ggplot(data = data.frame(x = ks.value)) + 
+  geom_histogram(aes(x = x), color = 'black', fill = 'grey90', bins = 20) + 
+  geom_vline(xintercept = 1, linetype = 'dashed', size = 1) + 
+  scale_y_origin()
+ggplot(data = data.frame(x = ks.upper)) + 
+  geom_histogram(aes(x = x), color = 'black', fill = 'grey90', bins = 20) + 
+  geom_vline(xintercept = 1, linetype = 'dashed', size = 1) + 
+  scale_y_origin()
+
+mean(ks.upper)
+
+```
+
+```{r}
+## plot distribution fits: tp
+load('C:/Users/cbowers/Desktop/catalog.Rdata')
+catalog <- catalog %>%
+  left_join(combined %>% transmute(AR, tp = tp3), by = 'AR')
+
+# tp <- map_dfc(.x = 1:100, .f = function(x) {
+#   generate_hydrograph(
+#     precip = catalog %>%
+#       filter(!is.na(tp)) %>%
+#       transmute(n.AR = 1:nrow(.), n.precip = 1,
+#                 IVT_max, duration, precip_mm = precip),
+#     runoff = catalog %>%
+#       filter(!is.na(tp)) %>%
+#       transmute(n.AR = AR, n.precip = 1, n.runoff = 1,
+#                 IVT_max, duration,
+#                 precip_mm = precip, runoff_mm = runoff),
+#     catalog = catalog,
+#     probabilistic = TRUE,
+#     n.hydro = 1
+#     ) %>% 
+#     arrange(tp_hrs) %>% 
+#     select(tp_hrs)
+#   })
+# tp.plot <- tp %>%
+#   apply(1, median) %>% 
+#   data.frame(tp.median = .) %>% 
+#   cbind(tp.obs = sort(catalog$tp))
+
+fit <- fitdist(catalog$tp[!is.na(catalog$tp)], 'lnorm')$estimate
+tp <- catalog %>% 
+  filter(!is.na(tp)) %>% 
+  arrange(tp) %>% 
+  select(tp.obs = tp) %>% 
+  mutate(p = (1:nrow(.))/(nrow(.)+1)) %>% 
+  mutate(tp.lnorm = qlnorm(p, fit[1], fit[2]))
+
+tp.max <- max(c(max(tp$tp.obs), max(tp$tp.lnorm)))
+ggplot(tp) +
+  geom_point(aes(x = sort(tp.obs), y = sort(tp.lnorm))) +
+  scale_x_origin('Observed Time to Peak Flow (hrs)') +
+  scale_y_origin('Theoretical Lognormal Quantile') +
+  geom_parity() + theme_bw() + 
+  coord_fixed(xlim = c(0, tp.max), ylim = c(0, tp.max)) + 
+  theme(legend.position = 'bottom', text = element_text(family = 'Segoe UI'))
+ggsave('C:/Users/cbowers/Desktop/q_tp.png', height = 4)
+
+
+```
+
+```{r}
+## soil moisture
+fit <- fitdist(catalog$sm, 'lnorm')$estimate
+
+sm <- catalog %>% 
+  arrange(sm) %>% 
+  select(sm.obs = sm) %>% 
+  mutate(p = (1:nrow(.))/(nrow(.)+1)) %>% 
+  mutate(sm.lnorm = qlnorm(p, fit[1], fit[2]))
+
+# sm <- map_dfc(.x = 1:100, .f = ~sort(rlnorm(nrow(catalog), fit[1], fit[2]))) %>% 
+#   apply(1, median) %>% 
+#   data.frame(sm.median = .) %>% 
+#   cbind(sm.obs = sort(catalog$sm)) 
+
+sm.max <- max(c(max(sm$sm.obs), max(sm$sm.lnorm)))
+ggplot(sm) + 
+  geom_point(aes(x = sm.obs, y = sm.lnorm)) + 
+  scale_x_origin('Observed Soil Moisture (mm)') + 
+  scale_y_origin('Theoretical Lognormal Quantile') + geom_parity() + 
+  coord_fixed(xlim = c(0, sm.max), ylim = c(0, sm.max)) + 
+  theme_bw()
+ggsave('C:/Users/cbowers/Desktop/q_sm.png', height = 4)
+
+```
+
+```{r}
+## combine all of these together into one plot
+g1 <- ggplot(precip.plot) + 
+  geom_point(aes(x = sort(precip.obs), y = sort(precip.median))) + 
+  scale_x_origin('Observed Value', 
+                 labels = comma_format(scale = 1/25.4, accuracy = 1),
+                 breaks = seq(0, 20, 4)*25.4) + 
+  scale_y_origin('Model Fit', 
+                 labels = comma_format(scale = 1/25.4, accuracy = 1),
+                 breaks = seq(0, 20, 4)*25.4) + 
+  ggtitle(waiver(), subtitle = 'Precipitation (in)') + 
+  coord_fixed(xlim = c(0, precip.max), ylim = c(0, precip.max)) + 
+  geom_parity() + theme_bw() + 
+  theme(text = element_text(family = 'Segoe UI'), 
+        plot.subtitle = element_text(family = 'Segoe UI Semibold'))
+
+g2 <- ggplot(sm) + 
+  geom_point(aes(x = sm.obs, y = sm.lnorm)) + 
+  scale_x_origin('Observed Value') + 
+  scale_y_origin('Model Fit') + 
+  ggtitle(waiver(), subtitle = 'Soil Moisture (mm)') + 
+  coord_fixed(xlim = c(0, sm.max), ylim = c(0, sm.max)) + 
+  geom_parity() + theme_bw() + 
+  theme(text = element_text(family = 'Segoe UI'), 
+        plot.subtitle = element_text(family = 'Segoe UI Semibold'))
+
+g3 <- ggplot(hydrograph.plot) + 
+  geom_point(aes(x = sort(Qp.obs)*mft^3, y = sort(Qp.median)*mft^3)) + 
+  scale_x_origin('Observed Value', labels = comma_format(scale = 1e-3)) + 
+  scale_y_origin('Model Fit', labels = comma_format(scale = 1e-3)) + 
+  ggtitle(waiver(), subtitle = 'Peak Streamflow (kcfs)') + 
+  coord_fixed(xlim = c(0, hydro.max), ylim = c(0, hydro.max)) + 
+  geom_parity() + theme_bw() + 
+  theme(text = element_text(family = 'Segoe UI'), 
+        plot.subtitle = element_text(family = 'Segoe UI Semibold'))
+
+g4 <- ggplot(tp) +
+  geom_point(aes(x = sort(tp.obs), y = sort(tp.lnorm))) +
+  scale_x_origin('Observed Value') +
+  scale_y_origin('Model Fit') +
+  ggtitle(waiver(), subtitle = 'Time to Peak Streamflow (hrs)') + 
+  coord_fixed(xlim = c(0, tp.max), ylim = c(0, tp.max)) + 
+  geom_parity() + theme_bw() + 
+  theme(text = element_text(family = 'Segoe UI'), 
+        plot.subtitle = element_text(family = 'Segoe UI Semibold'))
+
+plot_grid(g1, g2, g3, g4, align = 'hv', axis = 'trbl', nrow = 2, 
+          labels = 'auto', label_fontfamily = 'Segoe UI', 
+          label_x = 0.25, label_y = 0.88)
+ggsave('C:/Users/cbowers/Desktop/quantileplot.png', height = 5.5, width = 6)
+
+```
+
+## FIGURE 5: INUN 
+```{r}
+ggplot(samples) + geom_point(aes(x = SGCn, y = fstat))
+ggplot(samples) + geom_point(aes(x = m, y = fstat))
+ggplot(samples) + geom_point(aes(x = edge, y = fstat))
+
+## decisions: keep everything as is (SGCn = 0.035, m = 4, edgewidth = mean(edge.in))
+
+```
+
+
+```{r}
+## load best-fit simulation
+crs_dem <- st_crs(6417)
+ext <- extent(1895000, 1935000, 579500, 616500)
+aoi <- ext %>% as('SpatialPolygons') %>% st_as_sf %>% st_set_crs(6417)
+blank <- raster(ext, resolution = c(40,40), crs = projection(aoi))
+dem <- raster('C:/Users/cbowers/Desktop/LISFLOOD/new_rasters/russian.dem.asc', 
+              crs = projection(aoi))
+
+sim <- raster('C:/Users/cbowers/Desktop/LISFLOOD/sonoma_sherlock/21-05-27 rp100/results/rpflow78.max', 
+              crs = projection(aoi)) %>% 
+  overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), 0, x))
+
+## calculate accuracy metrics
+temp <- obs.full %>% overlay(sim, fun = function(x,y) {
+  ifelse(x > 0 & y > 0, 0, ifelse (x > 0 & y <= 0, -1, ifelse(x <= 0 & y > 0, 1, NA)))})
+tb <- table(temp[])
+hitrate = tb[2] / sum(tb[1:2])
+falsealarm = tb[3] / sum(tb[2:3])
+fstat = tb[2] / sum(tb)
+bias = tb[3] / tb[1]
+c('hitrate' = unname(hitrate),
+  'falsealarm' = unname(falsealarm),
+  'fstat' = unname(fstat)) %>% percent(accuracy = 0.01)
+
+## plot 
+require(ggspatial)
+ggplot() + 
+  geom_sf(data = sonoma %>% st_transform(crs_dem) %>% st_crop(aoi),
+          fill = 'grey95', color = 'grey70') + 
+  geom_sf(data = aoi, fill = NA, color = 'black') + 
+  geom_raster(data = temp %>% raster.df %>% filter(!is.na(value)),
+              aes(x=x, y=y, fill = factor(value))) +
+  scale_fill_manual('Legend', values = scico(11, palette = 'lisbon')[c(3,6,10)],
+                    labels = c('False \nNegative', 'Correct', 'False \nPositive')) +
+  annotation_scale(width_hint = 0.2, unit_category = 'imperial', 
+                   height = unit(0.25, 'cm'), text_cex = 0.8, location = 'tl') +
+  scale_x_continuous(expand = expansion(mult = c(-0.01,0))) + 
+  scale_y_continuous(expand = expansion(mult = c(0,-0.01))) + 
+  coord_sf(clip = 'off') + 
+  theme_void() + 
+  theme(legend.background = element_rect(fill = 'white', color = 'grey80'),
+        # legend.position = c(0.01, 0.99), legend.justification = c(0,1), ## top left
+        legend.position = c(0.01, 0.01), legend.justification = c(0,0), ## bottom left
+        # legend.key = element_rect(color = 'white', size = 4),
+        # legend.key.width = unit(0.4, 'cm'),
+        # legend.key.height = unit(0.2, 'cm'),
+        # legend.spacing.x = unit(0.5, 'cm'),
+        legend.text = element_text(margin = margin(r = 10)),
+        legend.margin = margin(0, 0, 0.2, 0.2, unit = 'cm'),
+        legend.title = element_blank(),
+        plot.margin = margin(20,10,10,10)) + 
+  guides(fill = guide_legend(nrow = 1))
+ggsave('C:/Users/cbowers/Desktop/INUN_validation.png', height = 4)
+
+```
+
+* run 1,000 simulations of the 100-year flow and compare against NFHL
+* pick the best-fit m, SGCn, edgewidth
+* use those values with the real data from 2019
+* plot gage height timeseries here
+
+```{r}
+## get real discharge & gage height data
+gauges <- whatNWISsites(stateCd = '06', countyCd = '097') 
+gauges <- gauges %>% 
+  filter(grepl('RUSSIAN', station_nm)) %>% 
+  filter(str_length(site_no) == 8)
+flow <- readNWISdata(
+  sites = gauges$site_no, parameterCd = param, 
+  startDate = catalog$start_day[year.id], 
+  endDate = ymd(catalog$end_day[year.id]) + days(1), 
+  service = 'iv', tz = 'America/Los_Angeles') %>% 
+  renameNWISColumns %>% 
+  filter(!is.na(Flow_Inst) | !is.na(GH_Inst))
+gauges <- gauges %>% filter(site_no %in% unique(flow$site_no))
+
+## plot gages of interest
+gauges %>% 
+  st_as_sf(coords = c('dec_long_va', 'dec_lat_va'), crs = st_crs(sonoma)) %>% 
+  ggplot() + 
+  geom_sf(data = sonoma, color = 'grey70', fill = 'grey95') + 
+  geom_sf(data = st_union(sonoma), color = 'grey50', fill = NA) + 
+  geom_sf(data = aoi, fill = NA, color = 'black') + 
+  geom_sf(data = russian %>% st_crop(sonoma), color = 'grey30', size = 1) + 
+  geom_sf(aes(color = site_no), size = 3) + 
+  scale_color_manual(values = c('black', baker)) + 
+  theme_void()
+
+## generate .gauge and .stage files
+width <- raster('C:/Users/cbowers/Desktop/LISFLOOD/new_rasters/russian.width.asc')
+crs(width) <- crs(dem)
+gauges.write <- gauges %>% 
+  filter(site_no != 11463500) %>% 
+  arrange(site_no) %>% 
+  st_as_sf(coords = c('dec_long_va', 'dec_lat_va'), crs = 4269) %>% 
+  st_transform(6417) %>% 
+  st_buffer(40) %>% 
+  exact_extract(width, ., progress = FALSE, include_xy = TRUE) %>%
+  lapply(function(x) x[complete.cases(x),]) %>% 
+  lapply(function(x) x[which.max(x$coverage_fraction),]) %>% 
+  do.call(rbind, .) %>% 
+  # mutate(direction = c('E', 'S', 'W', 'S', 'W')) %>% 
+  mutate(direction = c('E', 'W', 'W', 'W', 'W')) %>% 
+  select(x, y, direction, value) %>% 
+  as.matrix %>% 
+  rbind(c(nrow(.), NA, NA, NA), .)
+
+write.table(gauges.write,
+  file = 'C:/Users/cbowers/Desktop/russian.gauge', na = '', 
+  sep = '\t', row.names = FALSE, col.names = FALSE, quote = FALSE)
+write.table(gauges.write[,1:2],
+  file = 'C:/Users/cbowers/Desktop/russian.stage', na = '', 
+  sep = '\t', row.names = FALSE, col.names = FALSE, quote = FALSE)
+
+# temp1 <- gauges %>% 
+#   st_as_sf(coords = c('dec_long_va', 'dec_lat_va'), crs = 4269)
+# temp2 <- gauges.write[-1,1:2] %>% 
+#   apply(2, as.numeric) %>% 
+#   data.frame %>%  
+#   st_as_sf(coords = c('x', 'y'), crs = 6417)
+# mapview(temp1) + mapview(temp2, col.regions = 'red')
+
+```
+
+
+
+
+
+
