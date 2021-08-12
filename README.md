@@ -16,9 +16,10 @@ This is Figure 1 from the paper ilustrating the theoretical outline of the PARRA
 
 For an even more detailed description, please visit the code implementation flowchart <a href = "https://www.corinnebowers.com/parra">here</a>. The flowchart explains the purpose and sequence of all files included in this repository, and attempts to provide a roadmap for users who want to replicate and build upon the component models in the PARRA framework. All questions can be directed to \[my email\]. 
 
-notes to self: 
+<!-- notes to self: 
 
 * INUN.R is nowhere on the flowchart
 * on the flowchart: add explanatory text about the rollovers \& discourage mobile use
 * figure out in Github how to open these links in separate tabs
 * include a new .Rmd file that does component-level sensitivity analysis (i.e. PRCP contributes the most to the variability in the loss histogram)
+-->
