@@ -1,0 +1,373 @@
+---
+title: "surrogate"
+output:
+  html_document:
+    toc: true 
+    toc_float: true
+    #toc_depth: 3  
+    code_folding: hide
+    number_sections: true 
+    theme: spacelab   #https://www.datadreaming.org/post/r-markdown-theme-gallery/
+    highlight: tango  #https://www.garrickadenbuie.com/blog/pandoc-syntax-highlighting-examples/
+---
+
+The goal of this script is to fit a computationally efficient surrogate model to predict the LISFLOOD inundation map based only on the inputs $Q_p$ (peak flow, m^3/s) and $t_p$ (time to peak flow, hrs). 
+
+```{r setup, include = FALSE}
+## setup
+knitr::opts_knit$set(root.dir = 'D:/1-PARRA/')
+
+```
+
+```{r message = FALSE}
+## setup information
+source('_data/setup.R')
+
+num_cores <- 5
+
+load('_data/lisflood/dem.Rdata')
+
+```
+
+
+# Create model space of LISFLOOD simulations
+
+First we generate 5,000 Latin hypercube samples of $Q_p$ and $t_p$ and generate .bci  and .bdy files for LISFLOOD analysis using the script $generate_files.sh$ in Sherlock. 
+This populates the model search space so that the surrogate model can always find a combination of parameters ``close'' to the one of interest.  
+We then run the script $run_lisflood.sh$ to generate .par files and inundation maps for each parameter combination. 
+
+```{r good, echo = FALSE}
+#### define samples within surrogate model space ####
+
+## remove simulations that errored out in Sherlock
+files <- list.files('_sensitivity/surrogate/sherlock_grid/results')
+sims <- files %>% gsub('gridded', '', .) %>% gsub('.max', '', .) %>% toNumber
+bad1 <- (1:5000)[!(1:5000 %in% sims)]
+
+## remove simulations that do not reach the ocean
+pt <- data.frame(lat = 38.45064279, lon = -123.12917330) %>% 
+  st_as_sf(coords = c('lon', 'lat'), crs = 4326) %>% 
+  st_transform(6417) %>% 
+  st_coordinates
+filenames <- list.files('_sensitivity/surrogate/sherlock_grid/results', full.names = TRUE)
+start <- Sys.time()
+pb <- txtProgressBar(min = 0, max = length(files), style = 3)
+cl <- parallel::makeCluster(round(detectCores()*2/3))
+registerDoSNOW(cl)
+badfile <-
+  foreach (
+    file = filenames, .combine = 'c',
+    .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+    .packages = c('raster', 'terra', 'sf', 'dplyr'), .inorder = FALSE) %dopar% {
+      if (rast(file) %>% terra::extract(pt) == 0) which(file == filenames)
+    }
+stopCluster(cl)
+Sys.time() - start
+bad2 <- files[badfile] %>% 
+  str_remove('gridded') %>% str_remove('.max') %>% toNumber %>% sort
+# write.table(bad2, file = 'C:/Users/cbowers/Desktop/id2.txt',
+#             row.names = FALSE, col.names = FALSE)
+
+## keep successful simulations
+good <- c((1:5000)[-c(bad1, bad2)], 5001)
+
+```
+
+We check the 5,000 simulations and disqualify those that either (a) do not produce an inundation map or (b) produce inundation maps where the flow does not fill the river channel all the way to the Pacific Ocean. 
+This leaves us with `r length(good)` valid simulations to use for the surrogate model search space. 
+
+```{r samples}
+## load samples
+samples <-
+  read.table('_sensitivity/surrogate/sherlock_grid/samples_grid.txt', header = TRUE) %>%
+  mutate(sim = 1:nrow(.)) %>% 
+  rbind(c(tp = 1e-6, Qp = 1e-6, sim = 5001))  #add a lower bound point
+
+## plot failed simulations
+g <- ggplot(samples %>% arrange(!(sim %in% good))) + 
+  geom_point(aes(x = Qp, y = tp, color = !sim %in% good)) + 
+  scale_color_manual('Failed \nSimulations', values = c('grey80', 'red')) + 
+  scale_x_origin('Peak Flow, Qp (m3/s)', labels = comma) + 
+  scale_y_origin('Time to Peak Flow, tp (hrs)', labels = comma)
+
+## compare against real values
+g + geom_point(data = catalog, aes(x = Qp_m3s, y = tp_hrs))
+
+## add a CV column
+cv <- sample(1:10, size = length(good), replace = TRUE)
+samples <- samples %>% mutate(cv = replace(NA, sim %in% good, cv))
+# ggplot(samples) + 
+#   geom_point(aes(x = Qp, y = tp, color = factor(cv))) + 
+#   scale_color_scico_d(palette = 'hawaii') + 
+#   scale_x_origin() + scale_y_origin()
+
+## save out for Sherlock
+save(samples, file = 'C:/Users/cbowers/Desktop/samples.Rdata')
+
+```
+
+# Set up the surrogate model
+
+The next step is to define the surrogate model. 
+<!-- We have chosen to use the inverse distance weighted (IDW) spatial interpolation method.  -->
+We used the inverse distance weighting (IDW) spatial interpolation method described in the equations below to generate inundation maps within the Monte Carlo process and reduce the computational demand of the PARRA framework. 
+The IDW method has three hyperparameters to tune, which are as follows:
+
+* $n$ defines the size of the search neighborhood;
+* $p$ is the power function coefficient, which defines the decay rate of the distance weighting; and
+* $\alpha$ defines the anisotropy (asymmetry of information content) between $Q_p$ and $t_p$.
+
+$$ \mathrm{M}^* = \frac{\sum\limits_{i=1}^n \lambda_i \mathrm{M}_i}{\sum\limits_{i=1}^n\lambda_i} $$ 
+
+$$ \lambda_i = \frac{1}{\lVert \mathrm{\textbf{x}}^*, \mathrm{\textbf{x}}_i \rVert ^p} $$
+
+$$ \mathrm{\textbf{x}} = \left\{ \alpha\!*\!z_{Q_p}, \; (1-\alpha)\!*\!z_{t_p} \right\} $$
+
+$\mathrm{M}^*$ represents the unknown (target) inundation map we are trying to predict. 
+We calculate this map as the weighted sum of the $n$ closest maps. 
+A map $\mathrm{M}_i$ is defined as ``close'' if its hydrograph parameters $\left\{Q_p, t_p \right\}_i$  are similar to the target hydrograph parameters $\left\{Q_p, t_p \right\}^*$.  
+$Q_p^*$ and $t_p^*$ are known values used as inputs to the IDW interpolator function. 
+However, they are not Euclidean coordinates, so $\mathrm{\textbf{x}}^*$ is the coordinate vector that represents $\left\{Q_p, t_p \right\}^*$ in modified parameter space.
+
+<!-- %after applying a normal score transformation and an anisotropy correction factor $\alpha$.  -->
+We calculate the L2 (Euclidean) distance between $\mathrm{\textbf{x}}^*$, the coordinate vector of the target map, and $\mathrm{\textbf{x}}_i$, the coordinate vector of the $i^{th}$ closest map. 
+The inverse of this distance multiplied by the power function $p$ is the calculated weight $\lambda_i$ for map $\mathrm{M}_i$, as shown in Equation \ref{eq:IDW2}. 
+
+
+# Find best-fit IDW hyperparameters
+
+We find the best-fit hyperparameters by performing 10-fold cross-validation on Sherlock using the script $surrogatemodel_array.R$. 
+The results are loaded and analyzed below.
+
+<!-- Finally we discuss the error vs. the computational advantage of using IDW as a surrogate model.  -->
+
+<!-- * define accuracy metrics -->
+<!-- * run in Sherlock -->
+<!-- * input results -->
+
+<!-- * rather than the rigorous process we went through for the LISFLOOD parameters, this is more of a qualitative assessment -->
+
+
+```{r}
+# files <- paste0('C:/Users/cbowers/Desktop/LISFLOOD/sonoma_sherlock/21-06-14 fit.npalpha/error', 1:10, '.csv')
+# files <- files[-c(6,9)]
+error <- foreach(file = files) %do% {
+  read_csv(file) %>% select(sim, n, p, alpha, RSS)} %>% 
+  do.call(rbind, .)
+
+error.npalpha <- error %>% 
+  group_by(n, p, alpha) %>% 
+  summarize(RSS.median = median(RSS), SRSS = sqrt(sum(RSS^2)), .groups = 'drop')
+
+error.npalpha %>% arrange(SRSS)
+
+kmeans(error.npalpha %>% select(n, p, alpha), )
+
+g <- error %>%
+  filter(RSS.median <= 10 & SRSS <= 2500) %>% 
+  ggplot() + 
+  geom_point(aes(x = RSS.median, y = SRSS, color = n)) + 
+  scale_x_origin() + scale_y_origin()
+plotly::ggplotly(g)
+
+g <- error %>% 
+  group_by(n, p, alpha) %>% 
+  summarize(RSS.median = median(RSS), SRSS = sqrt(sum(RSS^2)), .groups = 'drop') %>%
+  filter(RSS.median <= 10 & SRSS <= 2500) %>% 
+  ggplot() + 
+  geom_point(aes(x = RSS.median, y = SRSS, color = p)) + 
+  scale_x_origin() + scale_y_origin()
+plotly::ggplotly(g)
+
+g <- error %>% 
+  group_by(n, p, alpha) %>% 
+  summarize(RSS.median = median(RSS), SRSS = sqrt(sum(RSS^2)), .groups = 'drop') %>%
+  filter(RSS.median <= 10 & SRSS <= 2500) %>% 
+  ggplot() + 
+  geom_point(aes(x = RSS.median, y = SRSS, color = alpha)) + 
+  scale_x_origin() + scale_y_origin()
+plotly::ggplotly(g)
+
+## n = 10, p = 3, alpha = 0.75
+
+```
+
+```{r}
+error %>% filter(n == 10 & p == 3 & alpha == 0.75) %>% mutate(id = 'a') %>% 
+  rbind(error %>% filter(n == 5 & p == 2 & alpha == 0.85) %>% mutate(id = 'b')) %>% 
+  ggplot() + 
+  geom_density(aes(x = RSS, group = id, color = id), size = 1) + 
+  scale_x_log10(limits = c(1e-1, NA)) + scale_y_origin()
+
+```
+
+
+```{r}
+## plot individual distributions
+error.alpha <- error %>% 
+  filter(alpha > 0 & alpha < 1) %>% 
+  group_by(alpha) %>%
+  summarize(RSS.10 = quantile(RSS, 0.1), RSS.median = median(RSS), RSS.90 = quantile(RSS, 0.9))
+ggplot(error.alpha) + 
+  geom_segment(aes(x = alpha, xend = alpha, y = RSS.10, yend = RSS.90)) + 
+  geom_point(aes(x = alpha, y = RSS.median)) + 
+  scale_x_origin() + scale_y_origin() + 
+  coord_cartesian(xlim = c(0,1))
+
+error.n <- error %>% 
+  filter(alpha > 0 & alpha < 1) %>% 
+  group_by(n) %>%
+  summarize(RSS.10 = quantile(RSS, 0.1), RSS.median = median(RSS), RSS.90 = quantile(RSS, 0.9))
+ggplot(error.n) + 
+  geom_segment(aes(x = n, xend = n, y = RSS.10, yend = RSS.90)) + 
+  geom_point(aes(x = n, y = RSS.median)) + 
+  scale_x_origin() + scale_y_origin()
+
+error.p <- error %>% 
+  filter(alpha > 0 & alpha < 1) %>% 
+  group_by(p) %>%
+  summarize(RSS.10 = quantile(RSS, 0.1), RSS.median = median(RSS), RSS.90 = quantile(RSS, 0.9))
+ggplot(error.p) + 
+  geom_segment(aes(x = p, xend = p, y = RSS.10, yend = RSS.90)) + 
+  geom_point(aes(x = p, y = RSS.median)) + 
+  scale_x_origin() + scale_y_origin()
+
+## plot joint distributions
+g1 <- error %>% 
+  filter(alpha > 0 & alpha < 1) %>% 
+  group_by(n, p) %>% 
+  summarize(RSS.median = median(RSS)) %>% 
+  ggplot() + 
+  geom_tile(aes(x = factor(n), y = factor(p), fill = RSS.median)) + 
+  scale_fill_scico(palette = 'lajolla', limits = c(0,80))
+g2 <- error %>% 
+  filter(alpha > 0 & alpha < 1) %>% 
+  group_by(alpha, n) %>% 
+  summarize(RSS.median = median(RSS)) %>% 
+  ggplot() + 
+  geom_tile(aes(x = factor(n), y = alpha, fill = RSS.median)) + 
+  scale_fill_scico(palette = 'lajolla', limits = c(0,80))
+g3 <- error %>% 
+  filter(alpha > 0 & alpha < 1) %>% 
+  group_by(alpha, p) %>% 
+  summarize(RSS.median = median(RSS)) %>% 
+  ggplot() + 
+  geom_tile(aes(x = alpha, y = factor(p), fill = RSS.median)) + 
+  scale_fill_scico(palette = 'lajolla', limits = c(0,80))
+ggarrange(g1, g3, g2, common.legend = TRUE)
+
+## iteratively remove parameter values with higher RSS
+g1 <- error %>% 
+  filter(alpha > 0 & alpha < 1) %>% 
+  filter(n > 1 & alpha > 0.05) %>% 
+  group_by(n, p) %>% 
+  summarize(RSS.median = median(RSS)) %>% 
+  ggplot() + 
+  geom_tile(aes(x = factor(n), y = factor(p), fill = RSS.median)) + 
+  scale_fill_scico(palette = 'lajolla', limits = c(0,50))
+g2 <- error %>% 
+  filter(alpha > 0 & alpha < 1) %>% 
+  filter(n > 1 & alpha > 0.05) %>% 
+  group_by(alpha, n) %>% 
+  summarize(RSS.median = median(RSS)) %>% 
+  ggplot() + 
+  geom_tile(aes(x = factor(n), y = alpha, fill = RSS.median)) + 
+  scale_fill_scico(palette = 'lajolla', limits = c(0,50))
+g3 <- error %>% 
+  filter(alpha > 0 & alpha < 1) %>% 
+  filter(n > 1 & alpha > 0.05) %>% 
+  group_by(alpha, p) %>% 
+  summarize(RSS.median = median(RSS)) %>% 
+  ggplot() + 
+  geom_tile(aes(x = alpha, y = factor(p), fill = RSS.median)) + 
+  scale_fill_scico(palette = 'lajolla', limits = c(0,50))
+ggarrange(g1, g3, g2, common.legend = TRUE)
+
+## repeat iterative removal
+g1 <- error %>% 
+  filter(alpha > 0 & alpha < 1) %>% 
+  filter(n > 1 & n < 25 & alpha > 0.25) %>% 
+  group_by(n, p) %>% 
+  summarize(RSS.median = median(RSS)) %>% 
+  ggplot() + 
+  geom_tile(aes(x = factor(n), y = factor(p), fill = RSS.median)) + 
+  scale_fill_scico(palette = 'lajolla', limits = c(0,25))
+g2 <- error %>% 
+  filter(alpha > 0 & alpha < 1) %>% 
+  filter(n > 1 & n < 25 & alpha > 0.25) %>% 
+  group_by(alpha, n) %>% 
+  summarize(RSS.median = median(RSS)) %>% 
+  ggplot() + 
+  geom_tile(aes(x = factor(n), y = alpha, fill = RSS.median)) + 
+  scale_fill_scico(palette = 'lajolla', limits = c(0,25))
+g3 <- error %>% 
+  filter(alpha > 0 & alpha < 1) %>% 
+  filter(n > 1 & n < 25 & alpha > 0.25) %>% 
+  group_by(alpha, p) %>% 
+  summarize(RSS.median = median(RSS)) %>% 
+  ggplot() + 
+  geom_tile(aes(x = alpha, y = factor(p), fill = RSS.median)) + 
+  scale_fill_scico(palette = 'lajolla', limits = c(0,25))
+ggarrange(g1, g3, g2, common.legend = TRUE)
+
+## repeat iterative removal
+g1 <- error %>% 
+  filter(alpha > 0 & alpha < 1) %>% 
+  filter(n > 1 & n < 25 & alpha > 0.4) %>% 
+  group_by(n, p) %>% 
+  summarize(RSS.median = median(RSS)) %>% 
+  ggplot() + 
+  geom_tile(aes(x = factor(n), y = factor(p), fill = RSS.median)) + 
+  scale_fill_scico(palette = 'lajolla', limits = c(7,16))
+g2 <- error %>% 
+  filter(alpha > 0 & alpha < 1) %>% 
+  filter(n > 1 & n < 25 & alpha > 0.4) %>% 
+  group_by(alpha, n) %>% 
+  summarize(RSS.median = median(RSS)) %>% 
+  ggplot() + 
+  geom_tile(aes(x = factor(n), y = alpha, fill = RSS.median)) + 
+  scale_fill_scico(palette = 'lajolla', limits = c(7,16))
+g3 <- error %>% 
+  filter(alpha > 0 & alpha < 1) %>% 
+  filter(n > 1 & n < 25 & alpha > 0.4) %>% 
+  group_by(alpha, p) %>% 
+  summarize(RSS.median = median(RSS)) %>% 
+  ggplot() + 
+  geom_tile(aes(x = alpha, y = factor(p), fill = RSS.median)) + 
+  scale_fill_scico(palette = 'lajolla', limits = c(7,16))
+ggarrange(g1, g3, g2, common.legend = TRUE)
+
+## repeat iterative removal
+error %>% 
+  filter(alpha > 0 & alpha < 1) %>% 
+  filter(n > 1 & alpha > 0.25) %>% 
+  filter(p == 2) %>% 
+  group_by(alpha, n) %>% 
+  summarize(RSS.median = median(RSS)) %>% 
+  ggplot() + 
+  geom_tile(aes(x = factor(n), y = alpha, fill = RSS.median)) + 
+  scale_fill_scico(palette = 'lajolla')
+
+## lock in best-fit n & p --> find best-fit alpha
+error %>% 
+  filter(alpha > 0 & alpha < 1) %>% 
+  filter(n == 5 & p == 2) %>% 
+  group_by(alpha) %>%
+  summarize(RSS.10 = quantile(RSS, 0.1), RSS.median = median(RSS), RSS.90 = quantile(RSS, 0.9)) %>%
+  ggplot() + 
+  geom_segment(aes(x = alpha, xend = alpha, y = RSS.10, yend = RSS.90)) + 
+  geom_point(aes(x = alpha, y = RSS.median)) + 
+  geom_point(aes(x = alpha[which.min(RSS.median)], y = min(RSS.median)), size = 2, color = 'red') + 
+  scale_x_origin() + scale_y_origin() + 
+  coord_cartesian(xlim = c(0,1))
+    
+
+```
+
+what have we learned through this process ?
+
+* RSS is most sensitive to alpha
+* need to balance median estimates vs. "worst-case" 
+
+
+

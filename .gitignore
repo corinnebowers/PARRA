@@ -6,5 +6,6 @@ _sensitivity/rp100/sherlock/bci_bdy
 _sensitivity/rp100/sherlock/logfiles
 _sensitivity/rp100/sherlock/manning
 _sensitivity/rp100/sherlock/parfiles
-_sensitivity/*/results
+_sensitivity/rp100/sherlock/results
+_sensitivity/surrogate/sherlock_grid/results
 
