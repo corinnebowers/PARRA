@@ -2,12 +2,13 @@
 title: "rp100"
 output:
   html_document:
-    toc: true # table of content true
-    toc_depth: 3  # upto three depths of headings (specified by #, ## and ###)
+    toc: true 
+    toc_float: true
+    #toc_depth: 3  
     code_folding: hide
-    number_sections: true  ## if you want number sections at each table header
-    theme: united  # many options for theme, this one is my favorite.
-    highlight: tango  # specifies the syntax highlighting style
+    number_sections: true 
+    theme: spacelab   #https://www.datadreaming.org/post/r-markdown-theme-gallery/
+    highlight: tango  #https://www.garrickadenbuie.com/blog/pandoc-syntax-highlighting-examples/
 ---
 
 The purpose of this script is (a) to find out which parameters produce the best-fit LISFLOOD model of the 100-year floodplain in Sonoma County, and (b) to determine which parameters the results are sensitive to. 
@@ -15,6 +16,7 @@ The purpose of this script is (a) to find out which parameters produce the best-
 ```{r setup, include = FALSE}
 ## setup
 knitr::opts_knit$set(root.dir = 'D:/1-PARRA/')
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
 
 ```
 
@@ -22,15 +24,20 @@ knitr::opts_knit$set(root.dir = 'D:/1-PARRA/')
 ## setup information
 source('_data/setup.R')
 
+## set parallel backend
 num_cores <- 5
 
+## load location information
 load('_data/lisflood/dem.Rdata')
+load('_data/aoi/aoi.Rdata')
 
+## load required packages
 require(ggpubr)
 require(grid)
 require(gridExtra)
 require(gt)
 
+## set random seed for reproducibility
 set.seed(7395)
 
 ```
@@ -49,6 +56,7 @@ An explanation of the various files and the simulation process can be found in t
 
 The next goal is to determine some measure of accuracy, i.e. how well the LISFLOOD simulations are able to recreate the "true" case. 
 In this case the data used as a source of truth is the Federal Emergency Management Program (FEMA) 100-year floodplain as downloaded from the National Flood Hazard Layer (NFHL). 
+This is a fairly standard practice for validating flood models, such as the one used by First Street Foundation (Wing et al., 2020).
 We estimated the peak inflow at USGS gage 11463500 to be $Q_p = 112,000 \; cfs = 3,171 \; m^3/s$ using the USGS StreamStats tool. 
 This value is fixed, and several other parameters are varied to find the best-fit LISFLOOD model. 
 We consider twenty different parameters that can be changed in the LISFLOOD model to modify the resulting inundation map.
@@ -918,46 +926,40 @@ vars.df %>%
 
 Last but not least, we determine the mismatch between our best-fit LISFLOOD inundation map and the FEMA NFHL 100-year floodplain map. 
 We return to Sherlock to run one more simulation with the default + updated parameter values. 
+The accuracy metrics and the spatial comparison for this "best-fit" simulation are shown below.
 
-* go back and run LISFLOOD one final time with all best-fit parameters
-* calculate \& report accuracy 
-* (compare it to the best-case accuracy out of the 1000 sensitivity runs)
+```{r bestfit}
+bestfit <- raster('_sensitivity/rp100/sherlock/bestfit/bestfit.max') %>%
+  overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
 
-```{r}
-# bestfit <- raster('_sensitivity/rp100/sherlock/bestfit/bestfit.max') %>% 
-#   overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
-# 
-# # ## best fstat value
-# # bestfit <- raster('_sensitivity/rp100/sherlock/results/rpflow41.max') %>% 
-# #   overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
-# 
-# # ## best hausdorff value
-# # bestfit <- raster('_sensitivity/rp100/sherlock/results/rpflow47.max') %>% 
-# #   overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
-# 
-# ## calculate confusion matrix statistics
-# tb <- overlay(obs, bestfit, fun = confusion)[] %>% table
-# 
-# ## calculate Hausdorff distance
-# hd <- hausdorff_dist(binary(bestfit), as.matrix(obs))
-# 
-# ## save metrics as dataframe
-# c(hitrate = unname(tb['0'] / (tb['-1'] + tb['0'])),
-#   falsalarm = unname(tb['1'] / (tb['0'] + tb['1'])),
-#   fstat = unname(tb['0'] / sum(tb)),
-#   bias = unname(tb['1'] / tb['-1']),
-#   hausdorff = hd)
-# 
-# plot(overlay(obs, bestfit, fun = confusion))
-# 
-# g <- read.table('_sensitivity/rp100/sherlock/rpflow47.bdy', skip = 3) %>% 
-#   filter(V1 != V1[1]) %>% 
-#   mutate(V2 = (V2-V2[1])/60)
-#   ggplot() + geom_line(aes(x = V2/3600, y = V1))
-# plotly:: ggplotly(g)
-# 
-# read.table('_sensitivity/rp100/sherlock/bestfit/bestfit.bdy', skip = 3) %>% 
-#   ggplot() + geom_line(aes(x = V2/3600, y = V1))
+## calculate confusion matrix statistics
+tb <- overlay(obs, bestfit, fun = confusion)[] %>% table
+
+## report statistics
+stats <- 
+  c(hitrate = unname(tb['0'] / (tb['-1'] + tb['0'])) %>%
+      percent(accuracy = 0.1),
+    falsalarm = unname(tb['1'] / (tb['0'] + tb['1'])) %>%
+      percent(accuracy = 0.1),
+    fstat = unname(tb['0'] / sum(tb)) %>% 
+      percent(accuracy = 0.1),
+    bias = unname(tb['1'] / tb['-1']) %>% 
+      comma(accuracy = 0.01))
+print(stats)
 
 ```
 
+```{r plot.bestfit, echo = FALSE}
+## plot spatial accuracy
+ggplot(data = raster.df(overlay(obs, bestfit, fun = confusion)) %>% filter(!is.na(value))) + 
+  geom_sf(data = st_union(sonoma) %>% st_crop(aoi), fill = 'grey95', color = 'grey50') + 
+  geom_raster(aes(x=x, y=y, fill = factor(value))) + 
+  scale_fill_scico_d('LISFLOOD vs. \nNFHL Performance', 
+                     palette = 'berlin', direction = -1, 
+                     labels = c('False Negative', 'True Positive', 'False Positive')) + 
+  theme_void()
+
+```
+
+These accuracy statistics are very similar to the ones found by Wing et al. (2020) when comparing against the NFHL for the entire US. 
+Therefore this is considered to be an acceptable fit, and we will use the LISFLOOD environment parameters calculated here for all further LISFLOOD modeling. 

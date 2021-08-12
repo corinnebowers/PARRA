@@ -54,10 +54,10 @@ samples <- map_dfc(.x = 1:15,
               max = unlist(manning_sherlock[.x, 'n.max']))) %>% 
   setNames(unlist(manning_sherlock[,'code'])) %>% 
   mutate(SGCn = qunif(samples.lhs$x16, min = 0.015, max = 0.075),
-         tp = qunif(samples.lhs$x17, min = 0, max = 80),
-         m = qunif(samples.lhs$x18, min = 0, max = 10),
-         SGCr = qunif(samples.lhs$x19, min = 0.01, max = 0.15),
-         edge = qunif(samples.lhs$x20, min = 10, max = 25))
+         tp = qunif(samples.lhs$x17, min = 1, max = 80),
+         SGCp = qunif(samples.lhs$x18, min = 0.69, max = 0.82),
+         SGCr = qunif(samples.lhs$x19, min = 0.05, max = 0.5),
+         m = qunif(samples.lhs$x20, min = 0, max = 10))
 
 ## save to file
 write.table(samples, file = 'samples_rp100.txt',
@@ -77,7 +77,7 @@ for (i in 1:n) {
   ## define LHS parameters
   tp <- unlist(samples[i,'tp']) * 3600  #seconds
   m <- unlist(samples[i,'m'])
-  edgewidth <- unlist(samples[i,'edge'])  #m
+  edgewidth <- 40  #m
 
   ## calculate storm hydrograph
   t <- seq(0, simlength, 60)
@@ -110,9 +110,6 @@ for (i in 1:n) {
 ## load study area shapefile
 load('aoi.Rdata')
 blank <- raster(ext, resolution = c(40,40), crs = sp::CRS('+init=epsg:6417'))
-
-## load conversion chart for LULC <-> Manning's roughness
-manning_sherlock <- read.table('manning_sherlock.txt', header = TRUE)
 
 ## get LULC codes
 load('lulc.Rdata')

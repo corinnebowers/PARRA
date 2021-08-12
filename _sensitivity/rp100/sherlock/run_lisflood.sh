@@ -12,6 +12,7 @@ line=$(tail -n+$plusone samples_rp100.txt | head -n1)
 # read parameters for the ith iteration
 SGCn=$(echo $line | cut -f16 -d ' ')
 SGCr=$(echo $line | cut -f19 -d ' ')
+SGCp=$(echo $line | cut -f18 -d ' ')
 
 # create lisflood parfile
 bash makepar.sh \
@@ -22,7 +23,8 @@ bash makepar.sh \
 "russian.dem.asc" 	`#DEM raster file` \
 "russian.width.asc"	`#channel width raster file` \
 "${SGCn}" 		`#channel roughness coefficient` \
-"${SGCr}"	 	`#channel depth parameter` \
+"${SGCr}"	 	`#channel depth parameter, r` \
+"${SGCp}"		`#channel depth parameter, p` \
 "bci_bdy/rpflow$i.bci" 	`#.bci file` \
 "bci_bdy/rpflow$i.bdy" 	`#.bdy file` \
 "" 			`#starting .wd file` \

@@ -12,6 +12,7 @@ Corinne Bowers
 ```{r setup, include = FALSE}
 ## setup
 knitr::opts_knit$set(root.dir = 'D:/1-PARRA/_data/')
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
 
 ```
 
@@ -22,6 +23,9 @@ source('setup.R')
 ## user-defined constants
 ar.threshold <- 0.5
 num_cores <- 5
+
+## load required packages
+require(gt)
 
 ```
 
@@ -274,9 +278,9 @@ catalog <-
            summarize(Qp_m3s = max(Flow_Inst)/mft^3, 
                      Qp.date = date(dateTime[which.max(Flow_Inst)]),
                      sum_flow = sum(Flow_Inst)*60*15) %>% 
-           mutate(site_no = '11463500') %>% 
+           mutate(site_no = toNumber('11463500')) %>% 
            left_join(readNWISsite(11463500) %>% 
-                       select(site_no, drain_area_va), by = 'site_no') %>% 
+                       transmute(site_no = toNumber(site_no), drain_area_va), by = 'site_no') %>% 
            mutate(runoff_ft = sum_flow / (drain_area_va*5280^2),
                   runoff_mm = runoff_ft*25.4*12)) %>% 
   do.call(rbind, .) %>% 
@@ -383,18 +387,36 @@ save(catalog, file = 'catalog/catalog.Rdata')
 
 ```
 
-```{r statistics, include = FALSE}
-## perform statistics
-catalog %>% 
-  group_by(cat) %>% 
-  mutate(n = length(cat)) %>% 
-  summarize(across(c('n', 'precip_mm', 'runoff_mm', 'Qp_m3s', 'sm', 'tp_hrs'), .fns = Mean))
+```{r statistics, echo = FALSE}
+#### generate catalog characteristics (statistics?) table ####
 
 catalog %>% 
   mutate(cat = case_when(cat==0 ~ 1, TRUE ~ cat)) %>%
   group_by(cat) %>% 
   mutate(n = length(cat)) %>% 
-  summarize(across(c('n', 'precip_mm', 'runoff_mm', 'Qp_m3s', 'sm', 'tp_hrs'), .fns = Mean))
+  summarize(across(
+    c('n', 'IVT_max', 'duration', 'precip_mm', 'Qp_m3s', 'tp_hrs'), 
+    .fns = Mean)) %>% 
+  gt %>% 
+  tab_header(title = 'Table 1: AR Catalog Characteristics', 
+             subtitle = 'Mean Values by AR Category') %>% 
+  fmt_number(columns = -c(cat, n), decimals = 1) %>% 
+  cols_label(
+    cat = 'AR Category',
+    n = 'Number of Storms', 
+    IVT_max = 'Max IVT (kg/m/s)',
+    duration = 'Duration (hrs)',
+    precip_mm = 'Total Precipitation (mm)',
+    Qp_m3s = 'Peak Streamflow (m3/s)',
+    tp_hrs = 'Time to Peak (hrs)') %>% 
+  tab_footnote(
+    footnote = 'Storm-total precipitation is areally averaged over the watershed to get a single number for each AR event.',
+    locations = cells_column_labels(precip_mm)) %>% 
+  tab_footnote(
+    footnote = 'Peak streamflow & time to peak streamflow are measured at USGS gage 11463500.',
+    locations = cells_column_labels(c(Qp_m3s, tp_hrs))) %>% 
+  tab_options(row_group.background.color = '#f2f2f2', 
+              heading.background.color = '#d9d9d9', 
+              column_labels.background.color = '#e5e5e5')
 
 ```
-
