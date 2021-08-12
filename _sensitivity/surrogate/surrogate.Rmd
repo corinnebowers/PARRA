@@ -139,13 +139,13 @@ The inverse of this distance multiplied by the power function $p$ is the calcula
 We find the best-fit hyperparameters by performing 10-fold cross-validation on Sherlock using the script $surrogatemodel_array.R$. 
 The results are loaded and analyzed below.
 
-<!-- Finally we discuss the error vs. the computational advantage of using IDW as a surrogate model.  -->
+Rather than the rigorous parameter fit process we conducted for the LISFLOOD environmental parameters in $rp100.Rmd$, this is more of a qualitative assessment. 
+
 
 <!-- * define accuracy metrics -->
 <!-- * run in Sherlock -->
 <!-- * input results -->
 
-<!-- * rather than the rigorous process we went through for the LISFLOOD parameters, this is more of a qualitative assessment -->
 
 
 ```{r}
@@ -369,5 +369,9 @@ what have we learned through this process ?
 * RSS is most sensitive to alpha
 * need to balance median estimates vs. "worst-case" 
 
+
+# Report surrogate model accuracy 
+
+<!-- Finally we discuss the error vs. the computational advantage of using IDW as a surrogate model.  -->
 
 

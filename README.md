@@ -14,7 +14,11 @@ This is Figure 1 from the paper ilustrating the theoretical outline of the PARRA
 * componentmodels.Rmd: Steps through a model-by-model validation and case study comparison of a severe AR event occurring in 2019 in Sonoma County.
 * lossexceedance.Rmd: Generates a first-of-its-kind loss exceedance curve for Sonoma County and calculates the expected benefit of a hypothetical community flood mitigation action.
 
-For an even more detailed description, please visit the code implementation flowchart <a href = "https://www.corinnebowers.com/parra">here</a>. The flowchart explains the purpose and sequence of all files included in this repository, and attempts to provide a roadmap for users who want to replicate and build upon the component models in the PARRA framework. All questions can be directed to \[my email\]. 
+The purpose of these files is to...
+
+If you would like to replicate any of the code on your own...
+
+For an even more detailed description, please visit the code implementation flowchart <a href = "https://www.corinnebowers.com/parra">here</a>. The flowchart explains the purpose and sequence of all files included in this repository, and attempts to provide a roadmap for users who want to replicate and build upon the component models in the PARRA framework. All questions can be sent through my <a href="https://www.corinnebowers.com/contact">personal website</a>. 
 
 <!-- notes to self: 
 

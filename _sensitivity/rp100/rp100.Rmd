@@ -45,8 +45,7 @@ set.seed(7395)
 # Generate LISFLOOD simulations
 
 The first goal is to define the parameters of interest and calculate inundation maps for those sets of parameters. 
-We generate 1,000 Latin hypercube samples of 20 uniform variables and transform them to match the distributions of the parameters under consideration. 
-We run the script $generate\_files.sh$ create .bci, .bdy, .n.asc, and .par files based on these samples. 
+We run the script $generate\_files.sh$ to generate 1,000 Latin hypercube samples of 20 uniform variables, transform them to match the distributions of the parameters under consideration, and create .bci, .bdy, .n.asc, and .par files based on these samples. 
 The samples and associated files are then run through LISFLOOD to produce 1,000 inundation maps using the script $run\_lisflood.sh$. 
 All of these files can be found in the rp100/sherlock folder. 
 An explanation of the various files and the simulation process can be found in the LISFLOOD documentation.
@@ -918,9 +917,6 @@ vars.df %>%
 
 ```
 
-```{r}
-```
-
 
 # Determine final accuracy
 
@@ -938,11 +934,11 @@ tb <- overlay(obs, bestfit, fun = confusion)[] %>% table
 ## report statistics
 stats <- 
   c(hitrate = unname(tb['0'] / (tb['-1'] + tb['0'])) %>%
-      percent(accuracy = 0.1),
+      percent(accuracy = 0.01),
     falsalarm = unname(tb['1'] / (tb['0'] + tb['1'])) %>%
-      percent(accuracy = 0.1),
+      percent(accuracy = 0.01),
     fstat = unname(tb['0'] / sum(tb)) %>% 
-      percent(accuracy = 0.1),
+      percent(accuracy = 0.01),
     bias = unname(tb['1'] / tb['-1']) %>% 
       comma(accuracy = 0.01))
 print(stats)
