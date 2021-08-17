@@ -1,0 +1,2515 @@
+[1] "loading necessary packages and files..."
+[1] "generating Latin hypercube samples..."
+New names:
+* NA -> ...1
+* NA -> ...2
+* NA -> ...3
+* NA -> ...4
+* NA -> ...5
+* ...
+[1] "generating .bci & .bdy files..."
+[1] "generating .n.asc files..."
+  |                                                                              |                                                                      |   0%  |                                                                              |=                                                                     |   1%  |                                                                              |=                                                                     |   2%  |                                                                              |==                                                                    |   2%  |                                                                              |==                                                                    |   3%  |                                                                              |===                                                                   |   4%  |                                                                              |===                                                                   |   5%  |                                                                              |====                                                                  |   5%  |                                                                              |====                                                                  |   6%  |                                                                              |=====                                                                 |   7%  |                                                                              |=====                                                                 |   8%  |                                                                              |======                                                                |   8%  |                                                                              |======                                                                |   9%  |                                                                              |=======                                                               |  10%  |                                                                              |========                                                              |  11%  |                                                                              |========                                                              |  12%  |                                                                              |=========                                                             |  12%  |                                                                              |=========                                                             |  13%  |                                                                              |==========                                                            |  14%  |                                                                              |==========                                                            |  15%  |                                                                              |===========                                                           |  15%  |                                                                              |===========                                                           |  16%  |                                                                              |============                                                          |  17%  |                                                                              |============                                                          |  18%  |                                                                              |=============                                                         |  18%  |                                                                              |=============                                                         |  19%  |                                                                              |==============                                                        |  20%  |                                                                              |===============                                                       |  21%  |                                                                              |===============                                                       |  22%  |                                                                              |================                                                      |  22%  |                                                                              |================                                                      |  23%  |                                                                              |=================                                                     |  24%  |                                                                              |=================                                                     |  25%  |                                                                              |==================                                                    |  25%  |                                                                              |==================                                                    |  26%  |                                                                              |===================                                                   |  27%  |                                                                              |===================                                                   |  28%  |                                                                              |====================                                                  |  28%  |                                                                              |====================                                                  |  29%  |                                                                              |=====================                                                 |  30%  |                                                                              |======================                                                |  31%  |                                                                              |======================                                                |  32%  |                                                                              |=======================                                               |  32%  |                                                                              |=======================                                               |  33%  |                                                                              |========================                                              |  34%  |                                                                              |========================                                              |  35%  |                                                                              |=========================                                             |  35%  |                                                                              |=========================                                             |  36%  |                                                                              |==========================                                            |  37%  |                                                                              |==========================                                            |  38%  |                                                                              |===========================                                           |  38%  |                                                                              |===========================                                           |  39%  |                                                                              |============================                                          |  40%  |                                                                              |=============================                                         |  41%  |                                                                              |=============================                                         |  42%  |                                                                              |==============================                                        |  42%  |                                                                              |==============================                                        |  43%  |                                                                              |===============================                                       |  44%  |                                                                              |===============================                                       |  45%  |                                                                              |================================                                      |  45%  |                                                                              |================================                                      |  46%  |                                                                              |=================================                                     |  47%  |                                                                              |=================================                                     |  48%  |                                                                              |==================================                                    |  48%  |                                                                              |==================================                                    |  49%  |                                                                              |===================================                                   |  50%  |                                                                              |====================================                                  |  51%  |                                                                              |====================================                                  |  52%  |                                                                              |=====================================                                 |  52%  |                                                                              |=====================================                                 |  53%  |                                                                              |======================================                                |  54%  |                                                                              |======================================                                |  55%  |                                                                              |=======================================                               |  55%  |                                                                              |=======================================                               |  56%  |                                                                              |========================================                              |  57%  |                                                                              |========================================                              |  58%  |                                                                              |=========================================                             |  58%  |                                                                              |=========================================                             |  59%  |                                                                              |==========================================                            |  60%  |                                                                              |===========================================                           |  61%  |                                                                              |===========================================                           |  62%  |                                                                              |============================================                          |  62%  |                                                                              |============================================                          |  63%  |                                                                              |=============================================                         |  64%  |                                                                              |=============================================                         |  65%  |                                                                              |==============================================                        |  65%  |                                                                              |==============================================                        |  66%  |                                                                              |===============================================                       |  67%  |                                                                              |===============================================                       |  68%  |                                                                              |================================================                      |  68%  |                                                                              |================================================                      |  69%  |                                                                              |=================================================                     |  70%  |                                                                              |==================================================                    |  71%  |                                                                              |==================================================                    |  72%  |                                                                              |===================================================                   |  72%  |                                                                              |===================================================                   |  73%  |                                                                              |====================================================                  |  74%  |                                                                              |====================================================                  |  75%  |                                                                              |=====================================================                 |  75%  |                                                                              |=====================================================                 |  76%  |                                                                              |======================================================                |  77%  |                                                                              |======================================================                |  78%  |                                                                              |=======================================================               |  78%  |                                                                              |=======================================================               |  79%  |                                                                              |========================================================              |  80%  |                                                                              |=========================================================             |  81%  |                                                                              |=========================================================             |  82%  |                                                                              |==========================================================            |  82%  |                                                                              |==========================================================            |  83%  |                                                                              |===========================================================           |  84%  |                                                                              |===========================================================           |  85%  |                                                                              |============================================================          |  85%  |                                                                              |============================================================          |  86%  |                                                                              |=============================================================         |  87%  |                                                                              |=============================================================         |  88%  |                                                                              |==============================================================        |  88%  |                                                                              |==============================================================        |  89%  |                                                                              |===============================================================       |  90%  |                                                                              |================================================================      |  91%  |                                                                              |================================================================      |  92%  |                                                                              |=================================================================     |  92%  |                                                                              |=================================================================     |  93%  |                                                                              |==================================================================    |  94%  |                                                                              |==================================================================    |  95%  |                                                                              |===================================================================   |  95%  |                                                                              |===================================================================   |  96%  |                                                                              |====================================================================  |  97%  |                                                                              |====================================================================  |  98%  |                                                                              |===================================================================== |  98%  |                                                                              |===================================================================== |  99%  |                                                                              |======================================================================| 100%[[1]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n251.asc 
+names      : russian.n251 
+
+
+[[2]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n252.asc 
+names      : russian.n252 
+
+
+[[3]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n253.asc 
+names      : russian.n253 
+
+
+[[4]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n254.asc 
+names      : russian.n254 
+
+
+[[5]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n255.asc 
+names      : russian.n255 
+
+
+[[6]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n256.asc 
+names      : russian.n256 
+
+
+[[7]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n257.asc 
+names      : russian.n257 
+
+
+[[8]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n258.asc 
+names      : russian.n258 
+
+
+[[9]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n259.asc 
+names      : russian.n259 
+
+
+[[10]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n260.asc 
+names      : russian.n260 
+
+
+[[11]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n261.asc 
+names      : russian.n261 
+
+
+[[12]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n262.asc 
+names      : russian.n262 
+
+
+[[13]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n263.asc 
+names      : russian.n263 
+
+
+[[14]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n264.asc 
+names      : russian.n264 
+
+
+[[15]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n265.asc 
+names      : russian.n265 
+
+
+[[16]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n266.asc 
+names      : russian.n266 
+
+
+[[17]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n267.asc 
+names      : russian.n267 
+
+
+[[18]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n268.asc 
+names      : russian.n268 
+
+
+[[19]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n269.asc 
+names      : russian.n269 
+
+
+[[20]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n270.asc 
+names      : russian.n270 
+
+
+[[21]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n271.asc 
+names      : russian.n271 
+
+
+[[22]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n272.asc 
+names      : russian.n272 
+
+
+[[23]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n273.asc 
+names      : russian.n273 
+
+
+[[24]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n274.asc 
+names      : russian.n274 
+
+
+[[25]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n275.asc 
+names      : russian.n275 
+
+
+[[26]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n276.asc 
+names      : russian.n276 
+
+
+[[27]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n277.asc 
+names      : russian.n277 
+
+
+[[28]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n278.asc 
+names      : russian.n278 
+
+
+[[29]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n279.asc 
+names      : russian.n279 
+
+
+[[30]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n280.asc 
+names      : russian.n280 
+
+
+[[31]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n281.asc 
+names      : russian.n281 
+
+
+[[32]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n282.asc 
+names      : russian.n282 
+
+
+[[33]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n283.asc 
+names      : russian.n283 
+
+
+[[34]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n284.asc 
+names      : russian.n284 
+
+
+[[35]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n285.asc 
+names      : russian.n285 
+
+
+[[36]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n286.asc 
+names      : russian.n286 
+
+
+[[37]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n287.asc 
+names      : russian.n287 
+
+
+[[38]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n288.asc 
+names      : russian.n288 
+
+
+[[39]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n289.asc 
+names      : russian.n289 
+
+
+[[40]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n290.asc 
+names      : russian.n290 
+
+
+[[41]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n291.asc 
+names      : russian.n291 
+
+
+[[42]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n292.asc 
+names      : russian.n292 
+
+
+[[43]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n293.asc 
+names      : russian.n293 
+
+
+[[44]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n294.asc 
+names      : russian.n294 
+
+
+[[45]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n295.asc 
+names      : russian.n295 
+
+
+[[46]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n296.asc 
+names      : russian.n296 
+
+
+[[47]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n297.asc 
+names      : russian.n297 
+
+
+[[48]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n298.asc 
+names      : russian.n298 
+
+
+[[49]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n299.asc 
+names      : russian.n299 
+
+
+[[50]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n300.asc 
+names      : russian.n300 
+
+
+[[51]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n301.asc 
+names      : russian.n301 
+
+
+[[52]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n302.asc 
+names      : russian.n302 
+
+
+[[53]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n303.asc 
+names      : russian.n303 
+
+
+[[54]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n304.asc 
+names      : russian.n304 
+
+
+[[55]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n305.asc 
+names      : russian.n305 
+
+
+[[56]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n306.asc 
+names      : russian.n306 
+
+
+[[57]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n307.asc 
+names      : russian.n307 
+
+
+[[58]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n308.asc 
+names      : russian.n308 
+
+
+[[59]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n309.asc 
+names      : russian.n309 
+
+
+[[60]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n310.asc 
+names      : russian.n310 
+
+
+[[61]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n311.asc 
+names      : russian.n311 
+
+
+[[62]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n312.asc 
+names      : russian.n312 
+
+
+[[63]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n313.asc 
+names      : russian.n313 
+
+
+[[64]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n314.asc 
+names      : russian.n314 
+
+
+[[65]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n315.asc 
+names      : russian.n315 
+
+
+[[66]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n316.asc 
+names      : russian.n316 
+
+
+[[67]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n317.asc 
+names      : russian.n317 
+
+
+[[68]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n318.asc 
+names      : russian.n318 
+
+
+[[69]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n319.asc 
+names      : russian.n319 
+
+
+[[70]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n320.asc 
+names      : russian.n320 
+
+
+[[71]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n321.asc 
+names      : russian.n321 
+
+
+[[72]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n322.asc 
+names      : russian.n322 
+
+
+[[73]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n323.asc 
+names      : russian.n323 
+
+
+[[74]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n324.asc 
+names      : russian.n324 
+
+
+[[75]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n325.asc 
+names      : russian.n325 
+
+
+[[76]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n326.asc 
+names      : russian.n326 
+
+
+[[77]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n327.asc 
+names      : russian.n327 
+
+
+[[78]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n328.asc 
+names      : russian.n328 
+
+
+[[79]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n329.asc 
+names      : russian.n329 
+
+
+[[80]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n330.asc 
+names      : russian.n330 
+
+
+[[81]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n331.asc 
+names      : russian.n331 
+
+
+[[82]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n332.asc 
+names      : russian.n332 
+
+
+[[83]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n333.asc 
+names      : russian.n333 
+
+
+[[84]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n334.asc 
+names      : russian.n334 
+
+
+[[85]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n335.asc 
+names      : russian.n335 
+
+
+[[86]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n336.asc 
+names      : russian.n336 
+
+
+[[87]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n337.asc 
+names      : russian.n337 
+
+
+[[88]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n338.asc 
+names      : russian.n338 
+
+
+[[89]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n339.asc 
+names      : russian.n339 
+
+
+[[90]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n340.asc 
+names      : russian.n340 
+
+
+[[91]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n341.asc 
+names      : russian.n341 
+
+
+[[92]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n342.asc 
+names      : russian.n342 
+
+
+[[93]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n343.asc 
+names      : russian.n343 
+
+
+[[94]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n344.asc 
+names      : russian.n344 
+
+
+[[95]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n345.asc 
+names      : russian.n345 
+
+
+[[96]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n346.asc 
+names      : russian.n346 
+
+
+[[97]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n347.asc 
+names      : russian.n347 
+
+
+[[98]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n348.asc 
+names      : russian.n348 
+
+
+[[99]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n349.asc 
+names      : russian.n349 
+
+
+[[100]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n350.asc 
+names      : russian.n350 
+
+
+[[101]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n351.asc 
+names      : russian.n351 
+
+
+[[102]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n352.asc 
+names      : russian.n352 
+
+
+[[103]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n353.asc 
+names      : russian.n353 
+
+
+[[104]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n354.asc 
+names      : russian.n354 
+
+
+[[105]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n355.asc 
+names      : russian.n355 
+
+
+[[106]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n356.asc 
+names      : russian.n356 
+
+
+[[107]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n357.asc 
+names      : russian.n357 
+
+
+[[108]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n358.asc 
+names      : russian.n358 
+
+
+[[109]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n359.asc 
+names      : russian.n359 
+
+
+[[110]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n360.asc 
+names      : russian.n360 
+
+
+[[111]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n361.asc 
+names      : russian.n361 
+
+
+[[112]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n362.asc 
+names      : russian.n362 
+
+
+[[113]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n363.asc 
+names      : russian.n363 
+
+
+[[114]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n364.asc 
+names      : russian.n364 
+
+
+[[115]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n365.asc 
+names      : russian.n365 
+
+
+[[116]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n366.asc 
+names      : russian.n366 
+
+
+[[117]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n367.asc 
+names      : russian.n367 
+
+
+[[118]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n368.asc 
+names      : russian.n368 
+
+
+[[119]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n369.asc 
+names      : russian.n369 
+
+
+[[120]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n370.asc 
+names      : russian.n370 
+
+
+[[121]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n371.asc 
+names      : russian.n371 
+
+
+[[122]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n372.asc 
+names      : russian.n372 
+
+
+[[123]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n373.asc 
+names      : russian.n373 
+
+
+[[124]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n374.asc 
+names      : russian.n374 
+
+
+[[125]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n375.asc 
+names      : russian.n375 
+
+
+[[126]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n376.asc 
+names      : russian.n376 
+
+
+[[127]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n377.asc 
+names      : russian.n377 
+
+
+[[128]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n378.asc 
+names      : russian.n378 
+
+
+[[129]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n379.asc 
+names      : russian.n379 
+
+
+[[130]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n380.asc 
+names      : russian.n380 
+
+
+[[131]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n381.asc 
+names      : russian.n381 
+
+
+[[132]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n382.asc 
+names      : russian.n382 
+
+
+[[133]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n383.asc 
+names      : russian.n383 
+
+
+[[134]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n384.asc 
+names      : russian.n384 
+
+
+[[135]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n385.asc 
+names      : russian.n385 
+
+
+[[136]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n386.asc 
+names      : russian.n386 
+
+
+[[137]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n387.asc 
+names      : russian.n387 
+
+
+[[138]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n388.asc 
+names      : russian.n388 
+
+
+[[139]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n389.asc 
+names      : russian.n389 
+
+
+[[140]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n390.asc 
+names      : russian.n390 
+
+
+[[141]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n391.asc 
+names      : russian.n391 
+
+
+[[142]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n392.asc 
+names      : russian.n392 
+
+
+[[143]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n393.asc 
+names      : russian.n393 
+
+
+[[144]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n394.asc 
+names      : russian.n394 
+
+
+[[145]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n395.asc 
+names      : russian.n395 
+
+
+[[146]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n396.asc 
+names      : russian.n396 
+
+
+[[147]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n397.asc 
+names      : russian.n397 
+
+
+[[148]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n398.asc 
+names      : russian.n398 
+
+
+[[149]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n399.asc 
+names      : russian.n399 
+
+
+[[150]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n400.asc 
+names      : russian.n400 
+
+
+[[151]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n401.asc 
+names      : russian.n401 
+
+
+[[152]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n402.asc 
+names      : russian.n402 
+
+
+[[153]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n403.asc 
+names      : russian.n403 
+
+
+[[154]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n404.asc 
+names      : russian.n404 
+
+
+[[155]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n405.asc 
+names      : russian.n405 
+
+
+[[156]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n406.asc 
+names      : russian.n406 
+
+
+[[157]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n407.asc 
+names      : russian.n407 
+
+
+[[158]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n408.asc 
+names      : russian.n408 
+
+
+[[159]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n409.asc 
+names      : russian.n409 
+
+
+[[160]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n410.asc 
+names      : russian.n410 
+
+
+[[161]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n411.asc 
+names      : russian.n411 
+
+
+[[162]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n412.asc 
+names      : russian.n412 
+
+
+[[163]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n413.asc 
+names      : russian.n413 
+
+
+[[164]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n414.asc 
+names      : russian.n414 
+
+
+[[165]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n415.asc 
+names      : russian.n415 
+
+
+[[166]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n416.asc 
+names      : russian.n416 
+
+
+[[167]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n417.asc 
+names      : russian.n417 
+
+
+[[168]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n418.asc 
+names      : russian.n418 
+
+
+[[169]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n419.asc 
+names      : russian.n419 
+
+
+[[170]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n420.asc 
+names      : russian.n420 
+
+
+[[171]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n421.asc 
+names      : russian.n421 
+
+
+[[172]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n422.asc 
+names      : russian.n422 
+
+
+[[173]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n423.asc 
+names      : russian.n423 
+
+
+[[174]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n424.asc 
+names      : russian.n424 
+
+
+[[175]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n425.asc 
+names      : russian.n425 
+
+
+[[176]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n426.asc 
+names      : russian.n426 
+
+
+[[177]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n427.asc 
+names      : russian.n427 
+
+
+[[178]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n428.asc 
+names      : russian.n428 
+
+
+[[179]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n429.asc 
+names      : russian.n429 
+
+
+[[180]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n430.asc 
+names      : russian.n430 
+
+
+[[181]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n431.asc 
+names      : russian.n431 
+
+
+[[182]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n432.asc 
+names      : russian.n432 
+
+
+[[183]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n433.asc 
+names      : russian.n433 
+
+
+[[184]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n434.asc 
+names      : russian.n434 
+
+
+[[185]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n435.asc 
+names      : russian.n435 
+
+
+[[186]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n436.asc 
+names      : russian.n436 
+
+
+[[187]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n437.asc 
+names      : russian.n437 
+
+
+[[188]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n438.asc 
+names      : russian.n438 
+
+
+[[189]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n439.asc 
+names      : russian.n439 
+
+
+[[190]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n440.asc 
+names      : russian.n440 
+
+
+[[191]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n441.asc 
+names      : russian.n441 
+
+
+[[192]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n442.asc 
+names      : russian.n442 
+
+
+[[193]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n443.asc 
+names      : russian.n443 
+
+
+[[194]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n444.asc 
+names      : russian.n444 
+
+
+[[195]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n445.asc 
+names      : russian.n445 
+
+
+[[196]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n446.asc 
+names      : russian.n446 
+
+
+[[197]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n447.asc 
+names      : russian.n447 
+
+
+[[198]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n448.asc 
+names      : russian.n448 
+
+
+[[199]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n449.asc 
+names      : russian.n449 
+
+
+[[200]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n450.asc 
+names      : russian.n450 
+
+
+[[201]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n451.asc 
+names      : russian.n451 
+
+
+[[202]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n452.asc 
+names      : russian.n452 
+
+
+[[203]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n453.asc 
+names      : russian.n453 
+
+
+[[204]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n454.asc 
+names      : russian.n454 
+
+
+[[205]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n455.asc 
+names      : russian.n455 
+
+
+[[206]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n456.asc 
+names      : russian.n456 
+
+
+[[207]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n457.asc 
+names      : russian.n457 
+
+
+[[208]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n458.asc 
+names      : russian.n458 
+
+
+[[209]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n459.asc 
+names      : russian.n459 
+
+
+[[210]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n460.asc 
+names      : russian.n460 
+
+
+[[211]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n461.asc 
+names      : russian.n461 
+
+
+[[212]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n462.asc 
+names      : russian.n462 
+
+
+[[213]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n463.asc 
+names      : russian.n463 
+
+
+[[214]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n464.asc 
+names      : russian.n464 
+
+
+[[215]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n465.asc 
+names      : russian.n465 
+
+
+[[216]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n466.asc 
+names      : russian.n466 
+
+
+[[217]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n467.asc 
+names      : russian.n467 
+
+
+[[218]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n468.asc 
+names      : russian.n468 
+
+
+[[219]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n469.asc 
+names      : russian.n469 
+
+
+[[220]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n470.asc 
+names      : russian.n470 
+
+
+[[221]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n471.asc 
+names      : russian.n471 
+
+
+[[222]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n472.asc 
+names      : russian.n472 
+
+
+[[223]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n473.asc 
+names      : russian.n473 
+
+
+[[224]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n474.asc 
+names      : russian.n474 
+
+
+[[225]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n475.asc 
+names      : russian.n475 
+
+
+[[226]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n476.asc 
+names      : russian.n476 
+
+
+[[227]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n477.asc 
+names      : russian.n477 
+
+
+[[228]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n478.asc 
+names      : russian.n478 
+
+
+[[229]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n479.asc 
+names      : russian.n479 
+
+
+[[230]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n480.asc 
+names      : russian.n480 
+
+
+[[231]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n481.asc 
+names      : russian.n481 
+
+
+[[232]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n482.asc 
+names      : russian.n482 
+
+
+[[233]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n483.asc 
+names      : russian.n483 
+
+
+[[234]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n484.asc 
+names      : russian.n484 
+
+
+[[235]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n485.asc 
+names      : russian.n485 
+
+
+[[236]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n486.asc 
+names      : russian.n486 
+
+
+[[237]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n487.asc 
+names      : russian.n487 
+
+
+[[238]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n488.asc 
+names      : russian.n488 
+
+
+[[239]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n489.asc 
+names      : russian.n489 
+
+
+[[240]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n490.asc 
+names      : russian.n490 
+
+
+[[241]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n491.asc 
+names      : russian.n491 
+
+
+[[242]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n492.asc 
+names      : russian.n492 
+
+
+[[243]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n493.asc 
+names      : russian.n493 
+
+
+[[244]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n494.asc 
+names      : russian.n494 
+
+
+[[245]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n495.asc 
+names      : russian.n495 
+
+
+[[246]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n496.asc 
+names      : russian.n496 
+
+
+[[247]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n497.asc 
+names      : russian.n497 
+
+
+[[248]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n498.asc 
+names      : russian.n498 
+
+
+[[249]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n499.asc 
+names      : russian.n499 
+
+
+[[250]]
+class      : RasterLayer 
+dimensions : 925, 1000, 925000  (nrow, ncol, ncell)
+resolution : 40, 40  (x, y)
+extent     : 1895000, 1935000, 579500, 616500  (xmin, xmax, ymin, ymax)
+crs        : NA 
+source     : /scratch/users/cbowers/LISFLOOD/rp100_final2/manning/russian.n500.asc 
+names      : russian.n500 
+
+
+Warning message:
+In e$fun(obj, substitute(ex), parent.frame(), e$data) :
+  already exporting variable(s): toNumber
+[1] "done!"

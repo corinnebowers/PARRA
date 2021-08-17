@@ -1,0 +1,20 @@
+resroot	bestfit
+dirroot	results
+sim_time	6048000
+saveint	604800
+massint	60480
+initial_tstep	1
+
+DEMfile	russian.dem.asc
+SGCbank	russian.dem.asc
+SGCwidth	russian.width.asc
+SGCn	0.024
+
+bcifile	bestfit.bci
+bdyfile	bestfit.bdy
+manningfile	russian.n.asc
+
+acceleration
+elevoff
+depthoff
+debug
