@@ -17,24 +17,21 @@ Corinne Bowers
 
 ```{r setup, include = FALSE}
 ## setup
-knitr::opts_knit$set(root.dir = 'D:/1-PARRA/_data/')
+knitr::opts_knit$set(root.dir = 'D:/1-PARRA')
 
 ```
 
 ```{r message = FALSE}
 ## setup information
-source('setup.R')
+source('_data/setup.R')
 
 ## load area of interest (aoi)
-load('aoi/aoi.Rdata')
+load('_data/aoi/aoi.Rdata')
 
 ```
 
 ```{r dem}
 #### create russian.dem.asc ####
-
-## create blank raster with desired resolution
-blank <- raster(ext, resolution = c(40,40), crs = projection(aoi))
 
 ## load SonomaVegMap file (takes about half an hour)
 # http://sonomavegmap.org/data-downloads/
@@ -42,7 +39,7 @@ blank <- raster(ext, resolution = c(40,40), crs = projection(aoi))
 # vertical datum: NAVD88 (Geoid 12A), RMSE = 0.03 meters (see metadata), units = feet 
 # instructions: download all watersheds in the study area, 
   # then use the Mosaic to New Raster tool in ArcGIS Pro to combine
-hydro <- raster('lisflood/SonomaVegMap.tif') 
+hydro <- raster('_data/lisflood/SonomaVegMap/SonomaVegMap.tif') 
 hydro <- hydro %>% aggregate(10) %>% projectRaster(blank)
 
 ## convert vertical units from feet to meters
@@ -50,15 +47,15 @@ dem.hydro <- hydro / mft
 
 ## load topobathy file for ocean elevation
 # https://www.arcgis.com/home/item.html?id=c753e5bfadb54d46b69c3e68922483bc
-topobathy <- raster('lisflood/topobathy.tif') %>% 
-  projectRaster(blank)
+topobathy <- raster('_data/lisflood/topobathy/topobathy.tif') %>% projectRaster(blank)
 
 ## add topobathy file to dem
 dem <- dem.hydro %>% overlay(topobathy, fun = function(x,y) ifelse(is.na(x), y, x))
 
 ## save out
-save(dem.hydro, dem, file = 'lisflood/dem.Rdata')
-writeRaster(dem, format = 'ascii', overwrite = TRUE, filename = 'lisflood/russian.dem.asc')
+save(dem.hydro, dem, file = '_data/lisflood/dem.Rdata')
+writeRaster(dem, format = 'ascii', overwrite = TRUE, 
+            filename = '_data/lisflood/russian.dem.asc')
 
 ```
 
@@ -94,45 +91,69 @@ writeRaster(dem, format = 'ascii', overwrite = TRUE, filename = 'lisflood/russia
 
 ## load river polygons & HUC-12 watershed boundaries from National Hydrography Dataset
 # https://www.usgs.gov/core-science-systems/ngp/national-hydrography/national-hydrography-dataset
-hydropoly <- st_read('NHD/NHD_H_California_State_GDB.gdb', layer = 'NHDArea', quiet = TRUE) %>% 
-  st_transform(6417)
-fcode <- st_read('NHD/NHD_H_California_State_GDB.gdb', layer = 'NHDFCode', quiet = TRUE)
-wbd12 <- st_read('NHD/NHD_H_California_State_GDB.gdb', layer = 'WBDHU12', quiet = TRUE)
+hydropoly <- st_read('_data/NHD/NHD_H_California_State_GDB.gdb', 
+                     layer = 'NHDArea', quiet = TRUE) %>% st_transform(6417)
+fcode <- st_read('_data/NHD/NHD_H_California_State_GDB.gdb', 
+                 layer = 'NHDFCode', quiet = TRUE)
+wbd12 <- st_read('_data/NHD/NHD_H_California_State_GDB.gdb', 
+                 layer = 'WBDHU12', quiet = TRUE)
 
 ## subset to only polygons associated with the Russian River
 hydropoly_rr <- hydropoly %>% 
   left_join(fcode %>% select('FCODE', 'DESCRIPTION'), by = c('FCode' = 'FCODE')) %>% 
-  subset(grepl('Stream/River', DESCRIPTION)) %>% 
-  subset(row.names(.) == '2104') %>%  #get Russian River only
-  sfheaders::sf_remove_holes(.) %>% 
+  mutate(id = 1:nrow(.)) %>%
+  filter(grepl('Stream/River', DESCRIPTION)) %>% 
+  filter(id == 2104) %>%  #Russian River
+  st_transform(6417) %>% 
   st_intersection(st_transform(wbd12, 6417)) %>% 
-  mutate(feature_id = row.names(.)) %>% 
-  subset(!(feature_id %in% c('2104', '2104.11', '2104.12', '2104.20'))) %>% 
+  st_crop(aoi) %>% 
+  st_cast('MULTIPOLYGON') %>% st_cast('POLYGON') %>%
+  mutate(feature_id = row.names(.))
+# mapview::mapview(hydropoly_rr, zcol = 'feature_id')
+hydropoly_rr <- hydropoly_rr %>% 
+  filter(!(feature_id %in% 
+             c('1.19', '1.12.1', '1.11', '1.12', '1.2'))) %>% 
   select(feature_id, Shape) 
 
-## measure the average width of each polygon
-hydropoly_rr <- hydropoly_rr %>%
-  filter(feature_id %in% c('2104.16', '2104.17')) %>% 
-  st_union %>% st_sf %>%
-  transmute(feature_id = '2104.17', Shape = geometry) %>%
-  st_drop_geometry %>%
-  rbind(hydropoly_rr %>% filter(!(feature_id %in% c('2104.16', '2104.17')))) %>%
-  st_sf %>% 
-  st_crop(extent(blank)) %>% 
-  st_cast('MULTIPOLYGON') %>% st_cast('POLYGON') %>% 
-  mutate(feature_id = row.names(.)) %>% 
-  filter(feature_id != '2104.14') %>% 
-  mutate(AREA = st_area(.), 
-         PERIMETER = lwgeom::st_perimeter(.),
-         WIDTH = 2*AREA/PERIMETER)
+```
 
-## convert to the resolution of the dem raster
-width <- hydropoly_rr %>% 
-  st_cast(to = 'MULTILINESTRING') %>% 
+```{r}
+#### find width using transects ####
+
+## write hydropoly_rr to file for ArcGIS
+# st_write(st_union(hydropoly_rr), dsn = '_temp/hydropoly_rr.shp', append = FALSE)
+
+# instructions: run ArcGIS Polygon to Centerline tool on hydropoly_rr.shp,
+  # then run Generate Transects Along Lines tool at 10m along the centerline
+
+## load transects file
+transect_10 <- 
+  st_read('_data/lisflood/transect_10/transect_10.shp', quiet = TRUE) %>% 
+  mutate(id = 1:nrow(.)) %>% 
+  st_intersection(st_union(hydropoly_rr)) %>% 
+  mutate(width = toNumber(st_length(.)))
+width <- transect_10 %>% rasterize(blank, field = 'width', fun = mean)
+
+```
+
+```{r include = FALSE}
+#### find width using polygon shapes (old method) ####
+width2 <- hydropoly_rr %>%
+  mutate(AREA = st_area(.),
+       PERIMETER = lwgeom::st_perimeter(.),
+       WIDTH = 2*AREA/PERIMETER) %>% 
   rasterize(y = blank, field = 'WIDTH')
 
-## save out
-writeRaster(width, format = 'ascii', overwrite = TRUE, filename = 'lisflood/russian.width.asc')
+ggplot(data.frame(new = width[], old = width2[])) + 
+  geom_point(aes(x = new, y = old)) + 
+  scale_x_origin() + scale_y_origin() + geom_parity()
+
+```
+
+```{r}
+#### save out ####
+writeRaster(width, format = 'ascii', overwrite = TRUE, 
+            filename = '_data/lisflood/russian.width.asc')
 
 ```
 
@@ -145,69 +166,7 @@ edge.in <- width.df[which(width.df$y == max(width.df$y)),]
 edge.out <- width.df[which(width.df$x == min(width.df$x)),]
 
 ## save out
-save(edge.in, edge.out, file = 'lisflood/edges.Rdata')
-
-```
-
-```{r manning}
-#### create russian.n.asc ####
-
-## get LULC codes
-lulc <- FedData::get_nlcd(blank, label = 'value')
-vals <- unique(lulc[])
-
-## decide on roughness values for floodplain
-# KS: Curtis (2016). Manning’s n Values for Various Land Covers: To Use for Dam Breach Analyses by NRCS in Kansas. Retrieved from https://www.wcc.nrcs.usda.gov/ftpref/wntsc/H&H/HecRAS/NEDC/lectures/docs/.
-# JSH: Kalyanapu et al. (2009). Effect of land use-based surface roughness on hydrologic model output. Journal of Spatial Hydrology, 9(2), 51–71.
-# MWR: Bunya et al. (2010). A high-resolution coupled riverine flow, tide, wind, wind wave, and storm surge model for southern Louisiana and Mississippi. Part I: Model development and validation. Monthly Weather Review, 138(2), 345–377. 
-# all others: https://rashms.com/blog/mannings-n-roughness-coefficient-for-hec-ras-2d-modeling/
-manning <- 
-  read.csv('lisflood/manning.csv') %>% 
-  setNames(c('name', 'code', names(.)[-(1:2)])) %>% 
-  mutate(name = factor(name, levels = rev(name))) %>% 
-  filter(code %in% vals) %>% 
-  pivot_longer(cols = names(.)[-(1:2)], names_to = 'source', values_to = 'n') %>% 
-  mutate(n.min = case_when(grepl('min', source) ~ n),
-         n.max = case_when(grepl('max', source) ~ n)) %>% 
-  mutate(source = source %>% gsub('_min', '', .) %>% gsub('_max', '', .)) %>% 
-  group_by(name, code, source) %>% 
-  summarize(n = n[1], n.min = Mean(n.min), n.max = Mean(n.max), .groups = 'drop') %>% 
-  mutate(n.min = case_when(!is.nan(n.min) ~ n.min),
-         n.max = case_when(!is.nan(n.max) ~ n.max)) 
-manning_values <- manning %>% 
-  filter(source != 'JSH' & source != 'TX') %>% 
-  group_by(name, code) %>% 
-  summarize(value = mean(n), .groups = 'drop') %>% 
-  select(code, value)
-
-## change LULC codes to roughness values
-lulc.n <- lulc %>% reclassify(manning_values)
-
-## convert to the resolution of the dem raster
-lulc.dem <- projectRaster(lulc.n, blank)
-
-## save out
-writeRaster(lulc.dem, format = 'ascii', overwrite = TRUE, filename = 'lisflood/russian.n.asc')
-
-```
-
-```{r include = FALSE}
-## choose which manning values fit best
-manning %>% 
-  filter(source != 'JSH') %>% 
-  group_by(name, code) %>% 
-  mutate(n.mean = mean(n)) %>% 
-  ggplot() + 
-  geom_line(aes(x = name, y = n, color = source, group = source), size = 1) + 
-  geom_ribbon(aes(x = name, ymin = n.min, ymax = n.max, 
-                  fill = source, group = source), alpha = 0.25) + 
-  geom_point(aes(x = name, y = n.mean)) + 
-  labs(x = '', y = 'Manning\'s Roughness Coefficient (n)') + 
-  scale_y_origin(breaks = seq(0, 1, 0.05), minor_breaks = seq(0, 1, 0.05)) + 
-  scale_color_manual(values = c(baker, 'grey50')) + 
-  scale_fill_manual(values = c(baker, 'grey50')) + 
-  coord_flip(clip = 'off') + 
-  theme(panel.grid.major.x = element_line(color = 'grey90'))
+save(edge.in, edge.out, file = '_data/lisflood/edges.Rdata')
 
 ```
 

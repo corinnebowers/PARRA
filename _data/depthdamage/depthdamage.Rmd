@@ -28,7 +28,7 @@ hazus <- hazus %>%
   mutate(depth_ft = depth_ft %>% gsub('\\.', '-', .) %>% 
            gsub('X', '', .) %>% toNumber) %>% 
   mutate(depth_m = depth_ft/mft) %>% 
-  filter(Basement == 'N' & Type == 'Struct') %>% 
+  # filter(Basement == 'N' & Type == 'Struct') %>% 
   mutate(class = paste0(Stories, Type)) 
 
 ggplot(hazus) + 
@@ -102,30 +102,8 @@ map_dfc(.x = 1:nrow(wing2020),
 ```
 
 ```{r}
-# ## combine into one dataframe (using the SFH no basement curve)
-# df <- data.frame(flood_ft = seq(0, 50, 0.1))
-# df$flood_ft_rounded <- round(df$flood_ft)
-# df$hazus <- interp1(x = hazus$ft, y = hazus$x1, xi = df$flood_ft)
-# df$flemo <- interp1(x = flemo$ft, y = flemo$PQ_SFH, xi = df$flood_ft)
-# 
-# ggplot() + 
-#   geom_ribbon(data = beta.dist, aes(x = water_ft, ymin = (mu-sd)*100, ymax = (mu+sd)*100), fill = 'grey95') + 
-#   geom_line(data = beta.dist, aes(x = water_ft, y = mu*100, color = 'Beta', linetype = 'Beta'), size = 1) + 
-#   geom_line(data = df, aes(x = flood_ft, y = hazus, color = 'HAZUS', linetype = 'HAZUS'), size = 1) + 
-#   geom_step(data = df, aes(x = flood_ft, y = flemo, color = 'FLEMO', linetype = 'FLEMO'), size = 1) + 
-#   scale_linetype_manual(name = 'Curve Type', values = c('dotted', 'solid', 'longdash')) + 
-#   scale_color_manual(name = 'Curve Type', values = c('grey30', 'grey60', 'black')) + 
-#   scale_x_continuous(expand = c(0,0)) + scale_y_continuous(expand = c(0,0)) + 
-#   ggtitle('Depth-Damage Relationships') + 
-#   labs(x = 'Water Depth (ft)', y = 'Damage Ratio (%)') + 
-#   coord_cartesian(xlim = c(NA, 15), ylim = c(0, 100)) + 
-#   theme_classic() 
-
-```
-
-```{r}
 ## save out
-# save(hazus, flemo, beta.dist, file = 'depthdamage/depthdamage.Rdata')
+save(hazus, flemo, wing2020, file = 'depthdamage/depthdamage.Rdata')
 
 ```
 
