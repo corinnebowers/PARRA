@@ -27,10 +27,10 @@ generate_inundation <- function(hydrograph, buildings,
   ## rescale samples to standard normal
   samples_scale <- samples %>% 
     filter(!is.na(cv)) %>% 
-    mutate(Qp.std = Qp %>% punif(min = 0, max = 8000) %>% 
+    mutate(Qp.std = Qp %>% punif(min = 0, max = 4000) %>% 
              qunif(min = 1, max = exp(2)) %>% log,
            Qp.norm = qnorm(Qp.std/2)) %>% 
-    mutate(tp.std = tp %>% punif(min = 0, max = 200) %>% 
+    mutate(tp.std = tp %>% punif(min = 0, max = 240) %>% 
              qunif(min = 1, max = exp(2)) %>% log,
            tp.norm = qnorm(tp.std/2))
 
@@ -53,8 +53,8 @@ generate_inundation <- function(hydrograph, buildings,
           Qp = hydrograph$Qp_m3s[i], #*23.31279/edgewidth,
           tp = hydrograph$tp_hrs[i],
           sample.table = samples_scale,
-          sample.loc = '/scratch/users/cbowers/LISFLOOD/grid_new/results/max/',
-          # sample.loc = 'C:/Users/cbowers/Desktop/LISFLOOD/sonoma_sherlock/21-05-31 gridded/results/',
+          # sample.loc = '/scratch/users/cbowers/LISFLOOD/grid_new/results/max/',
+          sample.loc = '_sensitivity/surrogate/sherlock_grid/results/',
           n, p, alpha, probabilistic) %>% 
           rast %>% terra::extract(buildings.coord) %>% 
           unlist %>% unname #%>% 
@@ -73,13 +73,13 @@ generate_inundation <- function(hydrograph, buildings,
   
   ## clean out buildings + simulations that never flood
   wet.bldg <- inundation.list %>% 
-    lapply(FUN = function(inun) apply(inun, 1, function(x) sum(x)>0)) %>% 
+    lapply(FUN = function(inun) apply(data.frame(inun), 1, function(x) sum(x)>0)) %>% 
     do.call(cbind, .) %>% apply(1, all) %>% which
   wet.sim <- inundation.list %>% 
-    lapply(FUN = function(inun) apply(inun, 2, function(x) sum(x)>0)) %>% 
+    lapply(FUN = function(inun) apply(data.frame(inun), 2, function(x) sum(x)>0)) %>% 
     do.call(cbind, .) %>% apply(1, all) %>% which
   inundation <- inundation.list %>% 
-    lapply(function(inun) inun[wet.bldg, wet.sim] %>% as.matrix)
+    lapply(function(inun) data.frame(inun)[wet.bldg, wet.sim] %>% as.matrix)
   rm(inundation.list)
 
   # ## convert all inundation heights to feet

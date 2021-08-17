@@ -170,13 +170,21 @@ generate_damage_deterministic <- function(inun, curve, hazus, flemo, beta.dist) 
 generate_damage_probabilistic <- function(inun, curve, hazus, flemo, beta.dist) {
   dm <- matrix(0, nrow = nrow(inun), ncol = ncol(inun))
   inunval <- c(unname(unlist(inun)))
-  inunval <- ifelse(inunval > 50, 50, inunval)
+  inunval <- ifelse(inunval > 10, 10, inunval)
   inunval_clean <- inunval[!is.na(inunval) & round(inunval) > 0]
   
   if (curve == 'hazus') {
+    hazus.temp <- hazus %>% 
+      filter(Basement == 'N') %>% 
+      group_by(depth_m) %>% 
+      summarize(xmin = Min(damage_pct)/100, xmax = Max(damage_pct)/100) 
+    hazus.temp <- hazus.temp %>% 
+      rbind(c(depth_m = 10, 
+              xmin = hazus.temp$xmin[nrow(hazus.temp)],
+              xmax = hazus.temp$xmax[nrow(hazus.temp)]))
     dm[inunval > 0] <- 
-      map2_dbl(.x = interp1(hazus$ft, hazus$xmin, inunval[inunval > 0])/100, 
-               .y = interp1(hazus$ft, hazus$xmax, inunval[inunval > 0])/100, 
+      map2_dbl(.x = interp1(hazus.temp$depth_m, hazus.temp$xmin, inunval[inunval > 0]), 
+               .y = interp1(hazus.temp$depth_m, hazus.temp$xmax, inunval[inunval > 0]), 
                .f = ~runif(1, .x, .y))
   } else if (curve == 'flemo') {
     dm[inunval > 0] <- 
@@ -184,10 +192,11 @@ generate_damage_probabilistic <- function(inun, curve, hazus, flemo, beta.dist) 
                .y = interp1(flemo$ft, flemo$PQ_SFH, inunval[inunval > 0])/100, 
                .f = ~runif(1, .x, .y))
   } else if (curve == 'beta') {
+    find_nearest <- function(x, vector) map_dbl(.x = x, .f = ~which.min(abs(.x-vector)))
     dm[!is.na(inunval) & round(inunval) > 0] <- 
       rbeta(n = length(inunval_clean), 
-            shape1 = beta.dist[match(round(inunval_clean), beta.dist$water_ft), 'alpha'],
-            shape2 = beta.dist[match(round(inunval_clean), beta.dist$water_ft), 'beta'])
+            shape1 = wing2020[find_nearest(inunval_clean, wing2020$depth_m), 'alpha'],
+            shape2 = wing2020[find_nearest(inunval_clean, wing2020$depth_m), 'beta'])
     
   } else if (curve == 'average') {
     dm.hazus <- dm

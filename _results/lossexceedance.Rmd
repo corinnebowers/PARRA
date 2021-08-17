@@ -1,0 +1,480 @@
+---
+title: "Untitled"
+author: "Corinne"
+date: "4/14/2021"
+output:
+  html_document:
+    toc: true 
+    toc_float: true
+    #toc_depth: 3  
+    code_folding: hide
+    number_sections: true 
+    theme: spacelab   #https://www.datadreaming.org/post/r-markdown-theme-gallery/
+    highlight: tango  #https://www.garrickadenbuie.com/blog/pandoc-syntax-highlighting-examples/
+---
+
+The purpose of this script is to ...
+
+```{r setup, include = FALSE}
+knitr::opts_knit$set(root.dir = 'D:/1-PARRA/')
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+
+```
+
+```{r}
+## setup information
+source('_data/setup.R')
+
+## set random seed for reproducibility
+set.seed(7395)
+
+```
+
+
+# Compute full loss histogram
+
+## Identify case study storm
+```{r}
+casestudy <- catalog %>% filter(start_day == ymd('2019-02-25'))
+print(casestudy)
+
+```
+
+go to Sherlock and run for this case study
+
+## plot real loss vs. simulated loss distribution
+```{r}
+
+year <- 2019
+loss.est <- 91.4e6
+
+# load(paste0('D:/Research/_sherlock/1. PARRA/_results/event_', year, '/mc_beta/prcp4/AR.Rdata'))
+load(paste0('D:/Research/_sherlock/1. PARRA/_results/event_', year, '/mc_beta/prcp4/PRCP.Rdata'))
+load(paste0('D:/Research/_sherlock/1. PARRA/_results/event_', year, '/mc_beta/prcp4/Q.Rdata'))
+load(paste0('D:/Research/_sherlock/1. PARRA/_results/event_', year, '/mc_beta/prcp4/INUN.Rdata'))
+# load(paste0('D:/Research/_sherlock/1. PARRA/_results/event_', year, '/mc_beta/prcp4/DM.Rdata'))
+load(paste0('D:/Research/_sherlock/1. PARRA/_results/event_', year, '/mc_beta/prcp4/DV.Rdata'))
+
+g <- ggplot(loss.sim %>% filter(n.AR == 1)) + 
+  geom_histogram(aes(x = loss, y = ..density..), color = 'black', fill = 'grey90', 
+                 bins = sqrt(nrow(loss.sim)), boundary = 0) + 
+  geom_vline(xintercept = loss.est, size = 1, linetype = 'dashed') + 
+  ggtitle(paste0(year, ' Event')) + 
+  scale_x_origin('Estimated Loss ($M)', 
+    labels = comma_format(scale = 1e-6, accuracy = 1)) + 
+  scale_y_origin('Frequency of Occurrence') +
+  theme(axis.title.y = element_blank(), axis.text.y = element_blank(), axis.ticks.y = element_blank())
+assign(paste0('g', year), g)
+# ggsave(paste0('C:/Users/cbowers/Desktop/hist', year, '.jpg'), width = 5, height = 4)
+
+# nrow(loss.sim)/1e4
+1 - (sum(loss.sim$loss > loss.est) / 1e4)
+
+```
+## spatial distribution of loss
+```{r}
+# sonoma_cbgs <- block_groups(state = 'CA', county = 'Sonoma')
+# sonoma_blocks <- blocks(state = 'CA', county = 'Sonoma')
+# wbd12 <- st_read('D:/Research/_gis/California/_floodhazard/WBD_18_HU2_Shape/Shape/WBDHU12.shp',
+#                  quiet = TRUE) %>% st_transform(4269)
+
+# buildings <- buildings %>%
+#   st_as_sf(coords = c('X', 'Y'), crs = 4269) %>%
+#   st_intersection(sonoma %>% transmute(tract = toNumber(GEOID))) %>%
+#   st_intersection(sonoma_cbgs %>% transmute(blockgroup = toNumber(GEOID))) %>%
+#   st_intersection(sonoma_blocks %>% transmute(block = toNumber(GEOID10))) %>% 
+#   st_intersection(wbd12 %>% transmute(huc12 = HUC12)) 
+# buildings <- buildings %>% 
+#   st_drop_geometry %>% 
+#   cbind(st_coordinates(buildings))
+# save(buildings, file = 'C:/Users/cbowers/Desktop/buildings.Rdata')
+
+# ## census tracts
+# load(paste0('D:/Research/_sherlock/1. PARRA/_results/event_', year, '/mc_beta/prcp4/DV_tract.Rdata'))
+# sonoma %>% 
+#   mutate(group = toNumber(GEOID)) %>% 
+#   left_join(loss.group, by = 'group') %>% 
+#   mutate(loss = ifelse(is.na(loss), 0, loss)) %>% 
+#   st_transform(6417) %>% st_crop(aoi) %>% 
+#   ggplot() + 
+#   geom_sf(data = sonoma %>% st_transform(6417), fill = 'grey90', color = 'grey60') +
+#   geom_sf(aes(fill = log10(loss+1)), color = NA) + 
+#   geom_sf(data = sonoma %>% st_transform(6417), fill = NA, color = 'grey60') +
+#   geom_sf(data = aoi, fill = NA, color = 'grey40') + 
+#   geom_sf(data = russian %>% st_crop(sonoma), size = 1) + 
+#   scale_fill_scico(palette = 'oslo', direction = -1)
+
+## census block groups
+load(paste0('D:/Research/_sherlock/1. PARRA/_results/event_', year, '/mc_beta/prcp4/DV.Rdata'))
+g <- sonoma_cbgs %>% 
+  mutate(group = toNumber(GEOID)) %>% 
+  left_join(loss.group, by = 'group') %>% 
+  mutate(loss = ifelse(is.na(loss), 0, loss)) %>% 
+  st_transform(6417) %>% st_crop(aoi) %>% 
+  ggplot() + 
+  geom_sf(data = sonoma %>% st_transform(6417), fill = 'grey90', color = 'grey60') +
+  geom_sf(aes(fill = loss+1), color = NA) + 
+  geom_sf(data = sonoma %>% st_transform(6417), fill = NA, color = 'grey60') +
+  geom_sf(data = aoi, fill = NA, color = 'grey40') + 
+  geom_sf(data = russian %>% st_crop(sonoma), size = 1) + 
+  scale_fill_scico('Expected Loss ($)', palette = 'oslo', direction = -1, trans = 'log10', 
+                   limits = c(NA, 375e3), labels = comma) + 
+  coord_sf(expand = FALSE) +
+  theme(axis.title = element_blank(), axis.text = element_blank(), 
+        axis.ticks = element_blank(), axis.line = element_blank(),
+        panel.background = element_blank(), plot.background = element_blank(),
+        legend.position = 'bottom') + 
+  guides(fill = guide_colorbar(barwidth = 25))
+assign(paste0('map', year), g)
+
+# ## census blocks
+# load(paste0('D:/Research/_sherlock/1. PARRA/_results/event_', year, '/mc_beta/prcp4/DV_block.Rdata'))
+# sonoma_blocks %>% 
+#   mutate(group = toNumber(GEOID10)) %>% 
+#   left_join(loss.group, by = 'group') %>% 
+#   mutate(loss = ifelse(is.na(loss), 0, loss)) %>% 
+#   st_transform(6417) %>% st_crop(aoi) %>% 
+#   ggplot() + 
+#   geom_sf(data = sonoma %>% st_transform(6417), fill = 'grey90', color = 'grey60') +
+#   geom_sf(aes(fill = log10(loss+1)), color = NA) + 
+#   geom_sf(data = sonoma %>% st_transform(6417), fill = NA, color = 'grey60') +
+#   geom_sf(data = aoi, fill = NA, color = 'grey40') + 
+#   geom_sf(data = russian %>% st_crop(sonoma), size = 1) + 
+#   scale_fill_scico(palette = 'oslo', direction = -1)
+
+# ## HUC-12 watersheds
+# load(paste0('D:/Research/_sherlock/1. PARRA/_results/event_', year, '/mc_beta/prcp4/DV_huc12.Rdata'))
+# wbd12 %>% 
+#   mutate(group = toNumber(HUC12)) %>% 
+#   left_join(loss.group %>% mutate(group = toNumber(group)), by = 'group') %>% 
+#   mutate(loss = ifelse(is.na(loss), 0, loss)) %>% 
+#   st_transform(6417) %>% st_crop(aoi) %>% 
+#   ggplot() + 
+#   geom_sf(data = sonoma %>% st_transform(6417), fill = 'grey90', color = 'grey60') +
+#   geom_sf(aes(fill = log10(loss+1)), color = NA) + 
+#   geom_sf(data = sonoma %>% st_transform(6417), fill = NA, color = 'grey60') +
+#   geom_sf(data = aoi, fill = NA, color = 'grey40') + 
+#   geom_sf(data = russian %>% st_crop(sonoma), size = 1) + 
+#   scale_fill_scico(palette = 'oslo', direction = -1)
+
+```
+```{r}
+load(paste0('D:/Research/_sherlock/1. PARRA/_results/event_', 1995, '/mc_beta/prcp4/DV.Rdata'))
+loss1995 <- loss.group
+load(paste0('D:/Research/_sherlock/1. PARRA/_results/event_', 2006, '/mc_beta/prcp4/DV.Rdata'))
+loss2006 <- loss.group
+load(paste0('D:/Research/_sherlock/1. PARRA/_results/event_', 2019, '/mc_beta/prcp4/DV.Rdata'))
+loss2019 <- loss.group
+
+list(loss1995, loss2006, loss2019) %>% 
+  lapply(function(x) x %>% mutate(loss = loss/sum(loss))) %>% 
+  reduce(full_join, by = 'group') %>% 
+  setNames(c('blockgroup', '1995', '2006', '2019')) %>% 
+  select(-blockgroup) %>% 
+  GGally::ggpairs() + geom_parity() + theme_bw()
+
+```
+
+```{r}
+plot_grid(g1995, map1995, g2006, map2006, g2019, map2019, nrow = 3, align = 'h', axis = 'tb')
+
+plot_grid(
+  ggdraw(g.list[[1]] + theme(plot.margin = margin(10, 25, 10, 10))) + 
+    draw_plot(map1995, x = 0.15, hjust = 0, y = 0.15, vjust = 0, height = 0.75),
+  ggdraw(g.list[[2]] + theme(plot.margin = margin(10, 25, 10, 10))) + 
+    draw_plot(map2006, x = 0.15, hjust = 0, y = 0.15, vjust = 0, height = 0.75),
+  ggdraw(g.list[[3]] + theme(plot.margin = margin(10, 25, 10, 10))) + 
+    draw_plot(map2019, x = 0.15, hjust = 0, y = 0.15, vjust = 0, height = 0.75),
+  nrow = 3)
+ggsave('C:/Users/cbowers/Desktop/loss_prob.png', width = 6.5, height = 5)
+
+require(ggpubr)
+plot_grid(
+  ggarrange(g1995 + theme(plot.title = element_text(hjust = 0.5)), 
+            g2006 + theme(plot.title = element_text(hjust = 0.5)), 
+            g2019 + theme(plot.title = element_text(hjust = 0.5)) + 
+              coord_cartesian(xlim = c(0, 220e6)), 
+            nrow = 1, labels = c('a', 'b', 'c'), label.x = 0.8, label.y = 0.5, 
+            font.label = list(family = 'Segoe UI', face = 'bold')),
+  ggarrange(map1995 + theme(legend.position = 'none'), 
+            map2006 + theme(legend.position = 'none'),
+            map2019 + theme(legend.position = 'none'), 
+            nrow = 1, labels = c('d', 'e', 'f'), label.x = 0.8, label.y = 0.85,
+            font.label = list(family = 'Segoe UI', face = 'bold')),
+  get_legend(map1995), nrow = 3, rel_heights = c(4,4,1)) 
+ggsave('C:/Users/cbowers/Desktop/loss_prob.png', width = 6.5, height = 4)
+
+```
+
+
+
+# plot results from running PARRA for the entire catalog
+```{r}
+## load full simulation
+load(paste0('D:/Research/_sherlock/1. PARRA/_results/full/AR.Rdata'))
+load(paste0('D:/Research/_sherlock/1. PARRA/_results/full/PRCP.Rdata'))
+load(paste0('D:/Research/_sherlock/1. PARRA/_results/full/Q.Rdata'))
+load(paste0('D:/Research/_sherlock/1. PARRA/_results/full/INUN.Rdata'))
+load(paste0('D:/Research/_sherlock/1. PARRA/_results/full/DM.Rdata'))
+load(paste0('D:/Research/_sherlock/1. PARRA/_results/full/DV.Rdata'))
+
+loss.merged <- loss.sim %>% 
+  full_join(precip %>% 
+              select(n.AR, n.precip, precip = precip_mm), 
+            by = c('n.AR', 'n.precip')) %>% 
+  full_join(hydrograph %>% 
+              select(n.AR, n.precip, runoff = runoff_mm, Qp = Qp_m3s), 
+            by = c('n.AR', 'n.precip')) %>% 
+  mutate(runoff = ifelse(is.na(runoff), 0, runoff),
+         Qp = ifelse(is.na(Qp), 0, Qp),
+         loss = ifelse(is.na(loss), 0, loss))
+
+g1 <- ggplot() + 
+  geom_point(data = loss.merged, aes(x = precip, y = loss), color = 'grey70') + 
+  geom_point(data = loss.merged %>% filter(n.AR == 89), 
+             aes(x = precip, y = loss, color = '1995')) + 
+  geom_point(data = loss.merged %>% filter(n.AR == 249), 
+             aes(x = precip, y = loss, color = '2006')) + 
+  geom_point(data = loss.merged %>% filter(n.AR == 459), 
+             aes(x = precip, y = loss, color = '2019')) + 
+  scale_color_manual('Year', values = baker[-3],
+                     guide = guide_legend(override.aes = list(size = 2))) +
+  scale_x_origin('Precipitation (in)', labels = comma_format(scale = 1/25.4, accuracy = 1), 
+                 breaks = seq(0, 30*25.4, 5*25.4)) + 
+  scale_y_origin('Expected Loss ($M)', labels = comma_format(scale = 1e-6)) + 
+  coord_cartesian(xlim = c(0, 30*25.4), ylim = c(0, 750e6), clip = 'off')
+g2 <- ggplot() + 
+  geom_point(data = loss.merged, aes(x = Qp, y = loss), color = 'grey70') + 
+  geom_point(data = loss.merged %>% filter(n.AR == 89), 
+             aes(x = Qp, y = loss, color = '1995')) + 
+  geom_point(data = loss.merged %>% filter(n.AR == 249), 
+             aes(x = Qp, y = loss, color = '2006')) + 
+  geom_point(data = loss.merged %>% filter(n.AR == 459), 
+             aes(x = Qp, y = loss, color = '2019')) + 
+  scale_color_manual('Year', values = baker[-3],
+                     guide = guide_legend(override.aes = list(size = 2))) +
+  scale_x_origin('Streamflow (m3/s)', labels = comma) + 
+  scale_y_origin('Expected Loss ($M)', labels = comma_format(scale = 1e-6)) + 
+  coord_cartesian(xlim = c(0, 2500), ylim = c(0, 750e6), clip = 'off')
+
+# ggplot() + geom_point(data = loss.merged, aes(x = precip, y = Qp))
+
+ggarrange(g1, g2, ncol = 2, common.legend = TRUE, legend = 'bottom')
+
+```
+
+
+## estimate return period for losses 
+
+```{r}
+## NFIP method
+load('D:/Research/_data/NFIP/NFIP.Rdata')
+
+## what would the AAL be according to claims?
+claims %>%
+  filter(toNumber(censustract) %in% toNumber(sonoma$GEOID)) %>%
+  group_by(year = year(dateofloss)) %>% 
+  summarize(total_loss = Sum(amountpaidonbuildingclaim) + Sum(amountpaidoncontentsclaim)) %>%
+  ungroup %>% 
+  summarize(AAL = sum(total_loss)/length(total_loss)/1e6*30)
+claims %>%
+  filter(toNumber(censustract) %in% toNumber(sonoma$GEOID)) %>% 
+  summarize(total_loss = Sum(amountpaidonbuildingclaim) + Sum(amountpaidoncontentsclaim)) %>%
+  summarize(AAL = total_loss/diff(range(year(claims$dateofloss)))/1e6*30)
+## about $53M, or ~14% of the CA total
+
+claims %>%
+  mutate(sonoma = (toNumber(censustract) %in% toNumber(sonoma$GEOID))) %>% 
+  group_by(sonoma) %>%
+  summarize(num_claims = length(sonoma), 
+            total_claims = (Sum(amountpaidonbuildingclaim) + Sum(amountpaidoncontentsclaim))/1e6) %>%
+  mutate(insured_loss = total_claims*30)
+  # mutate(pct_loss = total_loss/sum(total_loss))
+## compared to the Corringham et al. paper, I'm short on claims by about 25%, and 
+## I have about half of the losses I'm supposed to 
+
+## they have 5.2 billion dollars in losses
+5.2e3 / 40
+
+```
+
+```{r}
+## USGS method
+temp <- read_csv('C:/Users/cbowers/Downloads/data.csv', skip = 22, n_max = 8) %>% 
+  mutate(AEP = (str_locate(Statistic, '-')[,'start'] - 1) %>% 
+           str_sub(Statistic, end = .) %>% toNumber) %>% 
+  mutate(RP = 1/(AEP/100)) %>% 
+  mutate(flow_m3s = Value / mft^3)
+lm(log(RP) ~ flow_m3s, data = temp) %>% summary
+ggplot() + 
+  geom_point(data = temp, aes(x = flow_m3s, y = RP)) + 
+  geom_line(data = data.frame(dx = seq(100, 5000, 10)),
+            aes(x = dx, y = exp(1.683e-03*dx-7.154e-01))) + 
+  scale_x_origin() #+ scale_y_log10()
+
+g1 <- loss.merged %>% 
+  mutate(RP = exp(1.683e-03*Qp - 7.154e-01)) %>% 
+  # arrange(desc(RP)) %>% View
+  ggplot() + geom_point(aes(x = RP, y = loss)) + 
+  scale_x_origin('Return Period (years)') + 
+  scale_y_origin('Expected Loss ($M)', labels = comma_format(scale = 1e-6)) +
+  theme(axis.title.y = element_blank(), axis.text.y = element_blank())
+g2 <- loss.merged %>% 
+  ggplot() + geom_point(aes(x = Qp/mft^3, y = loss)) +
+  scale_x_origin('Streamflow @ USGS 11463500 (m3/s)') + 
+  scale_y_origin('Expected Loss ($M)', labels = comma_format(scale = 1e-6))
+cowplot::plot_grid(g2, g1, ncol = 2, align = 'hv')
+ggsave('C:/Users/cbowers/Desktop/temp.jpg', width = 10, height = 5)
+
+loss.merged %>% 
+  mutate(RP = exp(1.683e-03*Qp - 7.154e-01)) %>% 
+  summarize(annual_loss = Mean(loss/RP)/1e6)
+  summarize(annual_loss = Sum(loss/RP)/1e6/100/33)
+## based on this, the AAL is $118M
+
+```
+
+
+```{r}
+## PARRA method
+
+```
+
+```{r}
+loss.merged %>% 
+  arrange(loss) %>% 
+  mutate(RP = (1:nrow(.))*33/nrow(.)) %>%
+  # mutate(RP2 = exp(1.683e-03*Qp - 7.154e-01)) %>% 
+  # ggplot() + 
+  # geom_point(aes(x = loss, y = RP1, color = 'RP1')) + 
+  # geom_point(aes(x = loss, y = RP2, color = 'RP2')) + 
+  # scale_x_origin(labels = comma_format(scale = 1e-6, prefix = '$', suffix = 'M')) + 
+  # scale_y_origin()
+  summarize(annual_loss = Sum(loss/RP)/1e6/100/33)
+
+g1 <- ggplot() + 
+  geom_point(data = temp, aes(x = flow_m3s, y = RP)) + 
+  geom_line(data = data.frame(dx = seq(100, 5000, 10)),
+            aes(x = dx, y = exp(1.683e-03*dx-7.154e-01))) + 
+  scale_x_origin() + scale_y_origin('Return Period (years)') + 
+  coord_cartesian(xlim = c(0,5000), clip = 'off') + 
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank())
+g2 <- ggplot() + 
+  geom_histogram(data = catalog, aes(x = Qp/mft^3), boundary = 0,
+                 color = 'black', fill = 'grey90', bins = 20) +
+  scale_x_origin('Streamflow @ USGS 11463500 (m3/s)') + scale_y_origin() + 
+  coord_cartesian(xlim = c(0,5000), clip = 'off') +
+  theme(axis.title.y = element_blank(), axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank())
+cowplot::plot_grid(g1, g2, nrow = 2, align = 'v', rel_heights = c(2,1)) 
+
+```
+
+```{r}
+## alternative return period method
+ggplot() + 
+  geom_point(data = loss.merged %>% arrange(desc(loss)) %>% 
+               mutate(exceed = (1:nrow(.))/3200) %>% mutate(RP = 1/exceed),
+             aes(x = RP, y = loss)) + 
+  geom_point(data = loss.merged %>% group_by(n.AR) %>% 
+               summarize(loss.mean = mean(loss)) %>% arrange(desc(loss.mean)) %>% 
+               mutate(exceed = (1:nrow(.))/32) %>% 
+               mutate(RP = 1/exceed),
+             aes(x = RP, y = loss.mean), color = 'red') + 
+  # scale_x_origin('Return Period (years)') + 
+  scale_x_log10() +
+  scale_y_origin('Loss ($M)', labels = comma_format(scale = 1e-6))
+## it seems like the larger catalog is in fact hazard-consistent
+
+loss.merged %>% 
+  arrange(desc(loss)) %>% 
+  mutate(exceed = (1:nrow(.))/3200) %>% 
+  ggplot() + 
+  geom_point(aes(x = loss, y = exceed)) + 
+  scale_x_origin('Loss ($M)', labels = comma_format(scale = 1e-6)) + 
+  scale_y_log10('Probability of Exceedance')
+
+sum(loss.merged$loss/3200) / 1e6
+## this is right in line with my other two estimates --> good! 
+
+```
+
+```{r}
+## check the mitigated case
+# load(paste0('D:/Research/_sherlock/1. PARRA/_results/full/AR.Rdata'))
+# load(paste0('D:/Research/_sherlock/1. PARRA/_results/full/PRCP.Rdata'))
+# load(paste0('D:/Research/_sherlock/1. PARRA/_results/full/Q.Rdata'))
+load(paste0('D:/Research/_sherlock/1. PARRA/_results/full/INUN.Rdata'))
+
+load('C:/Users/cbowers/Desktop/buildings.Rdata')
+buildings <- buildings %>% 
+  st_as_sf(coords = c('X', 'Y'), crs = 4269) %>% 
+  st_transform(6417)
+
+load(paste0('D:/Research/_sherlock/1. PARRA/_results/full/mitigated/DM.Rdata'))
+load(paste0('D:/Research/_sherlock/1. PARRA/_results/full/mitigated/DV.Rdata'))
+
+ggplot() + 
+  geom_hline(yintercept = 1e-2, color = 'grey70') + 
+  geom_point(data = loss.merged %>% arrange(desc(loss)) %>% 
+               mutate(exceed = (1:nrow(.))/3200),
+             aes(x = loss, y = exceed, color = 'Current')) +
+  geom_point(data = loss.sim %>% arrange(desc(loss)) %>%  
+               mutate(exceed = (1:nrow(.))/3200),
+             aes(x = loss, y = exceed, color = 'Mitigated')) +
+  ggtitle('Sonoma County Flood Loss Exceedance Curve') + 
+  scale_x_origin('Loss ($M)', labels = comma_format(scale = 1e-6)) + 
+  scale_y_log10('Probability of Exceedance') + 
+  scale_color_manual('Building \nElevations', values = c('black', 'grey50')) + 
+  annotation_logticks(sides = 'l') + 
+  theme(legend.position = c(0.75, 0.65))
+ggsave('C:/Users/cbowers/Desktop/loss_mitigated.png', width = 6, height = 4)
+
+sum(loss.sim$loss/3200) / 1e6
+
+```
+
+
+```{r}
+## why is the mitigated higher than the normal?
+found_ht <- map_dfc(.x = 1:100, ~assign_foundations(buildings, nsi1.found))
+temp <- data.frame(bldg = 1:nrow(buildings)) %>% 
+  mutate(ht.05 = apply(found_ht, 1, function(x) quantile(x, 0.05)),
+         ht.25 = apply(found_ht, 1, function(x) quantile(x, 0.25)),
+         ht.median = apply(found_ht, 1, median),
+         ht.mean = apply(found_ht, 1, mean),
+         ht.75 = apply(found_ht, 1, function(x) quantile(x, 0.75)),
+         ht.95 = apply(found_ht, 1, function(x) quantile(x, 0.95))) %>% 
+  cbind(raised = buildings$raised_m)
+ggplot(temp) + 
+  geom_segment(aes(x = raised, xend = raised, y = ht.05, yend = ht.95), color = 'grey70') + 
+  geom_point(aes(x = raised, y = ht.mean)) + 
+  geom_parity()
+
+wet.bldg <- attr(inundation, 'wet.bldg')
+n.inun <- length(inundation)
+depth.prob <- 
+  assign_foundations(buildings[wet.bldg,], foundations) %>% 
+  sweep(inundation[[1]], 1, ., FUN = '-') %>% 
+  apply(2, function(x) ifelse(x<0, 0, x)) %>% as.matrix
+depth.prob[] <- ifelse(depth.prob[]>0 & inundation[[1]][]==0, 0, depth.prob[])
+
+depth.raised <- 
+  (unname(unlist(st_drop_geometry(buildings[wet.bldg, 'raised_m']))) + 1) %>% 
+  sweep(inundation[[1]], 1, ., FUN = '-') %>% 
+  apply(2, function(x) ifelse(x<0, 0, x)) %>% as.matrix
+
+buildings[wet.bldg,] %>% 
+  mutate(depth.prob = apply(depth.prob, 1, mean),
+         depth.raised = apply(depth.raised, 1, mean)) %>% 
+  ggplot() + 
+  geom_point(aes(x = depth.prob, y = depth.raised)) + geom_parity()
+
+hist(buildings$raised_m[wet.bldg])
+
+```
+
+
+
+
+
