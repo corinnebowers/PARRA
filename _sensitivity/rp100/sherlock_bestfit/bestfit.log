@@ -6,16 +6,16 @@ _CALCULATE_Q_MODE 1.
 Loading parameters... 'bestfit.par'
 resroot = bestfit
 dirroot = results
-sim_time = 6048000.000
-saveint = 604800.000
-massint = 60480.000
+sim_time = 4320000.000
+saveint = 432000.000
+massint = 900.000
 initial_tstep = 1.000
 DEMfile = russian.dem.asc
 SGCbank = russian.dem.asc
 SGCwidth = russian.width.asc
 Using sub-grid channels and acceleration formulation
-SGCn = 0.024
-SGCn changed to 0.02400 
+SGCn = 0.030
+SGCn changed to 0.03000 
 bcifile = bestfit.bci
 bdyfile = bestfit.bdy
 manningfile = russian.n.asc
@@ -24,15 +24,14 @@ acceleration
 Using acceleration formulation for floodplain flow
 elevoff
 depthoff
-debug
 Reading parameters done.
 
 Reading command line.
 Reading command line done.
 
 
-Start Date: 17/8/2021 
-Start Time: 8:16:32 
+Start Date: 18/8/2021 
+Start Time: 10:36:56 
 
 Loading DEM1000x925
 BL corner	(1895000.000000,579500.000000)
@@ -62,18 +61,18 @@ SGC mode
 
 OMP thread count: 20
 NUMA:
-|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|
+|1|1|0|0|1|0|0|1|0|1|0|0|0|0|1|1|1|1|0|1|
 Init Sub Grid...	sub grid flows: 7976 sub grid cells:5414
 Init done
-Elapsed processing time:			8094.593042 (s) 6048000
-Output write time:			0.000013 (s) 11
-loop time 8095.000000
+Elapsed processing time:			5611.889814 (s) 4320000
+Output write time:			0.000019 (s) 11
+loop time 5612.000000
 Finished.
 
 
-Finish Date: 17/8/2021 
-Finish Time: 10:31:30 
+Finish Date: 18/8/2021 
+Finish Time: 12:10:31 
 
 
-  Total computation time: 134.93 mins
+  Total computation time: 93.55 mins
 

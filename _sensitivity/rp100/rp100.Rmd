@@ -17,6 +17,7 @@ The purpose of this script is (a) to find out which parameters produce the best-
 ## setup
 knitr::opts_knit$set(root.dir = 'D:/1-PARRA/')
 knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+knitr::opts_chunk$set(fig.show = 'hold', fig.align = 'center')
 
 ```
 
@@ -77,6 +78,19 @@ While LISFLOOD outputs a flood depth at every location, the NFHL data does not p
 # which(!(1:1000) %in% sim.list) %>% 
 #   write.table(file = 'C:/Users/cbowers/Desktop/id.txt', row.names = FALSE, col.names = FALSE)
 
+samples1 <- read.table('_sensitivity/rp100/sherlock_rpflow_old/samples_rp100_250.txt', header = TRUE)
+samples2 <- read.table('_sensitivity/rp100/sherlock_rpflow_old/samples_rp100_500.txt', header = TRUE)
+samples3 <- read.table('_sensitivity/rp100/sherlock_rpflow/samples_rp100.txt', header = TRUE)
+samples <- rbind(
+  samples1 %>% mutate(sim = 1), 
+  samples2 %>% mutate(sim = 2),
+  samples3 %>% mutate(sim = 3))
+ggplot(samples) + geom_point(aes(x = X90, y = X43, color = factor(sim)))
+
+write.table(samples %>% select(-sim),
+            file = '_sensitivity/rp100/sherlock/samples_rp100.txt', sep = '\t',
+            row.names = FALSE, col.names = TRUE)
+
 ```
 
 ## Compute accuracy metrics (critical success ratio & Hausdorff distance) for each inundation map
@@ -85,7 +99,7 @@ While LISFLOOD outputs a flood depth at every location, the NFHL data does not p
 load('_data/NFHL/NFHL.Rdata')
 
 ## load simulated data
-sim.list <- list.files('_sensitivity/rp100/sherlock/results') %>% 
+sim.list <- list.files('_sensitivity/rp100/sherlock_rpflow/results') %>% 
   gsub('rpflow', '', .) %>% gsub('.max', '', .) %>% toNumber
   
 ## write a function to generate the reduced confusion matrix
@@ -112,7 +126,7 @@ accuracy <-
     .combine = 'rbind', .export = c('confusion', 'binary'),
     .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
     .packages = c('raster', 'dplyr', 'pracma')) %dopar% {
-      sim <- paste0('_sensitivity/rp100/sherlock/results/rpflow', i, '.max') %>%
+      sim <- paste0('_sensitivity/rp100/sherlock_rpflow/results/rpflow', i, '.max') %>%
         raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
 
       ## calculate confusion matrix statistics
@@ -137,7 +151,7 @@ save(accuracy, file = '_sensitivity/rp100/checkpoints/accuracy.Rdata')
 # load('_sensitivity/rp100/checkpoints/accuracy.Rdata')
 
 ## join to samples dataframe
-samples.rp100 <- read.table('_sensitivity/rp100/sherlock/samples_rp100.txt', header = TRUE) 
+samples.rp100 <- read.table('_sensitivity/rp100/sherlock_rpflow/samples_rp100.txt', header = TRUE) 
 vars <- names(samples.rp100)
 samples.rp100 <- samples.rp100 %>%
   mutate(id = 1:nrow(.)) %>% 
@@ -211,7 +225,7 @@ cluster.id <- samples.rp100 %>%
 
 ## save checkpoint
 save(samples.rp100, cluster.id, file = '_sensitivity/rp100/checkpoints/samples_cluster.Rdata')
-load('_sensitivity/rp100/checkpoints/samples_cluster.Rdata')
+# load('_sensitivity/rp100/checkpoints/samples_cluster.Rdata')
 
 ```
 
@@ -227,11 +241,11 @@ fstat <-
     .combine = 'rbind', .export = 'confusion',
     .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
     .packages = c('raster', 'dplyr', 'pracma', 'foreach')) %dopar% {
-      sim.i <- paste0('_sensitivity/rp100/sherlock/results/rpflow', cluster.id[i], '.max') %>%
+      sim.i <- paste0('_sensitivity/rp100/sherlock_rpflow/results/rpflow', cluster.id[i], '.max') %>%
         raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
       foreach(j = 1:n, .combine = 'c') %do% {
         if (i >= j) 0 else {
-          sim.j <- paste0('_sensitivity/rp100/sherlock/results/rpflow', cluster.id[j], '.max') %>%
+          sim.j <- paste0('_sensitivity/rp100/sherlock_rpflow/results/rpflow', cluster.id[j], '.max') %>%
             raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
           tb <- overlay(sim.i, sim.j, fun = confusion)[] %>% table
           1 - tb['0']/sum(tb)
@@ -267,11 +281,11 @@ hausdorff <-
     .combine = 'rbind', .export = 'binary',
     .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
     .packages = c('raster', 'dplyr', 'pracma', 'foreach')) %dopar% {
-      sim.i <- paste0('_sensitivity/rp100/sherlock/results/rpflow', cluster.id[i], '.max') %>%
+      sim.i <- paste0('_sensitivity/rp100/sherlock_rpflow/results/rpflow', cluster.id[i], '.max') %>%
         raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
       foreach(j = 1:n, .combine = 'c') %do% {
         if (i >= j) 0 else {
-          sim.j <- paste0('_sensitivity/rp100/sherlock/results/rpflow', cluster.id[j], '.max') %>%
+          sim.j <- paste0('_sensitivity/rp100/sherlock_rpflow/results/rpflow', cluster.id[j], '.max') %>%
             raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
           hausdorff_dist(binary(sim.i), binary(sim.j))
         }
@@ -943,21 +957,21 @@ We return to Sherlock to run one more simulation with the default + updated para
 The accuracy metrics and the spatial comparison for this "best-fit" simulation are shown below.
 
 ```{r bestfit}
-bestfit <- raster('_sensitivity/rp100/sherlock/bestfit/bestfit.max') %>%
+bestfit <- raster('_sensitivity/rp100/sherlock_bestfit/results/bestfit.max') %>%
   overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
 
 ## calculate confusion matrix statistics
 tb <- overlay(obs, bestfit, fun = confusion)[] %>% table
 
 ## report statistics
-stats <- 
+stats <-
   c(hitrate = unname(tb['0'] / (tb['-1'] + tb['0'])) %>%
       percent(accuracy = 0.01),
     falsalarm = unname(tb['1'] / (tb['0'] + tb['1'])) %>%
       percent(accuracy = 0.01),
-    fstat = unname(tb['0'] / sum(tb)) %>% 
+    fstat = unname(tb['0'] / sum(tb)) %>%
       percent(accuracy = 0.01),
-    bias = unname(tb['1'] / tb['-1']) %>% 
+    bias = unname(tb['1'] / tb['-1']) %>%
       comma(accuracy = 0.01))
 print(stats)
 
@@ -965,15 +979,15 @@ print(stats)
 
 ```{r plot.bestfit, echo = FALSE}
 ## plot spatial accuracy
-ggplot(data = raster.df(overlay(obs, bestfit, fun = confusion)) %>% filter(!is.na(value))) + 
-  geom_sf(data = st_union(sonoma) %>% st_crop(aoi), fill = 'grey95', color = 'grey50') + 
-  geom_raster(aes(x=x, y=y, fill = factor(value))) + 
-  scale_fill_scico_d('LISFLOOD vs. \nNFHL Performance', 
-                     palette = 'berlin', direction = -1, 
-                     labels = c('False Negative', 'True Positive', 'False Positive')) + 
+ggplot(data = raster.df(overlay(obs, bestfit, fun = confusion)) %>% filter(!is.na(value))) +
+  geom_sf(data = st_union(sonoma) %>% st_crop(aoi), fill = 'grey95', color = 'grey50') +
+  geom_raster(aes(x=x, y=y, fill = factor(value))) +
+  scale_fill_scico_d('LISFLOOD vs. \nNFHL Performance',
+                     palette = 'berlin', direction = -1,
+                     labels = c('False Negative', 'True Positive', 'False Positive')) +
   theme_void()
 
 ```
 
-These accuracy statistics are very similar to the ones found by Wing et al. (2020) when comparing against the NFHL for the entire US. 
-Therefore this is considered to be an acceptable fit, and we will use the LISFLOOD environment parameters calculated here for all further LISFLOOD modeling. 
+These accuracy statistics are very similar to the ones found by Wing et al. (2020) when comparing against the NFHL for the entire US.
+Therefore this is considered to be an acceptable fit, and we will use the LISFLOOD environment parameters calculated here for all further LISFLOOD modeling.

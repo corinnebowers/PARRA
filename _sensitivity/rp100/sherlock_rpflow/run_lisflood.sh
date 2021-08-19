@@ -1,44 +1,43 @@
 #!/bin/bash
 
 # find the number of samples
-n=$(wc -l samples_rp100_500.txt | cut -f1 -d ' ')
+n=$(wc -l samples_rp100.txt | cut -f1 -d ' ')
 let "n-=1"
 
-for i in $(seq 1 $n)
+for i in $(seq 257 $n)
 do \
 plusone=$(expr $i + 1)
-line=$(tail -n+$plusone samples_rp100_500.txt | head -n1)
+line=$(tail -n+$plusone samples_rp100.txt | head -n1)
 
 # read parameters for the ith iteration
 SGCn=$(echo $line | cut -f16 -d ' ')
 SGCr=$(echo $line | cut -f19 -d ' ')
 SGCp=$(echo $line | cut -f18 -d ' ')
 
-# move increment upwards
-j=$i
-let "j+=250"
-
 # create lisflood parfile
 bash makepar.sh \
-"rpflow$j"			`#file name` \
+"rpflow$i"			`#file name` \
 "results" 			`#results directory` \
-"6048000" 			`#simulation length (seconds)` \
+"4320000" 			`#simulation length (seconds)` \
 "1" 				`#simulation timestep (seconds)` \
 "russian.dem.asc" 		`#DEM raster file` \
 "russian.width.asc"		`#channel width raster file` \
 "${SGCn}" 			`#channel roughness coefficient` \
 "${SGCr}"	 		`#channel depth parameter, r` \
 "${SGCp}"			`#channel depth parameter, p` \
-"bci_bdy/rpflow$j.bci" 		`#.bci file` \
-"bci_bdy/rpflow$j.bdy"	 	`#.bdy file` \
+"bci_bdy/rpflow$i.bci" 		`#.bci file` \
+"bci_bdy/rpflow$i.bdy"	 	`#.bdy file` \
 "" 				`#starting .wd file` \
-"manning/russian.n$j.asc" 	`#spatially varying floodplain roughness raster` \
+"manning/russian.n$i.asc" 	`#spatially varying floodplain roughness raster` \
 "" 				 #constant floodplain roughness coefficient
+
+# calculate SGC files (once)
+if [ $i == 1 ]; then echo "debug" >> rpflow$i.par; fi
 
 # submit lisflood job with sbatch wrap
 sbatch \
---job-name=lfrp${j} \
---output=logfiles/lisflood_${j}.log \
+--job-name=lfrp${i} \
+--output=logfiles/lisflood_${i}.log \
 --nodes=1 \
 --ntasks=1 \
 --cpus-per-task=20 \
@@ -47,7 +46,7 @@ sbatch \
 -p owners,cee \
 --mail-type=ALL \
 --mail-user=cbowers@stanford.edu \
---wrap="ml netcdf; lisflood -v rpflow$j.par"
+--wrap="ml netcdf; lisflood -v rpflow$i.par"
 
 sleep 2
 

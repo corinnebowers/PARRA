@@ -41,8 +41,8 @@ num_cores <- as.numeric(Sys.getenv("SLURM_CPUS_PER_TASK"))
 
 #### define user input parameters #################################################################
 
-n <- 250  			#number of LHS samples
-simlength <- 40*24*3600  	#LISFLOOD simulation length (s)
+n <- 500  			#number of LHS samples
+simlength <- 20*24*3600  	#LISFLOOD simulation length (s)
 spinup <- 30*24*3600  		#LISFLOOD simulation spin-up time (s)
 baseflow <- 3  			#baseflow @ USGS 11463500 (m3/s)
 Qp <- 112000 / (mft^3)  	#peak streamflow @ USGS 11463500 (m3/s)
@@ -67,11 +67,11 @@ samples <- map_dfc(.x = 1:15,
          m = qunif(samples.lhs$x20, min = 0, max = 10))
 
 ## save to file
-write.table(samples, file = 'samples_rp100_500.txt',
+write.table(samples, file = 'samples_rp100.txt',
             row.names = FALSE, quote = FALSE, sep = '\t')
 
 ## load from file, if necessary
-#samples = read.csv('samples_rp100_500.txt', sep = '\t', header = TRUE)
+#samples = read.csv('samples_rp100.txt', sep = '\t', header = TRUE)
 
 
 #### generate .bci & .bdy files ###################################################################
@@ -97,15 +97,15 @@ for (i in 1:n) {
   q <- q / edgewidth
   
   ## write out files
-  bdy <- matrix(c('LISFLOOD', NA, paste0('rpflow', i+250), NA, length(t), 'seconds'), 
+  bdy <- matrix(c('LISFLOOD', NA, paste0('rpflow', i), NA, length(t), 'seconds'), 
                 byrow = TRUE, ncol = 2) %>% rbind(cbind(q, t))
-  write.table(bdy, file = paste0('bci_bdy/rpflow', i+250, '.bdy'), 
+  write.table(bdy, file = paste0('bci_bdy/rpflow', i, '.bdy'), 
               row.names = FALSE, col.names = FALSE, quote = FALSE, sep = '\t', na = '')
   bci <- data.frame(matrix(
-    c('N', round(min(edge.in$x)), round(max(edge.in$x)), 'QVAR', paste0('rpflow', i+250),
+    c('N', round(min(edge.in$x)), round(max(edge.in$x)), 'QVAR', paste0('rpflow', i),
       'W', round(min(edge.out$y)), round(max(edge.out$y)), 'FREE', NA),
     nrow = 2, byrow = TRUE))
-  write.table(bci, file = paste0('bci_bdy/rpflow', i+250, '.bci'), 
+  write.table(bci, file = paste0('bci_bdy/rpflow', i, '.bci'), 
               row.names = FALSE, col.names = FALSE, quote = FALSE, sep = '\t', na = '')
 }
 
@@ -136,7 +136,7 @@ foreach (i = 1:n,
 
     ## save out
     writeRaster(lulc.dem, format = 'ascii', overwrite = TRUE, 
-                filename = paste0('manning/russian.n', i+250, '.asc'))
+                filename = paste0('manning/russian.n', i, '.asc'))
 }
 stopCluster(cl)
 

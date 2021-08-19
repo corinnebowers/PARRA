@@ -35,21 +35,26 @@ load('edges.Rdata')
 load('lulc.Rdata')
 manning <- read.table('manning_values.txt', header = TRUE) %>% as.data.frame
 
+## parallel backend
+num_cores <- as.numeric(Sys.getenv("SLURM_CPUS_PER_TASK"))
 
-#### define user input parameters #################################################################
 
-simlength <- 40*24*3600  	#LISFLOOD simulation length (s)
+#### define best-fit parameters from rp100.Rmd ####################################################
+
+simlength <- 20*24*3600  	#LISFLOOD simulation length (s)
 spinup <- 30*24*3600  		#LISFLOOD simulation spin-up time (s)
 baseflow <- 3  			#baseflow @ USGS 11463500 (m3/s)
 Qp <- 112000 / (mft^3)  	#peak streamflow @ USGS 11463500 (m3/s)
 
+tp <- 44 * 3600			#time to peak streamflow (sec)
+m <- 4.5			#hydrograph shape parameter
+
+manning[toNumber(manning$code) == 82, 'default'] <- 0.034
+manning[toNumber(manning$code) == 71, 'default'] <- 0.32
+
 
 #### generate .bci & .bdy files ###################################################################
 print('generating .bci & .bdy files...')
-
-## convert tp, m, & edge information into LISFLOOD files
-tp <- 44 * 3600  #seconds
-m <- 4
 
 ## calculate storm hydrograph
 t <- seq(0, simlength, 60)
@@ -77,16 +82,17 @@ write.table(bci, file = 'bestfit.bci',
             row.names = FALSE, col.names = FALSE, quote = FALSE, sep = '\t', na = '')
 
 
-#### generate .n.asc files ########################################################################
-print('generating .n.asc files...')
+
+#### generate .n.asc file #########################################################################
+print('generating .n.asc file...')
 
 ## get LULC codes
 lulc <- rasterFromXYZ(lulc.df, crs = crs(lulc))
 
+
 ## grab the Manning's n values of interest
 manning_values <- 
-  cbind(code = toNumber(manning$code), 
-        value = toNumber(manning$default))
+  cbind(code = toNumber(manning$code), value = toNumber(manning$default))
 
 ## change LULC codes to roughness values
 lulc.dem <- lulc %>% 
@@ -96,6 +102,7 @@ lulc.dem <- lulc %>%
 ## save out
 writeRaster(lulc.dem, format = 'ascii', overwrite = TRUE, 
             filename = 'russian.n.asc')
+
 
 
 ###################################################################################################
