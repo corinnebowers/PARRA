@@ -13,17 +13,16 @@ suppressPackageStartupMessages({
 mft <- 3.28084
 
 ## input parameters
-n <- 5000  #number of LHS samples
-m <- 4  #hydrograph shape parameter
+n <- 1000  #number of LHS samples
+m <- 4.5  #hydrograph shape parameter
 simlength <- 30*24*3600  #simulation length (s)
-spinup <- 15*24*3600  #simulation spin-up time (s)
+spinup <- 30*24*3600  #simulation spin-up time (s)
 
 ##if the first simulation does not reach the outlet: 
 #simlength <- 60*24*3600  #simulation length (s)
 #spinup <- 30*24*3600  #simulation spin-up time (s)
 
 baseflow <- 3  #baseflow (m3/s)
-#drainarea <- 655 * 5280^2 / mft^2  #drainage area (m2)
 fileloc <- './bci_bdy/' #location to save files
 
 
@@ -55,6 +54,7 @@ print('creating files...')
 
 pb <- txtProgressBar(min = 0, max = n, style = 3)
 for (i in 1:n) {
+#for (i in unlist(unname(read.table('id2.txt', header = FALSE)))) {
   ## define LHS parameters
   tp <- samples[i, 'tp']*3600  #seconds
   Qp <- samples[i, 'Qp']  #m3/s
@@ -69,7 +69,8 @@ for (i in 1:n) {
   q <- c(rep(baseflow, length(seq(0, spinup-1, 3600))), q)
 
   ## convert to m2/s
-  q <- q / 40 #mean(edge.in$layer)
+  edgewidth <- diff(edge.in$x)/2
+  q <- q / edgewidth
   
   ## write out files
   bdy <- matrix(c('LISFLOOD', NA, paste0('gridflow', i), NA, length(t), 'seconds'), 

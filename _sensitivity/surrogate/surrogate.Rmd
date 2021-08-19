@@ -16,6 +16,8 @@ The goal of this script is to fit a computationally efficient surrogate model to
 ```{r setup, include = FALSE}
 ## setup
 knitr::opts_knit$set(root.dir = 'D:/1-PARRA/')
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+knitr::opts_chunk$set(fig.show = 'hold', fig.align = 'center')
 
 ```
 
@@ -23,8 +25,10 @@ knitr::opts_knit$set(root.dir = 'D:/1-PARRA/')
 ## setup information
 source('_data/setup.R')
 
+## set parallel backend
 num_cores <- 5
 
+## load location information
 load('_data/lisflood/dem.Rdata')
 
 ```
@@ -39,10 +43,13 @@ We then run the script $run_lisflood.sh$ to generate .par files and inundation m
 ```{r good, echo = FALSE}
 #### define samples within surrogate model space ####
 
+## define number of expected samples
+n <- 5000
+
 ## remove simulations that errored out in Sherlock
 files <- list.files('_sensitivity/surrogate/sherlock_grid/results')
 sims <- files %>% gsub('gridded', '', .) %>% gsub('.max', '', .) %>% toNumber
-bad1 <- (1:5000)[!(1:5000 %in% sims)]
+bad1 <- (1:n)[!(1:n %in% sims)]
 
 ## remove simulations that do not reach the ocean
 pt <- data.frame(lat = 38.45064279, lon = -123.12917330) %>% 
@@ -69,7 +76,7 @@ bad2 <- files[badfile] %>%
 #             row.names = FALSE, col.names = FALSE)
 
 ## keep successful simulations
-good <- c((1:5000)[-c(bad1, bad2)], 5001)
+good <- (1:n)[-c(bad1, bad2)]
 
 ```
 
@@ -80,8 +87,8 @@ This leaves us with `r length(good)` valid simulations to use for the surrogate 
 ## load samples
 samples <-
   read.table('_sensitivity/surrogate/sherlock_grid/samples_grid.txt', header = TRUE) %>%
-  mutate(sim = 1:nrow(.)) %>% 
-  rbind(c(tp = 1e-6, Qp = 1e-6, sim = 5001))  #add a lower bound point
+  mutate(sim = 1:nrow(.)) # %>% 
+  # rbind(c(tp = 1e-6, Qp = 1e-6, sim = n+1))  #add a lower-bound simulation
 
 ## plot failed simulations
 g <- ggplot(samples %>% arrange(!(sim %in% good))) + 
@@ -100,6 +107,8 @@ samples <- samples %>% mutate(cv = replace(NA, sim %in% good, cv))
 #   geom_point(aes(x = Qp, y = tp, color = factor(cv))) + 
 #   scale_color_scico_d(palette = 'hawaii') + 
 #   scale_x_origin() + scale_y_origin()
+
+## add a lower-bound simulation
 
 ## save out for Sherlock
 save(samples, file = 'C:/Users/cbowers/Desktop/samples.Rdata')
@@ -147,231 +156,170 @@ Rather than the rigorous parameter fit process we conducted for the LISFLOOD env
 <!-- * input results -->
 
 
-
 ```{r}
-# files <- paste0('C:/Users/cbowers/Desktop/LISFLOOD/sonoma_sherlock/21-06-14 fit.npalpha/error', 1:10, '.csv')
-# files <- files[-c(6,9)]
+files <- paste0('_sensitivity/surrogate/sherlock_npalpha/error', 1:10, '.csv')[-6]
+columns <- cols(
+  X1 = col_double(),
+  sim = col_double(),
+  n = col_double(),
+  p = col_double(),
+  alpha = col_double(),
+  SRSS = col_double(),
+  RMSE = col_double(),
+  max.resid = col_double(),
+  max.loc = col_double()
+)
 error <- foreach(file = files) %do% {
-  read_csv(file) %>% select(sim, n, p, alpha, RSS)} %>% 
+  read_csv(file, col_types = columns) %>% select(sim, n, p, alpha, RMSE, SRSS)} %>% 
   do.call(rbind, .)
 
+```
+
+```{r}
 error.npalpha <- error %>% 
   group_by(n, p, alpha) %>% 
-  summarize(RSS.median = median(RSS), SRSS = sqrt(sum(RSS^2)), .groups = 'drop')
-
-error.npalpha %>% arrange(SRSS)
-
-kmeans(error.npalpha %>% select(n, p, alpha), )
-
-g <- error %>%
-  filter(RSS.median <= 10 & SRSS <= 2500) %>% 
-  ggplot() + 
-  geom_point(aes(x = RSS.median, y = SRSS, color = n)) + 
-  scale_x_origin() + scale_y_origin()
-plotly::ggplotly(g)
-
-g <- error %>% 
-  group_by(n, p, alpha) %>% 
-  summarize(RSS.median = median(RSS), SRSS = sqrt(sum(RSS^2)), .groups = 'drop') %>%
-  filter(RSS.median <= 10 & SRSS <= 2500) %>% 
-  ggplot() + 
-  geom_point(aes(x = RSS.median, y = SRSS, color = p)) + 
-  scale_x_origin() + scale_y_origin()
-plotly::ggplotly(g)
-
-g <- error %>% 
-  group_by(n, p, alpha) %>% 
-  summarize(RSS.median = median(RSS), SRSS = sqrt(sum(RSS^2)), .groups = 'drop') %>%
-  filter(RSS.median <= 10 & SRSS <= 2500) %>% 
-  ggplot() + 
-  geom_point(aes(x = RSS.median, y = SRSS, color = alpha)) + 
-  scale_x_origin() + scale_y_origin()
-plotly::ggplotly(g)
-
-## n = 10, p = 3, alpha = 0.75
+  summarize(RMSE.05 = quantile(RMSE, 0.1), 
+            RMSE.median = median(RMSE), 
+            RMSE.95 = quantile(RMSE, 0.9),
+            SRSS = sqrt(sum(SRSS^2)))
+temp <- 
+  lapply(
+    X = c('n', 'p', 'alpha'),
+    FUN = function(x) {
+      error.npalpha %>% 
+        filter(alpha != 0 & alpha != 1) %>% 
+        ggplot() + 
+        geom_point(aes(x = RMSE.median, y = SRSS, color = get(x))) + 
+        scale_color_scico(x, palette = 'roma') +
+        scale_x_origin() + scale_y_origin()
+    })
+do.call(plot_grid, temp)
+temp <- 
+  lapply(
+    X = c('n', 'p', 'alpha'),
+    FUN = function(x) {
+      error.npalpha %>% 
+        filter(alpha != 0 & alpha != 1) %>% 
+        ggplot() + 
+        geom_point(aes(x = RMSE.05, y = RMSE.95, color = get(x))) + 
+        scale_color_scico(x, palette = 'roma') +
+        scale_x_origin() + scale_y_origin()
+    })
+do.call(plot_grid, temp)
 
 ```
 
 ```{r}
-error %>% filter(n == 10 & p == 3 & alpha == 0.75) %>% mutate(id = 'a') %>% 
-  rbind(error %>% filter(n == 5 & p == 2 & alpha == 0.85) %>% mutate(id = 'b')) %>% 
-  ggplot() + 
-  geom_density(aes(x = RSS, group = id, color = id), size = 1) + 
-  scale_x_log10(limits = c(1e-1, NA)) + scale_y_origin()
+## iteratively remove points
+error.subset <- error.npalpha %>% 
+  filter(alpha > 0.25 & alpha != 1) %>%
+  filter(n >= 5 & n <= 10) %>%
+  filter(p >= 1 & p <= 4)
+
+# require(plotly)
+# plot_ly(
+#   data = error.subset, 
+#   x = ~RMSE.median, y = ~SRSS, color = ~factor(n), 
+#   colors = scico(n = length(unique(error.subset$n)), palette = 'roma'))
+# plot_ly(
+#   data = error.subset, 
+#   x = ~RMSE.median, y = ~SRSS, color = ~factor(p), 
+#   colors = scico(n = length(unique(error.subset$p)), palette = 'roma'))
+# plot_ly(
+#   data = error.subset, 
+#   x = ~RMSE.median, y = ~SRSS, color = ~factor(alpha), 
+#   colors = scico(n = length(unique(error.subset$alpha)), palette = 'roma'))
+
+temp <- 
+  lapply(X = c('n', 'p', 'alpha'),
+    FUN = function(x) {
+      ggplot(error.subset) + 
+        geom_point(aes(x = RMSE.median, y = SRSS, color = get(x))) + 
+        scale_color_scico(x, palette = 'roma') +
+        scale_x_origin() + scale_y_origin()})
+do.call(plot_grid, temp)
+temp <- 
+  lapply(X = c('n', 'p', 'alpha'),
+    FUN = function(x) {
+      ggplot(error.subset) + 
+        geom_point(aes(x = RMSE.05, y = RMSE.95, color = get(x))) + 
+        scale_color_scico(x, palette = 'roma') +
+        scale_x_origin() + scale_y_origin()})
+do.call(plot_grid, temp)
+
+
+ggplot(error.npalpha %>% filter(alpha != 0 & alpha != 1)) + 
+  geom_point(aes(x = RMSE.median, y = SRSS), color = 'grey70') + 
+  geom_point(data = error.subset, aes(x = RMSE.median, y = SRSS))
+ggplot(error.npalpha %>% filter(alpha != 0 & alpha != 1)) + 
+  geom_point(aes(x = RMSE.05, y = RMSE.95), color = 'grey70') + 
+  geom_point(data = error.subset, aes(x = RMSE.05, y = RMSE.95))
 
 ```
-
 
 ```{r}
-## plot individual distributions
-error.alpha <- error %>% 
-  filter(alpha > 0 & alpha < 1) %>% 
-  group_by(alpha) %>%
-  summarize(RSS.10 = quantile(RSS, 0.1), RSS.median = median(RSS), RSS.90 = quantile(RSS, 0.9))
-ggplot(error.alpha) + 
-  geom_segment(aes(x = alpha, xend = alpha, y = RSS.10, yend = RSS.90)) + 
-  geom_point(aes(x = alpha, y = RSS.median)) + 
-  scale_x_origin() + scale_y_origin() + 
-  coord_cartesian(xlim = c(0,1))
+## iteratively remove points
+error.subset <- error.npalpha %>% 
+  filter(alpha > 0.4 & alpha < 0.9) %>%
+  filter(n >= 5 & n <= 10) %>%
+  filter(p >= 2 & p < 4)
 
-error.n <- error %>% 
-  filter(alpha > 0 & alpha < 1) %>% 
-  group_by(n) %>%
-  summarize(RSS.10 = quantile(RSS, 0.1), RSS.median = median(RSS), RSS.90 = quantile(RSS, 0.9))
-ggplot(error.n) + 
-  geom_segment(aes(x = n, xend = n, y = RSS.10, yend = RSS.90)) + 
-  geom_point(aes(x = n, y = RSS.median)) + 
-  scale_x_origin() + scale_y_origin()
+# require(plotly)
+# plot_ly(
+#   data = error.subset,
+#   x = ~RMSE.median, y = ~SRSS, color = ~factor(n),
+#   colors = scico(n = length(unique(error.subset$n)), palette = 'roma'))
+# plot_ly(
+#   data = error.subset,
+#   x = ~RMSE.median, y = ~SRSS, color = ~factor(p),
+#   colors = scico(n = length(unique(error.subset$p)), palette = 'roma'))
+# plot_ly(
+#   data = error.subset,
+#   x = ~RMSE.median, y = ~SRSS, color = ~factor(alpha),
+#   colors = scico(n = length(unique(error.subset$alpha)), palette = 'roma'))
 
-error.p <- error %>% 
-  filter(alpha > 0 & alpha < 1) %>% 
-  group_by(p) %>%
-  summarize(RSS.10 = quantile(RSS, 0.1), RSS.median = median(RSS), RSS.90 = quantile(RSS, 0.9))
-ggplot(error.p) + 
-  geom_segment(aes(x = p, xend = p, y = RSS.10, yend = RSS.90)) + 
-  geom_point(aes(x = p, y = RSS.median)) + 
-  scale_x_origin() + scale_y_origin()
+temp <- 
+  lapply(X = c('n', 'p', 'alpha'),
+    FUN = function(x) {
+      ggplot(error.subset) + 
+        geom_point(aes(x = RMSE.median, y = SRSS, color = get(x))) + 
+        scale_color_scico(x, palette = 'roma') +
+        scale_x_origin() + scale_y_origin()})
+do.call(plot_grid, temp)
+temp <- 
+  lapply(X = c('n', 'p', 'alpha'),
+    FUN = function(x) {
+      ggplot(error.subset) + 
+        geom_point(aes(x = RMSE.05, y = RMSE.95, color = get(x))) + 
+        scale_color_scico(x, palette = 'roma') +
+        scale_x_origin() + scale_y_origin()})
+do.call(plot_grid, temp)
 
-## plot joint distributions
-g1 <- error %>% 
-  filter(alpha > 0 & alpha < 1) %>% 
-  group_by(n, p) %>% 
-  summarize(RSS.median = median(RSS)) %>% 
-  ggplot() + 
-  geom_tile(aes(x = factor(n), y = factor(p), fill = RSS.median)) + 
-  scale_fill_scico(palette = 'lajolla', limits = c(0,80))
-g2 <- error %>% 
-  filter(alpha > 0 & alpha < 1) %>% 
-  group_by(alpha, n) %>% 
-  summarize(RSS.median = median(RSS)) %>% 
-  ggplot() + 
-  geom_tile(aes(x = factor(n), y = alpha, fill = RSS.median)) + 
-  scale_fill_scico(palette = 'lajolla', limits = c(0,80))
-g3 <- error %>% 
-  filter(alpha > 0 & alpha < 1) %>% 
-  group_by(alpha, p) %>% 
-  summarize(RSS.median = median(RSS)) %>% 
-  ggplot() + 
-  geom_tile(aes(x = alpha, y = factor(p), fill = RSS.median)) + 
-  scale_fill_scico(palette = 'lajolla', limits = c(0,80))
-ggarrange(g1, g3, g2, common.legend = TRUE)
-
-## iteratively remove parameter values with higher RSS
-g1 <- error %>% 
-  filter(alpha > 0 & alpha < 1) %>% 
-  filter(n > 1 & alpha > 0.05) %>% 
-  group_by(n, p) %>% 
-  summarize(RSS.median = median(RSS)) %>% 
-  ggplot() + 
-  geom_tile(aes(x = factor(n), y = factor(p), fill = RSS.median)) + 
-  scale_fill_scico(palette = 'lajolla', limits = c(0,50))
-g2 <- error %>% 
-  filter(alpha > 0 & alpha < 1) %>% 
-  filter(n > 1 & alpha > 0.05) %>% 
-  group_by(alpha, n) %>% 
-  summarize(RSS.median = median(RSS)) %>% 
-  ggplot() + 
-  geom_tile(aes(x = factor(n), y = alpha, fill = RSS.median)) + 
-  scale_fill_scico(palette = 'lajolla', limits = c(0,50))
-g3 <- error %>% 
-  filter(alpha > 0 & alpha < 1) %>% 
-  filter(n > 1 & alpha > 0.05) %>% 
-  group_by(alpha, p) %>% 
-  summarize(RSS.median = median(RSS)) %>% 
-  ggplot() + 
-  geom_tile(aes(x = alpha, y = factor(p), fill = RSS.median)) + 
-  scale_fill_scico(palette = 'lajolla', limits = c(0,50))
-ggarrange(g1, g3, g2, common.legend = TRUE)
-
-## repeat iterative removal
-g1 <- error %>% 
-  filter(alpha > 0 & alpha < 1) %>% 
-  filter(n > 1 & n < 25 & alpha > 0.25) %>% 
-  group_by(n, p) %>% 
-  summarize(RSS.median = median(RSS)) %>% 
-  ggplot() + 
-  geom_tile(aes(x = factor(n), y = factor(p), fill = RSS.median)) + 
-  scale_fill_scico(palette = 'lajolla', limits = c(0,25))
-g2 <- error %>% 
-  filter(alpha > 0 & alpha < 1) %>% 
-  filter(n > 1 & n < 25 & alpha > 0.25) %>% 
-  group_by(alpha, n) %>% 
-  summarize(RSS.median = median(RSS)) %>% 
-  ggplot() + 
-  geom_tile(aes(x = factor(n), y = alpha, fill = RSS.median)) + 
-  scale_fill_scico(palette = 'lajolla', limits = c(0,25))
-g3 <- error %>% 
-  filter(alpha > 0 & alpha < 1) %>% 
-  filter(n > 1 & n < 25 & alpha > 0.25) %>% 
-  group_by(alpha, p) %>% 
-  summarize(RSS.median = median(RSS)) %>% 
-  ggplot() + 
-  geom_tile(aes(x = alpha, y = factor(p), fill = RSS.median)) + 
-  scale_fill_scico(palette = 'lajolla', limits = c(0,25))
-ggarrange(g1, g3, g2, common.legend = TRUE)
-
-## repeat iterative removal
-g1 <- error %>% 
-  filter(alpha > 0 & alpha < 1) %>% 
-  filter(n > 1 & n < 25 & alpha > 0.4) %>% 
-  group_by(n, p) %>% 
-  summarize(RSS.median = median(RSS)) %>% 
-  ggplot() + 
-  geom_tile(aes(x = factor(n), y = factor(p), fill = RSS.median)) + 
-  scale_fill_scico(palette = 'lajolla', limits = c(7,16))
-g2 <- error %>% 
-  filter(alpha > 0 & alpha < 1) %>% 
-  filter(n > 1 & n < 25 & alpha > 0.4) %>% 
-  group_by(alpha, n) %>% 
-  summarize(RSS.median = median(RSS)) %>% 
-  ggplot() + 
-  geom_tile(aes(x = factor(n), y = alpha, fill = RSS.median)) + 
-  scale_fill_scico(palette = 'lajolla', limits = c(7,16))
-g3 <- error %>% 
-  filter(alpha > 0 & alpha < 1) %>% 
-  filter(n > 1 & n < 25 & alpha > 0.4) %>% 
-  group_by(alpha, p) %>% 
-  summarize(RSS.median = median(RSS)) %>% 
-  ggplot() + 
-  geom_tile(aes(x = alpha, y = factor(p), fill = RSS.median)) + 
-  scale_fill_scico(palette = 'lajolla', limits = c(7,16))
-ggarrange(g1, g3, g2, common.legend = TRUE)
-
-## repeat iterative removal
-error %>% 
-  filter(alpha > 0 & alpha < 1) %>% 
-  filter(n > 1 & alpha > 0.25) %>% 
-  filter(p == 2) %>% 
-  group_by(alpha, n) %>% 
-  summarize(RSS.median = median(RSS)) %>% 
-  ggplot() + 
-  geom_tile(aes(x = factor(n), y = alpha, fill = RSS.median)) + 
-  scale_fill_scico(palette = 'lajolla')
-
-## lock in best-fit n & p --> find best-fit alpha
-error %>% 
-  filter(alpha > 0 & alpha < 1) %>% 
-  filter(n == 5 & p == 2) %>% 
-  group_by(alpha) %>%
-  summarize(RSS.10 = quantile(RSS, 0.1), RSS.median = median(RSS), RSS.90 = quantile(RSS, 0.9)) %>%
-  ggplot() + 
-  geom_segment(aes(x = alpha, xend = alpha, y = RSS.10, yend = RSS.90)) + 
-  geom_point(aes(x = alpha, y = RSS.median)) + 
-  geom_point(aes(x = alpha[which.min(RSS.median)], y = min(RSS.median)), size = 2, color = 'red') + 
-  scale_x_origin() + scale_y_origin() + 
-  coord_cartesian(xlim = c(0,1))
-    
+ggplot(error.npalpha %>% filter(alpha != 0 & alpha != 1)) + 
+  geom_point(aes(x = RMSE.median, y = SRSS), color = 'grey70') + 
+  geom_point(data = error.subset, aes(x = RMSE.median, y = SRSS))
+ggplot(error.npalpha %>% filter(alpha != 0 & alpha != 1)) + 
+  geom_point(aes(x = RMSE.05, y = RMSE.95), color = 'grey70') + 
+  geom_point(data = error.subset, aes(x = RMSE.05, y = RMSE.95))
 
 ```
 
-what have we learned through this process ?
+Conclusions:
 
-* RSS is most sensitive to alpha
-* need to balance median estimates vs. "worst-case" 
+* $\alpha$ controls the tradeoff between better mean performance \& better min/max performance
+* once you're in the middle range, $n$ doesn't matter
+* $p$ is more sensitive than I initially realized (clearest in the plotly plots, where you can toggle off/on)
 
 
 # Report surrogate model accuracy 
 
 <!-- Finally we discuss the error vs. the computational advantage of using IDW as a surrogate model.  -->
+
+```{r}
+error.best <- error %>% filter(n == 8 & p == 2 & alpha == 0.8)
+median(error.best$RMSE)
+
+```
+
 
 
