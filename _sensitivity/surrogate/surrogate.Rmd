@@ -44,7 +44,7 @@ We then run the script $run_lisflood.sh$ to generate .par files and inundation m
 #### define samples within surrogate model space ####
 
 ## define number of expected samples
-n <- 5000
+n <- 1000
 
 ## remove simulations that errored out in Sherlock
 files <- list.files('_sensitivity/surrogate/sherlock_grid/results')
@@ -72,8 +72,8 @@ stopCluster(cl)
 Sys.time() - start
 bad2 <- files[badfile] %>% 
   str_remove('gridded') %>% str_remove('.max') %>% toNumber %>% sort
-# write.table(bad2, file = 'C:/Users/cbowers/Desktop/id2.txt',
-#             row.names = FALSE, col.names = FALSE)
+write.table(bad2, file = 'C:/Users/cbowers/Desktop/id.txt',
+            row.names = FALSE, col.names = FALSE)
 
 ## keep successful simulations
 good <- (1:n)[-c(bad1, bad2)]
@@ -111,7 +111,7 @@ samples <- samples %>% mutate(cv = replace(NA, sim %in% good, cv))
 ## add a lower-bound simulation
 
 ## save out for Sherlock
-save(samples, file = 'C:/Users/cbowers/Desktop/samples.Rdata')
+save(samples, file = '_sensitivity/surrogate/checkpoints/samples.Rdata')
 
 ```
 

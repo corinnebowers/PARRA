@@ -53,19 +53,21 @@ generate_damage <- function(inundation, buildings, foundations, curve,
   cat('\n')
   
   print('converting flood depths to damage ratios...')
-
+  load('_data/depthdamage/depthdamage.Rdata')
+  
   ## generate damage ratios
   pb <- txtProgressBar(min = 0, max = n.inun, style = 3)
   damage <- 
     foreach (i = 1:n.inun,
       .packages = c('dplyr', 'purrr', 'pracma'),
-      .export = c('generate_damage_deterministic', 'generate_damage_probabilistic'),
+      .export = c('generate_damage_deterministic', 'generate_damage_probabilistic',
+                  'Min', 'Mean', 'Max'),
       .options.snow = list(progress = function(n) setTxtProgressBar(pb, n))) %dopar% {
         if (probabilistic) {
           map_dfr(
             .x = 1:n.damage, 
             .f = ~generate_damage_probabilistic(
-              depth[[i]], curve, hazus, flemo, beta.dist) %>% 
+              depth[[i]], curve, hazus, flemo, wing2020) %>% 
               mutate(n.inun = ifelse(is.na(attr(inundation, 'n.inun')), NA, i), 
                      n.damage = .x, 
                      bldg = attr(inundation, 'buildings')[,'id']))
@@ -167,7 +169,7 @@ generate_damage_deterministic <- function(inun, curve, hazus, flemo, beta.dist) 
 ## @return
 ## dm (matrix): damage realizations for inundation simulation #i
 
-generate_damage_probabilistic <- function(inun, curve, hazus, flemo, beta.dist) {
+generate_damage_probabilistic <- function(inun, curve, hazus, flemo, wing2020) {
   dm <- matrix(0, nrow = nrow(inun), ncol = ncol(inun))
   inunval <- c(unname(unlist(inun)))
   inunval <- ifelse(inunval > 10, 10, inunval)

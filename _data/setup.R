@@ -77,10 +77,20 @@ scale_y_origin <- function(...) {
   scale_y_continuous(expand = expansion(mult = c(0, 0.01)), limits = c(0,NA), ...) }
 geom_parity <- function() geom_abline(slope = 1, intercept = 0, linetype = 'dashed')
 
+theme_bw_custom <- 
+  function() {
+    theme_bw() + theme(
+    text = element_text(family = 'Segoe UI', size = 8),
+    panel.border = element_rect(fill = NA, color = 'black', size = 0.35),
+    axis.ticks = element_line(size = 0.35, color = 'black'),
+    legend.key.size = unit(0.35, 'cm'))}
+
 theme_set(
   theme_classic() + theme(
-    text = element_text(family = 'Segoe UI'),
-    plot.title = element_text(family = 'Segoe UI Semibold')))
+    text = element_text(family = 'Segoe UI', size = 8),
+    axis.line = element_line(size = 0.35),
+    axis.ticks = element_line(size = 0.35, color = 'black'),
+    legend.key.size = unit(0.35, 'cm')))
 
 ## geometry: Sonoma County census tracts
 sonoma <- tracts(state = 'CA', county = 'Sonoma') %>% 

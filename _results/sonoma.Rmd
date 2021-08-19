@@ -51,7 +51,7 @@ cities <- matrix(
   c(38.507930, -122.985860, 'Guerneville', 1, 
     38.616588, -122.858989, 'Healdsburg', 2, 
     38.46539312043779, -123.00905110596939, 'Monte Rio', 1, 
-    38.4404523596653, -122.71364215955094, 'Santa Rosa', 3,
+    # 38.4404523596653, -122.71364215955094, 'Santa Rosa', 3,
     38.708491304036954, -122.9028864411151, 'Geyserville', 1,
     38.47356804731463, -122.89069701384281, 'Forestville', 1#,
     # 38.80555800294669, -123.0181033641384, 'Cloverdale', 2
@@ -88,19 +88,19 @@ creeks <- temp %>%
 ggplot() + 
   geom_sf(data = st_union(sonoma), fill = 'grey90', color = NA, alpha = 0.5) +
   geom_sf(data = aoi, fill = 'grey70', color = 'grey40', alpha = 0.35) +
-  geom_sf(data = st_union(sonoma), fill = NA, color = 'grey25', size = 1) +
+  geom_sf(data = st_union(sonoma), fill = NA, color = 'grey25', size = 0.75) +
   geom_sf(data = russian %>% summarize(GNIS_Name = GNIS_Name[1]) %>%
             st_transform(6417) %>% st_crop(st_union(sonoma)),
-          color = baker[1], size = 1.25) +
+          color = baker[1], size = 1) +
   geom_sf(data = creeks %>% st_intersection(st_union(sonoma)),
           color = baker[1]) +
   geom_sf(data = cities, aes(size = importance), show.legend = FALSE) + 
-  scale_size_manual(values = c(2, 2.5, 3)) + 
+  scale_size_manual(values = c(1.5, 1.5)) + 
   annotation_scale(width_hint = 0.25, height = unit(0.25, 'cm'),
                    pad_x = unit(0.5, 'cm'), pad_y = unit(0.5, 'cm'),
-                   text_family = 'Segoe UI', text_cex = 0.9) + 
+                   text_family = 'Segoe UI', text_cex = 2/3) + 
   theme_void() 
-ggsave('_figures/fig2_sonoma.png', width = 8.3, units = 'cm')
+ggsave('_figures/fig02_sonoma.png', width = 8.5, units = 'cm')
 
 ```
 
@@ -114,14 +114,14 @@ california <-
     st_intersection(california %>% st_cast('POLYGON'), .)
 
 ggplot() + 
-  geom_sf(data = california, fill = 'grey90', color = 'grey50', alpha = 0.5, size = 0.25) + 
+  geom_sf(data = california, fill = 'grey90', color = 'grey40', alpha = 0.5, size = 0.25) + 
   geom_sf(data = california %>% filter(NAME == 'Sonoma'),
-          fill = 'grey50', color = 'grey25', alpha = 0.5, size = 0.5) +
-  geom_sf(data = st_union(california), fill = NA, color = 'grey25', size = 0.75) + 
+          fill = 'grey50', color = 'grey25', size = 0.5) +
+  geom_sf(data = st_union(california), fill = NA, color = 'grey25', size = 0.5) + 
   # geom_sf(data = russian %>% st_transform(st_crs(california)), 
   #         color = baker[1], size = 0.75) +
   theme_void() 
-ggsave('_figures/fig2_california.png', width = 4, units = 'cm')
+ggsave('_figures/fig02_california.png', width = 3, units = 'cm')
 
 ```
 
