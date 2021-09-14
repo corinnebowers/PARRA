@@ -3,7 +3,9 @@
 
 ## @param
 ## precip (data.frame): list of synthetic precipitation events
+ # cols = n.AR, n.precip, IVT_max, duration, precip_mm
 ## catalog (data.frame): catalog of ARs occurring in region of interest
+ # cols = IVT_max, duration, precip_mm, runoff_mm, sm, wy
 ## probabilistic (logical): choice to incorporate uncertainty
 ## n.runoff (integer): number of runoff events to generate per precipitation event
 ## boot (integer): number of bootstrap samples to draw 
@@ -11,8 +13,8 @@
 ## @return
 ## runoff (data.frame): list of synthetic runoff events
 
-generate_runoff <- function(precip, catalog, probabilistic = FALSE, n.runoff = 1, 
-                            ic.threshold = 0.5, boot = 1e3) {
+generate_runoff <- function(
+  precip, catalog, probabilistic = FALSE, n.runoff = 1, boot = 1e3) {
   
   ## fix input parameters
   if (!probabilistic) n.runoff <- 1

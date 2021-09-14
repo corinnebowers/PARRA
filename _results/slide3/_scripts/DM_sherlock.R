@@ -82,12 +82,12 @@ generate_damage <- function(
   
   print('converting flood depths to damage ratios...')
   
-  # beta <- data.frame(depth_m = (0:100)/10) %>%
-  #   mutate(alpha = predict(lm(alpha ~ depth_m, data = wing2020),
-  #                          newdata = data.frame(depth_m))) %>%
-  #   mutate(beta = 1/predict(lm(1/beta ~ depth_m, data = wing2020),
-  #                           newdata = data.frame(depth_m))) %>%
-  #   mutate(mu = alpha/(alpha+beta))
+  beta <- data.frame(depth_m = (0:100)/10) %>%
+    mutate(alpha = predict(lm(alpha ~ depth_m, data = wing2020),
+                           newdata = data.frame(depth_m))) %>%
+    mutate(beta = 1/predict(lm(1/beta ~ depth_m, data = wing2020),
+                            newdata = data.frame(depth_m))) %>%
+    mutate(mu = alpha/(alpha+beta))
 
   ## define interpolation function for beta distribution lookup
   find_nearest <- function(x, vector) {

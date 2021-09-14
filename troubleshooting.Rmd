@@ -1,0 +1,77 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+
+```{r}
+inun <- inundation[[1]]
+dm <- damage[[1]][,-(ncol(damage[[1]])-0:2)]
+dm <- dm[inun[]>0]
+inun <- inun[inun[]>0]
+ggplot() + geom_point(aes(x = inun, y = dm), alpha = 0.05)
+
+find_nearest <- function(x, vector) map_dbl(.x = x, .f = ~which.min(abs(.x-vector)))
+beta <- data.frame(depth_m = (0:100)/10) %>% 
+  mutate(alpha = predict(
+    lm(alpha ~ depth_m, data = wing2020), newdata = data.frame(depth_m))) %>% 
+  mutate(beta = 1/predict(
+    lm(1/beta ~ depth_m, data = wing2020), newdata = data.frame(depth_m))) %>% 
+  mutate(mu = alpha/(alpha+beta))
+dm.beta <- map2_dbl(
+  .x = beta$alpha[find_nearest(inun, beta$depth_m)],
+  .y = beta$beta[find_nearest(inun, beta$depth_m)],
+  .f = ~rbeta(1, shape1 = .x, shape2 = .y))
+ggplot() + geom_point(aes(x = inun, y = dm.beta), alpha = 0.05)
+
+find_nearest(inun, beta$depth_m) %>% table %>% as.data.frame %>% plot
+
+```
+
+```{r}
+## calculate the number of buildings inundated by each simulation
+buildings.coord <- st_coordinates(buildings)
+num_cores <- 5
+cl <- parallel::makeCluster(num_cores)
+registerDoSNOW(cl)
+pb <- txtProgressBar(min = 0, max = 1001, style = 3)
+inundated <- 
+  foreach (file = list.files('_sensitivity/surrogate/sherlock_grid/results/'),
+    .packages = c('raster', 'terra', 'dplyr'), 
+    .combine = 'rbind', .inorder = FALSE,
+    .options.snow = list(progress = function(n) setTxtProgressBar(pb, n))) %dopar% {
+    i <- file %>% gsub('gridded', '', .) %>% gsub('.max', '', .) %>% toNumber
+    inun <- rast(paste0('_sensitivity/surrogate/sherlock_grid/results/', file)) %>% 
+      terra::extract(buildings.coord)
+    c(sim = i, inundated = sum(inun>0))
+    }
+stopCluster(cl)
+
+## join to samples
+samples %>% 
+  left_join(data.frame(inundated), by = 'sim') %>% 
+  ggplot() + 
+  geom_point(aes(x = Qp, y = tp, color = inundated>2197)) + 
+  # scale_color_scico(palette = 'lajolla') + 
+  geom_hline(yintercept = casestudy$tp_hrs, linetype = 'dashed') + 
+  geom_vline(xintercept = casestudy$Qp_m3s, linetype = 'dashed') + 
+  scale_x_origin() + scale_y_origin() 
+samples %>% 
+  left_join(data.frame(inundated), by = 'sim') %>% 
+  ggplot() + 
+  geom_point(aes(x = Qp, y = tp, color = inundated>1600)) + 
+  # scale_color_scico(palette = 'lajolla') + 
+  geom_hline(yintercept = casestudy$tp_hrs, linetype = 'dashed') + 
+  geom_vline(xintercept = casestudy$Qp_m3s, linetype = 'dashed') + 
+  scale_x_origin() + scale_y_origin() 
+samples %>% 
+  left_join(data.frame(inundated), by = 'sim') %>% 
+  ggplot() + 
+  geom_point(aes(x = Qp, y = tp, color = inundated>1200)) + 
+  # scale_color_scico(palette = 'lajolla') + 
+  geom_hline(yintercept = casestudy$tp_hrs, linetype = 'dashed') + 
+  geom_vline(xintercept = casestudy$Qp_m3s, linetype = 'dashed') + 
+  scale_x_origin() + scale_y_origin() 
+
+```
+

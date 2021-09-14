@@ -82,12 +82,12 @@ generate_damage <- function(
   
   print('converting flood depths to damage ratios...')
   
-  # beta <- data.frame(depth_m = (0:100)/10) %>%
-  #   mutate(alpha = predict(lm(alpha ~ depth_m, data = wing2020),
-  #                          newdata = data.frame(depth_m))) %>%
-  #   mutate(beta = 1/predict(lm(1/beta ~ depth_m, data = wing2020),
-  #                           newdata = data.frame(depth_m))) %>%
-  #   mutate(mu = alpha/(alpha+beta))
+  beta <- data.frame(depth_m = (0:100)/10) %>%
+    mutate(alpha = predict(lm(alpha ~ depth_m, data = wing2020),
+                           newdata = data.frame(depth_m))) %>%
+    mutate(beta = 1/predict(lm(1/beta ~ depth_m, data = wing2020),
+                            newdata = data.frame(depth_m))) %>%
+    mutate(mu = alpha/(alpha+beta))
 
   ## define interpolation function for beta distribution lookup
   find_nearest <- function(x, vector) {
@@ -151,7 +151,7 @@ assign_foundations <- function(buildings, foundations) {
       do.call(rbind, .) %>% as.data.frame %>% 
       set_names(c('found_type', 'found_ht')) %>% 
       mutate(found_type = paste(found_type), 
-             found_ht = toNumber(found_ht)) %>% 
+             found_ht = toNumber(found_ht)/3.28084) %>% #mft
       mutate(found_ht = found_ht - ifelse(found_type == 'Basement', 10, 0))
   }
   return(buildings$found_ht)
