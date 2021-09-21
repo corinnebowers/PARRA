@@ -21,6 +21,7 @@ knitr::opts_chunk$set(fig.show = 'hold', fig.align = 'center')
 ```{r message = FALSE}
 ## setup information
 source('_data/setup.R')
+source('_data/plots.R')
 
 ## load location information
 load('_data/lisflood/dem.Rdata')
@@ -28,10 +29,6 @@ load('_data/aoi/aoi.Rdata')
 
 ## load historic catalog 
 load('_data/catalog/catalog.Rdata')
-
-## load required packages
-require(ggspatial)
-require(cowplot)
 
 ```
 
@@ -91,16 +88,16 @@ ggplot() +
   geom_sf(data = st_union(sonoma), fill = NA, color = 'grey25', size = 0.75) +
   geom_sf(data = russian %>% summarize(GNIS_Name = GNIS_Name[1]) %>%
             st_transform(6417) %>% st_crop(st_union(sonoma)),
-          color = baker[1], size = 1) +
+          color = scico(5, palette = 'roma')[5], size = 1) +
   geom_sf(data = creeks %>% st_intersection(st_union(sonoma)),
-          color = baker[1]) +
+          color = scico(5, palette = 'roma')[5]) +
   geom_sf(data = cities, aes(size = importance), show.legend = FALSE) + 
   scale_size_manual(values = c(1.5, 1.5)) + 
   annotation_scale(width_hint = 0.25, height = unit(0.25, 'cm'),
                    pad_x = unit(0.5, 'cm'), pad_y = unit(0.5, 'cm'),
                    text_family = 'Segoe UI', text_cex = 2/3) + 
   theme_void() 
-ggsave('_figures/fig02_sonoma.png', width = 8.5, units = 'cm')
+ggsave('_figures/fig02/fig02_sonoma.png', width = 8.5, units = 'cm')
 
 ```
 
@@ -121,7 +118,7 @@ ggplot() +
   # geom_sf(data = russian %>% st_transform(st_crs(california)), 
   #         color = baker[1], size = 0.75) +
   theme_void() 
-ggsave('_figures/fig02_california.png', width = 3, units = 'cm')
+ggsave('_figures/fig02/fig02_california.png', width = 3, units = 'cm')
 
 ```
 

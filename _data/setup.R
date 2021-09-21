@@ -54,7 +54,7 @@ predict.se <- function(model, fitdata, newdata) {
   var.fit <- rowSums((X %*% V) * X) #find the diagonal of the var-cov matrix for yhat
   # se.conf <- sqrt(var.fit) #find pointwise standard errors of predicted mean (CI)
   se.pred <- sqrt(var.fit + MSE^2)*2 #find standard error of the prediction interval (PI)
-  return(se.pred*2)
+  return(se.pred)
 }
 
 

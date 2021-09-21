@@ -11,27 +11,29 @@ Corinne Bowers
 
 ```{r setup, include = FALSE}
 ## setup
-knitr::opts_knit$set(root.dir = 'D:/1-PARRA/_data/')
+knitr::opts_knit$set(root.dir = 'D:/1-PARRA/')
 
 ```
 
 ```{r message = FALSE}
 ## setup information
-source('setup.R')
+source('_data/setup.R')
 
 ```
 
 ```{r}
 ## load NSI data
-nsi1 <- read.csv('foundations/nsi1.csv') %>% 
+nsi1 <- read.csv('_data/foundations/nsi1.csv') %>% 
   st_as_sf(coords = c('X', 'Y'), crs = 4269) %>% 
   st_transform(6417)
 
 ## summarize NSI foundation info by census tract
-nsi1.found <- nsi1 %>% 
+nsi1 <- nsi1 %>% 
   st_intersection(sonoma) %>% 
   st_drop_geometry 
-nsi1.found <- nsi1.found %>% 
+
+## calculate foundations by original method
+nsi1.found <- nsi1 %>% 
   mutate(GEOID = toNumber(GEOID)) %>% 
   mutate(counter = 1) %>% 
   group_by(GEOID, Found_Ht, Found_Type) %>% 
@@ -42,11 +44,25 @@ nsi1.found <- nsi1.found %>%
 nsi1.found[is.na(nsi1.found)] <- 0
 nsi1.found[,-1] <- nsi1.found[,-1] / apply(nsi1.found[,-1], 1, sum)
 
+## calculate foundations by new method
+nsi1.edited <- nsi1 %>% 
+  mutate(GEOID = toNumber(GEOID)) %>% 
+  mutate(counter = 1) %>% 
+  group_by(GEOID, Found_Type) %>% 
+  summarize(n = sum(counter), .groups = 'drop') %>% 
+  pivot_wider(id_cols = 'GEOID', names_from = 'Found_Type', values_from = 'n') %>% 
+  select(-SolidWall)
+nsi1.edited[is.na(nsi1.edited)] <- 0
+nsi1.edited[,-1] <- nsi1.edited[,-1] / apply(nsi1.edited[,-1], 1, sum)
+  
+## calculate with no foundations
+nsi.base <- data.frame(GEOID = nsi1.found$GEOID, 'All_0' = 1)
+
 ```
 
 ```{r}
 ## save out
-save(nsi1.found, file = 'foundations/foundations.Rdata')
+save(nsi1.found, nsi1.edited, nsi1.base, file = '_data/foundations/foundations.Rdata')
 
 ```
 

@@ -68,7 +68,7 @@ generate_damage <- function(
       .export = c('toNumber', 'assign_foundations'),
       .options.snow = list(progress = function(n) setTxtProgressBar(pb, n))) %dopar% {
         if (probabilistic) {
-          found_ht <- assign_foundations(buildings[wet.bldg,], foundations)
+          found_ht <- assign_foundations(buildings[wet.bldg,], foundations)/3.28084 #mft
           # found_ht <- unname(unlist(st_drop_geometry(buildings[wet.bldg, 'raised_m']))) + 1
         } else found_ht <- rep(0, length(wet.bldg))
         temp <- sweep(inundation[[i]], 1, found_ht, FUN = '-') %>% 
@@ -139,21 +139,39 @@ generate_damage <- function(
 ## randomly assign foundation info to buildings
 assign_foundations <- function(buildings, foundations) {
   found <- names(foundations)[-1]
-  buildings <- buildings %>% 
+  buildings <- buildings %>%
     mutate(found_type = as.character(NA), found_ht = as.numeric(NA))
   for (geoid in unique(buildings$GEOID)) {
     n <- buildings %>% filter(GEOID == geoid) %>% nrow
-    buildings[buildings$GEOID == geoid, c('found_type', 'found_ht')] <- 
-      foundations %>% 
-      filter(GEOID == geoid) %>% .[,-1] %>% 
-      sample(x = found, size = n, prob = ., replace = TRUE) %>% 
-      str_split(pattern = '_') %>% 
-      do.call(rbind, .) %>% as.data.frame %>% 
-      set_names(c('found_type', 'found_ht')) %>% 
-      mutate(found_type = paste(found_type), 
-             found_ht = toNumber(found_ht)) %>% 
+    buildings[buildings$GEOID == geoid, c('found_type', 'found_ht')] <-
+      foundations %>%
+      filter(GEOID == geoid) %>% .[,-1] %>%
+      sample(x = found, size = n, prob = ., replace = TRUE) %>%
+      str_split(pattern = '_') %>%
+      do.call(rbind, .) %>% as.data.frame %>%
+      set_names(c('found_type', 'found_ht')) %>%
+      mutate(found_type = paste(found_type),
+             found_ht = toNumber(found_ht)) %>%
       mutate(found_ht = found_ht - ifelse(found_type == 'Basement', 10, 0))
   }
+
+  # buildings <- buildings %>% mutate(found_ht = as.numeric(NA))
+  # found <- data.frame(
+  #   found_type = c('Basement', 'Slab', 'Crawl', 'Pier', 'Pile'),
+  #   min_ht = c(-6, 0, 3, 5, 7),
+  #   max_ht = c(-6, 1, 4, 6, 8))
+  # for (geoid in unique(buildings$GEOID)) {
+  #   n <- buildings %>% filter(GEOID == geoid) %>% nrow
+  #   temp <- foundations %>%
+  #     filter(GEOID == geoid) %>% .[,-1] %>%
+  #     sample(x = found$found_type, size = n, prob = ., replace = TRUE)
+  #   buildings[buildings$GEOID == geoid, 'found_ht'] <-
+  #     map2_dbl(
+  #       .x = found[match(temp, found$found_type), 'min_ht'],
+  #       .y = found[match(temp, found$found_type), 'max_ht'],
+  #       .f = ~runif(1, min = .x, max = .y))
+  # }
+  
   return(buildings$found_ht)
 }
 
@@ -247,7 +265,7 @@ generate_damage_probabilistic <- function(inun, curve, hazus, flemo, beta) {
     if (any(c('hazus', 'average') %in% curve)) dm.hazus else  NULL,
     if (any(c('flemo', 'average') %in% curve)) dm.flemo else NULL,
     if (any(c('beta', 'wing', 'average') %in% curve)) dm.beta else NULL
-    ) %>% rowMeans 
+    ) %>% apply(1, function(x) x[sample(1:length(x), 1)])
 
   ## return dataframe
   dm[inunval>0] <- dm.combined

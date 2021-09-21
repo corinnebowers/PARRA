@@ -14,16 +14,16 @@ Corinne Bowers
 
 ```{r setup, include = FALSE}
 ## setup
-knitr::opts_knit$set(root.dir = 'D:/1-PARRA/_data/')
+knitr::opts_knit$set(root.dir = 'D:/1-PARRA/')
 
 ```
 
 ```{r message = FALSE}
 ## setup information
-source('setup.R')
+source('_data/setup.R')
 
 ## load area of interest (aoi)
-load('aoi/aoi.Rdata')
+load('_data/aoi/aoi.Rdata')
 
 ```
 
@@ -40,34 +40,40 @@ load('aoi/aoi.Rdata')
 #                  'FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson'), quiet = TRUE) %>%
 #   st_transform(6417) %>% st_intersection(aoi)
 # 
-# ## save results
-# save(parcels, bldg_sonoma, file = 'buildings/parcels.Rdata')
+# ## save checkpoint
+# save(parcels, bldg_sonoma, file = '_data/buildings/checkpoints/building_parcels.Rdata')
 
 ```
 
 ```{r buildings}
 #### generate buildings.Rdata ####
 
-## load buildings & parcels from file
-load('buildings/parcels.Rdata')
-
-## load nonzero cells
-load('nonzero/nonzero.Rdata')
-
-## crop buildings & parcels to only nonzero cells
-nonzero.buffer <- nonzero.buffer %>%
-  rasterToPolygons %>% 
-  st_as_sf %>% st_union %>% 
-  st_transform(6417)
-bldg_buffer <- bldg_sonoma[nonzero.buffer,] %>%
-  mutate(bldg_sqft = st_area(.)*mft^2) %>% 
-  st_centroid
-buildings <- st_intersection(bldg_buffer, parcels)
+# ## load buildings & parcels from file
+# load('_data/buildings/checkpoints/building_parcels.Rdata')
+# 
+# ## load nonzero cells
+# load('_data/nonzero/nonzero.Rdata')
+# 
+# ## crop buildings & parcels to only nonzero cells
+# nonzero.buffer <- nonzero.buffer %>%
+#   rasterToPolygons %>% 
+#   st_as_sf %>% st_union %>% 
+#   st_transform(6417)
+# bldg_buffer <- bldg_sonoma[nonzero.buffer,] %>%
+#   mutate(bldg_sqft = st_area(.)*mft^2) %>% 
+#   st_centroid
+# buildings <- st_intersection(bldg_buffer, parcels)
+# 
+# ## save checkpoint
+# save(buildings, file = '_data/buildings/checkpoints/building_nonzero.Rdata')
 
 ```
 
 ```{r residential}
 #### subset buildings dataframe to residential only ####
+
+## load from file
+load('_data/buildings/checkpoints/building_nonzero.Rdata')
 
 ## identify residential buildings
 residential <- c(
@@ -133,12 +139,11 @@ buildings <- buildings %>%
 # https://sonomacounty.maps.arcgis.com/apps/webappviewer/index.html?id=1cab5991f10643b1bc7c16e7769887c2
 # https://sonomacounty.maps.arcgis.com/home/item.html?id=9e5d8762b5554765912f591b7540fed4
 # instructions: open URL in ArcGIS Pro, then copy-paste Attributes table into Excel
-resa <- read.csv('buildings/resa.csv')
+resa <- read.csv('_data/buildings/resa.csv')
 resa[resa == '<Null>'] <- NA
 
 ## attach RESA tag information
 buildings <- buildings %>% 
-  mutate(bldg = 1:nrow(.)) %>% 
   left_join(resa %>% transmute(id = OBJECTID, APN, RESA_Status_GIS, Within46ftInundation), 
             by = 'APN') %>% 
   mutate(status = case_when(RESA_Status_GIS != 'Orange' ~ RESA_Status_GIS) %>% 
@@ -156,20 +161,24 @@ acs <-
   mutate(GEOID = paste0(state, county, tract) %>% toNumber) %>% 
   select(-c(GEO_ID, state, county, tract, NAME)) %>% 
   transmute(GEOID, acs.median = B25077_001E, MOE = B25077_001M) %>% 
-  # mutate(sd = MOE/qnorm(0.95)) %>% 
   mutate(acs.05 = acs.median-MOE, acs.95 = acs.median+MOE) %>% 
   filter(acs.median > 0)
 
+```
+
+```{r valuation}
 ## plot ACS vs. Sonoma tax assessor roll values
-buildings %>%
+buildings <- buildings %>% filter(V601TotalL <= 1e7)
+buildings.plot <- buildings %>% 
   st_drop_geometry %>% 
   group_by(tract = toNumber(tract)) %>% 
   summarize(parcel.median = median(V601TotalL), 
             parcel.05 = quantile(V601TotalL, 0.05), 
-            parcel.95 = quantile(V601TotalL, 0.95)) %>% 
-  left_join(acs %>% transmute(tract = toNumber(GEOID), acs.median, acs.05, acs.95), by = 'tract') %>% 
-  filter(tract != 6097153808) %>% 
-  ggplot() + 
+            parcel.95 = quantile(V601TotalL, 0.95),
+            n = length(V601TotalL)) %>% 
+  left_join(acs %>% transmute(tract = toNumber(GEOID), acs.median, acs.05, acs.95), by = 'tract')
+  
+ggplot(buildings.plot) + 
   geom_segment(aes(x = acs.median, xend = acs.median, 
                    y = parcel.05, yend = parcel.95), color = 'grey70') + 
   geom_segment(aes(x = acs.05, xend = acs.95, 
@@ -182,36 +191,47 @@ buildings %>%
   ggtitle('Median SFH Valuation by Tract', subtitle = 'Sonoma County, 2019') + 
   geom_parity() + coord_fixed()
 
+## determine the appropriate scaling factor
+coef <- buildings.plot %>% 
+  # filter(acs.median<=1e6 & parcel.median<=1e6) %>% 
+  lm(parcel.median ~ acs.median+0, data = .) %>% 
+  .$coefficients
+buildings$value <- buildings$V601TotalL/coef
+
+```
+
+```{r valuation}
 ## plot ACS vs. Sonoma tax assessor roll uncertainty
-## (differs by about a factor of 10)
-buildings %>% 
-  group_by(tract = toNumber(tract)) %>% 
-  summarize(parcel.median = median(V601TotalL), 
-            parcel.05 = quantile(V601TotalL, 0.05), 
-            parcel.95 = quantile(V601TotalL, 0.95)) %>% 
-  left_join(acs %>% transmute(tract = toNumber(GEOID), acs.median, acs.05, acs.95), by = 'tract') %>% 
-  filter(tract != 6097153808) %>% 
-  ggplot() + 
-  geom_point(aes(x = acs.95-acs.05, y = parcel.95-parcel.05)) + 
+ggplot(buildings.plot) + 
+  geom_point(aes(x = acs.95-acs.05, y = (parcel.95-parcel.05)/sqrt(n))) + 
   scale_x_origin('ACS Owner-Occupied Units (B25077)', 
                  labels = comma_format(scale = 1e-6, prefix = '$', suffix = 'M', accuracy = 0.1)) + 
   scale_y_origin('Sonoma Tax Assessor Roll', 
                  labels = comma_format(scale = 1e-6, prefix = '$', suffix = 'M', accuracy = 0.1)) + 
   ggtitle('Valuation Margin of Error') + 
   geom_parity() + coord_fixed()
+## note: here we are looking at the standard deviation of the population estimate, not individual houses
 
 ## attach valuation + uncertainty information
 buildings <- buildings %>% 
   mutate(tract = toNumber(tract)) %>% 
+  group_by(tract) %>% mutate(n = length(V601TotalL)) %>% ungroup %>% 
   left_join(acs %>% transmute(
     tract = toNumber(GEOID), 
-    acs_value = acs.median, acs_sd = MOE/qnorm(0.95)), by = 'tract')
+    # acs.value = acs.median, 
+    acs.sd = MOE/qnorm(0.95)*sqrt(n)), by = 'tract') %>% 
+  select(-n)
 
 ```
 
 ```{r}
-#### save out ####
-save(buildings, file = 'buildings/buildings.Rdata')
+## renumber
+buildings <- buildings %>% 
+  arrange(APN) %>% 
+  mutate(bldg = 1:nrow(.))
+
+## save out
+save(buildings, file = '_data/buildings/buildings.Rdata')
 
 ```
 

@@ -63,8 +63,8 @@ generate_inundation <- function(
           Qp = hydrograph$Qp_m3s[i],
           tp = hydrograph$tp_hrs[i],
           sample.table = samples_scaled,
-          sample.loc = '/home/groups/bakerjw/cbowers/LISFLOOD/grid_final/results/max/',
-          # sample.loc = '_sensitivity/surrogate/sherlock_grid/results/',
+          # sample.loc = '/home/groups/bakerjw/cbowers/LISFLOOD/grid_final/results/max/',
+          sample.loc = '_sensitivity/surrogate/sherlock_grid/results/',
           n, p, alpha, probabilistic) %>%
           rast %>% terra::extract(buildings.coord) %>%
           unlist %>% unname

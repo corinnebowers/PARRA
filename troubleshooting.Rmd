@@ -75,3 +75,82 @@ samples %>%
 
 ```
 
+```{r}
+## why did mitigated come out as having zero loss? 
+
+## define area of interest (aoi)
+load('_data/aoi/aoi.Rdata')
+
+## load foundation information
+load('_data/foundations/foundations.Rdata')
+
+## load depth-damage information
+load('_data/depthdamage/depthdamage.Rdata')
+hazus <- hazus %>%
+  filter(Basement == 'Y') %>%
+  mutate(depth_m = depth_m + 3/mft) %>%
+  group_by(depth_m) %>%
+  summarize(damage_min = Min(damage_pct),
+            damage_mean = Mean(damage_pct),
+            damage_max = Max(damage_pct))
+flemo <- flemo %>% group_by(depth_m) %>%
+  summarize(damage_min = Min(damage_pct), 
+            damage_mean = Mean(damage_pct), 
+            damage_max = Max(damage_pct))
+
+## load building information
+load('_data/buildings/buildings.Rdata')
+
+## determine mitigated elevations
+rp100 <- raster('_sensitivity/rp100/sherlock_bestfit/results/bestfit.max', crs = projection(aoi))
+buildings$raised_m <- unlist(unname(terra::extract(rast(rp100), st_coordinates(buildings))))
+
+## load inundation
+load('_results/_troubleshooting/INUN.Rdata')
+
+```
+
+```{r}
+load('_data/catalog/catalog.Rdata')
+
+## create AR dataframe to run below
+AR <- catalog %>%
+  transmute(n.AR = 1:nrow(.), IVT_max, duration, sm)
+
+## calculate n.AR
+n.AR <- max(AR$n.AR)
+
+## fit quantile regression model
+fun <- precip ~ IVT_max*duration
+temp <-
+  foreach (t = seq(0, 1, 0.01), .combine = 'rbind') %do% {
+    model <- rq(fun, data = catalog %>% rename(precip = precip_mm), tau = t)
+    prediction <- predict(model)
+    prediction <- ifelse(prediction < 0, 0, prediction)
+    c(tau = t, RMSE = RMSE(sort(prediction), sort(catalog$precip_mm)))
+  }
+tau.best <- temp %>% as.data.frame %>% .[which.min(.$RMSE), 'tau']
+model <- rq(fun, data = catalog %>% rename(precip = precip_mm), tau = tau.best)
+AR <- AR %>%
+  mutate(precip.mean = predict.rq(model, AR),
+         precip.sd = predict.se(model, catalog %>% rename(precip = precip_mm), AR))
+
+## add back observed information
+catalog %>% 
+  mutate(AR = 1:nrow(.)) %>% 
+  transmute(AR, IVT_max, duration, precip_obs = precip_mm) %>% 
+  left_join(AR %>% transmute(AR = n.AR, precip_sim_mean = precip.mean, 
+                             precip_sim_sd = precip.sd), by = 'AR') %>% 
+  write.table('C:/Users/cbowers/Desktop/catalog.csv', row.names = FALSE, sep = ',')
+
+temp <- catalog %>% 
+  mutate(AR = 1:nrow(.)) %>% 
+  transmute(AR, IVT_max, duration, precip_obs = precip_mm) %>% 
+  left_join(AR %>% transmute(AR = n.AR, precip_sim_mean = precip.mean, 
+                             precip_sim_sd = precip.sd), by = 'AR')
+
+ggplot(temp) + 
+  geom_point(aes(x = precip_obs, y = precip_sim_mean-precip_obs))
+
+```
+
