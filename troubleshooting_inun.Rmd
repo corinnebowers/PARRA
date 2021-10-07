@@ -1,0 +1,105 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r setup, include = FALSE}
+knitr::opts_knit$set(root.dir = 'D:/1-PARRA/')
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+knitr::opts_chunk$set(results = 'hold', fig.show = 'hold', fig.align = 'center')
+rm(list=ls())
+
+```
+
+```{r}
+## setup information
+source('_data/setup.R')
+source('_data/plots.R')
+
+## set random seed for reproducibility
+set.seed(7395)
+
+## load files
+load('_data/catalog/catalog.Rdata')
+load('_data/aoi/aoi.Rdata')
+
+```
+
+```{r}
+casestudy <- catalog %>% filter(start_day == ymd('2019-02-25'))
+
+```
+
+```{r}
+## try to make a reproducible for loop
+
+## generate precip
+source('_results/run-63/_scripts/PRCP_GLS.R')
+precip <- generate_precip(
+  AR = casestudy %>% transmute(IVT_max, duration, sm, n.AR=1), 
+  catalog = catalog, 
+  probabilistic = TRUE, n.precip = 10)
+precip.sm <- generate_soilmoisture(precip, catalog)
+
+## generate streamflow
+source('_results/run-63/_scripts/Q_GLS.R')
+runoff <- generate_runoff(precip.sm, catalog, probabilistic = TRUE)
+hydrograph <- generate_hydrograph(runoff, catalog, probabilist = TRUE)
+
+## generate inundation
+source('_results/run-63/_scripts/INUN_RNG.R')
+load('_data/buildings/buildings.Rdata')
+load('_data/samples.Rdata') 
+num_cores <- 3
+cl <- parallel::makeCluster(num_cores)
+registerDoSNOW(cl)
+inundation <- generate_inundation(hydrograph, samples, buildings, probabilistic = TRUE)
+stopCluster(cl)
+
+## generate damage
+source('_results/run-63/_scripts/DM_sherlock.R')
+load('_data/foundations/foundations.Rdata')
+load('_data/depthdamage/depthdamage.Rdata')
+hazus <- hazus %>%
+  filter(Basement == 'Y') %>%
+  mutate(depth_m = depth_m + 3/mft) %>%
+  group_by(depth_m) %>%
+  summarize(damage_min = Min(damage_pct),
+            damage_mean = Mean(damage_pct),
+            damage_max = Max(damage_pct))
+flemo <- flemo %>% group_by(depth_m) %>%
+  summarize(damage_min = Min(damage_pct), 
+            damage_mean = Mean(damage_pct), 
+            damage_max = Max(damage_pct))
+damage <- 
+  generate_damage(
+    inundation = inundation,
+    buildings = buildings %>% rename(GEOID = tract),
+    foundations = nsi1.found,
+    curve = c('hazus', 'beta'),
+    hazus = hazus, flemo = flemo, beta = wing2020,
+    probabilistic = TRUE)
+
+## generate loss
+source('_results/run-63/_scripts/DV_sherlock.R')
+loss.group <- 
+  generate_losses(
+    damage = damage,
+    buildings = buildings %>% rename(group = blockgroup, value.sd = acs.sd),
+    aggregate = 'group',
+    probabilistic = TRUE)
+loss.sim <- 
+  generate_losses(
+    damage = damage,
+    buildings = buildings %>% rename(group = blockgroup, value.sd = acs.sd),
+    aggregate = 'sim',
+    probabilistic = TRUE)
+
+```
+
+```{r}
+## figure out what's going wrong in damage
+
+
+```
+
