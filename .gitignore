@@ -5,5 +5,5 @@ _data/lisflood/topobathy*
 _data/lisflood/transect_10*
 _data/NFHL/NFHL_06_20190810.gdb*
 _data/NHD/NHD_H_California_State_GDB.gdb*
-_figures/*
+_figures/
 *.html

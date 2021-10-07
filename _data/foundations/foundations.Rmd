@@ -18,6 +18,7 @@ knitr::opts_knit$set(root.dir = 'D:/1-PARRA/')
 ```{r message = FALSE}
 ## setup information
 source('_data/setup.R')
+source('_data/plots.R')
 
 ```
 
@@ -56,7 +57,7 @@ nsi1.edited[is.na(nsi1.edited)] <- 0
 nsi1.edited[,-1] <- nsi1.edited[,-1] / apply(nsi1.edited[,-1], 1, sum)
   
 ## calculate with no foundations
-nsi.base <- data.frame(GEOID = nsi1.found$GEOID, 'All_0' = 1)
+nsi1.base <- data.frame(GEOID = nsi1.found$GEOID, 'All_0' = 1)
 
 ```
 
