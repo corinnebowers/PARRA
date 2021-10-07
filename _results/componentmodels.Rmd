@@ -26,6 +26,9 @@ rm(list=ls())
 source('_data/setup.R')
 source('_data/plots.R')
 
+## set random seed for reproducibility
+set.seed(7395)
+
 ## set parallel backend
 num_cores <- 5
 
@@ -36,6 +39,11 @@ load('_data/catalog/catalog.Rdata')
 load('_data/lisflood/dem.Rdata')
 load('_data/aoi/aoi.Rdata')
 load('_data/depthdamage/depthdamage.Rdata')
+
+## load building information
+load('_data/buildings/buildings.Rdata')
+load('_data/depthdamage/depthdamage.Rdata')
+load('_data/foundations/foundations.Rdata')
 
 ## load required packages
 require(dataRetrieval)
@@ -162,9 +170,7 @@ AR <- casestudy %>%
   transmute(n.AR = 1, IVT_max, duration, sm)
 
 ## generate probabilistic realizations of PRCP
-source('_scripts/PRCP_sherlock.R')
-# catalog <- catalog %>% 
-#   rename(runoff_obs = runoff_mm, Qp_obs = Qp_m3s)
+source('_scripts/PRCP_GLS.R')
 precip <- 
   generate_precip(
     AR = AR, 
@@ -173,7 +179,6 @@ precip <-
     n.precip = 1e3)
 
 ## display fitted model values
-model.prcp$tau
 model.prcp$coefficients %>% scientific(digits = 4)
 
 ```
@@ -185,15 +190,15 @@ g1 <- ggplot(catalog) +
   geom_point(data = casestudy, aes(x = IVT_max, y = precip_mm), color = roma.colors[1]) + 
   geom_line(aes(x = IVT_max,
     y = catalog %>% select(IVT_max) %>% 
-      mutate(duration = 6) %>% predict.rq(model.prcp, .),
+      mutate(duration = 6) %>% predict(model.prcp, .),
     color = '6'), size = 0.75) + 
   geom_line(aes(x = IVT_max,
     y = catalog %>% select(IVT_max) %>% 
-      mutate(duration = 24) %>% predict.rq(model.prcp, .),
+      mutate(duration = 24) %>% predict(model.prcp, .),
     color = '24'), size = 0.75) + 
   geom_line(aes(x = IVT_max,
     y = catalog %>% select(IVT_max) %>% 
-      mutate(duration = 72) %>% predict.rq(model.prcp, .),
+      mutate(duration = 72) %>% predict(model.prcp, .),
     color = '72'), size = 0.75) + 
   scale_x_continuous(
     expression(paste('Maximum IVT (kg⋅', m^{-1}, s^{-1}, ')')),
@@ -205,6 +210,7 @@ g1 <- ggplot(catalog) +
     breaks = c('72', '24', '6')) + 
   coord_cartesian(clip = 'off') + 
   theme(legend.position = 'bottom', 
+        legend.background = element_rect(fill = NA, color = NA),
         legend.text = element_text(margin = margin(0, 0, 0, -4)))
 
 g2 <- ggplot(catalog) + 
@@ -212,15 +218,15 @@ g2 <- ggplot(catalog) +
   geom_point(data = casestudy, aes(x = duration, y = precip_mm), color = roma.colors[1]) + 
   geom_line(aes(x = duration,
     y = catalog %>% select(duration) %>% 
-      mutate(IVT_max = 250) %>% predict.rq(model.prcp, .),
+      mutate(IVT_max = 250) %>% predict(model.prcp, .),
     color = '250'), size = 0.75) + 
   geom_line(aes(x = duration,
     y = catalog %>% select(duration) %>% 
-      mutate(IVT_max = 500) %>% predict.rq(model.prcp, .),
+      mutate(IVT_max = 500) %>% predict(model.prcp, .),
     color = '500'), size = 0.75) + 
   geom_line(aes(x = duration,
     y = catalog %>% select(duration) %>% 
-      mutate(IVT_max = 1000) %>% predict.rq(model.prcp, .),
+      mutate(IVT_max = 1000) %>% predict(model.prcp, .),
     color = '1000'), size = 0.75) + 
   scale_x_continuous(
     'Storm Duration (hrs)', expand = c(0,0), 
@@ -231,133 +237,86 @@ g2 <- ggplot(catalog) +
     breaks = c('1000', '500', '250')) + 
   coord_cartesian(clip = 'off') + 
   theme(legend.position = 'bottom', 
+        legend.background = element_rect(fill = NA, color = NA),
         legend.text = element_text(margin = margin(0, 0, 0, -4)))
 
 ```
 
 ### Plot precipitation quantile plot
 ```{r}
-catalog.plot <- catalog %>% 
-  rename(precip_obs = precip_mm) %>% 
-  mutate(precip_sim = predict.rq(model.prcp, catalog)) 
-precip.max <- max(c(max(catalog.plot$precip_sim), max(catalog.plot$precip_obs)))
+## generate one realization of the catalog with uncertainty
+precip.qq <- 
+  generate_precip(
+    AR = catalog %>% transmute(n.AR = 1:nrow(.), IVT_max, duration, sm), 
+    catalog = catalog, 
+    probabilistic = TRUE, n.precip = 1) %>% 
+  rename(precip_sim = precip_mm) %>% 
+  left_join(catalog %>% transmute(n.AR = 1:nrow(.), precip_obs = precip_mm),
+            by = 'n.AR')
+precip.max <- max(c(max(precip.qq$precip_sim), max(precip.qq$precip_obs)))
 
-g3 <- ggplot(catalog.plot) + 
+## plot observed vs. simulated
+g3 <- ggplot(precip.qq) + 
   geom_point(aes(x = sort(precip_obs), y = sort(precip_sim)), size = 0.75) + 
-  geom_parity() + 
   coord_cartesian(xlim = c(NA, precip.max), ylim = c(NA, precip.max)) + 
   scale_x_origin('Observed Precipitation Quantile (mm)') + 
-  scale_y_origin('Simulated Precipitation Quantile (mm)')
-
-# ggplot(catalog.plot) + 
-#   geom_hline(yintercept = 0, color = 'grey70') + 
-#   geom_point(aes(x = precip_obs, y = precip_obs-precip_sim)) + 
-#   scale_x_origin('Storm Total Precipitation (mm)') + 
-#   scale_y_continuous('Observed - Simulated \nQuantile Regression Residual (mm)') + 
-#   theme(text = element_text(family = 'Segoe UI', size = 12))
-# ggsave('C:/Users/cbowers/Desktop/residuals.png', height = 4)
-
-```
-
-```{r}
-## other versions of the quantile plot
-
-## plot single simulation (deterministic)
-precip.qq <- 
-  generate_precip(
-    AR = catalog %>% transmute(n.AR = 1:nrow(.), IVT_max, duration), 
-    catalog = catalog,
-    probabilistic = FALSE,
-    n.precip = 10)
-precip.qq <- precip.qq %>% 
-  rename(precip_sim = precip_mm) %>% 
-  left_join(catalog %>% transmute(n.AR = 1:nrow(.), IVT_max, duration, precip_obs = precip_mm))
-precip.qq %>% 
-  ggplot() + 
-  geom_point(aes(x = sort(precip_obs), y = sort(precip_sim))) + 
-  scale_x_origin('Observed Precipitation Quantile (mm)') + 
-  scale_y_origin('Simulated Precipitation Quantile (mm)') +
+  scale_y_origin('Simulated Precipitation Quantile (mm)') + 
   geom_parity() + coord_fixed()
 
-precip.qq %>% 
-  ggplot() + 
-  geom_point(aes(x = precip_obs, y = precip_sim-precip_obs)) + 
-  scale_x_origin('Observed Precipitation Quantile (mm)')
-
-
-## plot single simulation (probabilistic)
-precip.qq <- 
-  generate_precip(
-    AR = catalog %>% transmute(n.AR = 1:nrow(.), IVT_max, duration), 
-    catalog = catalog,
-    probabilistic = TRUE,
-    n.precip = 10)
-precip.qq <- precip.qq %>% 
-  rename(precip_sim = precip_mm) %>% 
-  left_join(catalog %>% transmute(n.AR = 1:nrow(.), IVT_max, duration, precip_obs = precip_mm))
-foreach(i = 1:10) %do% {
-  precip.qq %>% 
-    filter(n.precip == i) %>% 
-    ggplot() + 
-    geom_point(aes(x = sort(precip_obs), y = sort(precip_sim))) + 
-    scale_x_origin('Observed Precipitation Quantile (mm)') + 
-    scale_y_origin('Simulated Precipitation Quantile (mm)') +
-    geom_parity() + coord_fixed()
-  ggsave(paste0('C:/Users/cbowers/Desktop/qq', i, '.png'), height = 2.5, units = 'in')
-}
-
-## plot mean of 10 simulations
-precip.qq <- 
-  generate_precip(
-    AR = catalog %>% transmute(n.AR = 1:nrow(.), IVT_max, duration), 
-    catalog = catalog,
-    probabilistic = TRUE,
-    n.precip = 100)
-precip.qq <- precip.qq %>% 
-  group_by(n.AR, group = floor((n.precip-1)/10)+1) %>% 
-  summarize(precip_sim = mean(precip_mm)) %>% 
-  rename(n.precip = group) %>% 
-  left_join(catalog %>% transmute(n.AR = 1:nrow(.), IVT_max, duration, precip_obs = precip_mm))
-foreach(i = 1:10) %do% {
-  precip.qq %>% 
-    filter(n.precip == i) %>% 
-    ggplot() + 
-    geom_point(aes(x = sort(precip_obs), y = sort(precip_sim))) + 
-    scale_x_origin('Observed Precipitation Quantile (mm)') + 
-    scale_y_origin('Simulated Precipitation Quantile (mm)') +
-    geom_parity() + coord_fixed()
-}
-
-## plot mean of 100 simulations
-precip.qq <- 
-  generate_precip(
-    AR = catalog %>% transmute(n.AR = 1:nrow(.), IVT_max, duration), 
-    catalog = catalog,
-    probabilistic = TRUE,
-    n.precip = 1e3)
-precip.qq <- precip.qq %>% 
-  group_by(n.AR, group = floor((n.precip-1)/100)+1) %>% 
-  summarize(precip_sim = mean(precip_mm)) %>% 
-  rename(n.precip = group) %>% 
-  left_join(catalog %>% transmute(n.AR = 1:nrow(.), IVT_max, duration, precip_obs = precip_mm))
-foreach(i = 1:10) %do% {
-  precip.qq %>% 
-    filter(n.precip == i) %>% 
-    ggplot() + 
-    geom_point(aes(x = sort(precip_obs), y = sort(precip_sim))) + 
-    scale_x_origin('Observed Precipitation Quantile (mm)') + 
-    scale_y_origin('Simulated Precipitation Quantile (mm)') +
-    geom_parity() + coord_fixed()
-}
-
 ```
 
-
+### Calculate K-S statistic
 ```{r}
-## calculate K-S statistic here
+d.crit <- 1.731 * sqrt(2/nrow(catalog))
+n <- 100
+
+cl <- parallel::makeCluster(num_cores)
+registerDoSNOW(cl)
+# pb <- txtProgressBar(min = 0, max = n, style = 3)
+ks.value <- 
+  foreach (i = 1:n, 
+    # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+    .combine = 'c', .packages = c('tidyverse', 'pracma'), 
+    .export = 'generate_precip') %dopar% {
+      precip.ks <- generate_precip(
+        AR = catalog %>% transmute(n.AR = 1:nrow(.), IVT_max, duration, sm),
+        catalog = catalog, 
+        probabilistic = TRUE,
+        n.precip = 1)
+      sorted <- data.frame(
+        precip.obs = sort(catalog$precip_mm),
+        precip.sim = sort(precip.ks$precip_mm)) %>% 
+        mutate(p = (1:nrow(.))/(nrow(.)+1))
+      data.frame(
+        precip = seq(0, min(c(max(sorted$precip.obs), max(sorted$precip.sim))), 
+                     length.out = 1000)) %>% 
+        mutate(p.obs = interp1(x = sorted$precip.obs, y = sorted$p, xi = precip)) %>% 
+        mutate(p.sim = interp1(x = sorted$precip.sim, y = sorted$p, xi = precip)) %>% 
+        mutate(diff = abs(p.obs-p.sim)) %>% 
+        mutate(ks = diff/d.crit) %>% 
+        arrange(desc(ks)) %>% 
+        pull(ks) %>% max
+      
+      # ggplot() +
+      #   geom_ribbon(data = sorted,
+      #     aes(ymin = p-d.crit, ymax = p+d.crit, x = precip.obs), fill = 'grey90') +
+      #   geom_line(data = prcp, aes(x = precip.obs, y = p), size = 1, color = 'grey60') +
+      #   geom_line(data = ks %>% arrange(p.sim), size = 1,
+      #     aes(x = precip, y = p.sim, color = pass, group = 1)) +
+      #   scale_color_manual(values = c(baker[2], 'grey25')) +
+      #   scale_x_origin() + scale_y_origin()
+  }
+stopCluster(cl)
+
+ggplot() + 
+  geom_histogram(aes(x = ks.value, y = ..density..), 
+    color = 'black', fill = 'grey90', bins = sqrt(length(ks.value))) + 
+  geom_vline(xintercept = 1, linetype = 'dashed', size = 1) + 
+  scale_x_continuous('Kolmogorov-Smirnov Statistic') + 
+  scale_y_origin('Probability of Occurrence')
+mean(ks.value)
   
 ```
-
 
 ### Plot observed vs. simulated precipitation histogram
 ```{r}
@@ -367,11 +326,11 @@ g4 <- ggplot(precip) +
                  bins = sqrt(nrow(precip)), boundary = 0, size = 0.25) + 
   geom_vline(xintercept = casestudy$precip_mm, linetype = 'dashed') + 
   annotate(geom = 'text', 
-           x = casestudy$precip_mm - 20, y = 0.065, 
+           x = casestudy$precip_mm - 20, y = 0.045, 
            label = '2019 Observed', family = 'Segoe UI', size = 8/.pt,
            angle = 90) + 
   scale_x_origin('Storm Total Precipitation (mm)') + 
-  scale_y_origin('Frequency of Occurrence') + 
+  scale_y_origin('Probability of Occurrence') + 
   coord_cartesian(xlim = c(0, precip.max))
 
 ## display event percentile
@@ -379,33 +338,30 @@ sum(casestudy$precip_mm > precip$precip_mm)/nrow(precip)
 
 ```
 
+### Generate paper figure 
 ```{r}
 plot_grid(
+  plot_grid(ggplot() + theme_void(), ggplot() + theme_void(), 
+            nrow = 1, rel_widths = c(1,1),
+    labels = c('(a)', '(b)'), label_fontfamily = 'Segoe UI', label_size = 12,
+    label_x = c(0.2, 0.7), label_y = 0.95), 
+  plot_grid(get_legend(g1), get_legend(g2), nrow = 1, rel_widths = c(1,1)),
   plot_grid(
     g1 + theme(legend.position = 'none'), g2 + theme(legend.position = 'none'), 
-    nrow = 1, align = 'h', rel_widths = c(1,1),
-    labels = c('(a)', '(b)'), label_fontfamily = 'Segoe UI', label_size = 12,
-    label_x = 0.2, label_y = 0.95), 
-  plot_grid(get_legend(g1), get_legend(g2), nrow = 1, rel_widths = c(1,1)),
+    nrow = 1, align = 'h', rel_widths = c(1,1)),
   plot_grid(
     g3, g4, nrow = 1, align = 'h',
     labels = c('(c)', '(d)'), label_fontfamily = 'Segoe UI', label_size = 12,
-    label_x = 0.2, label_y = 0.95), 
-  nrow = 3, 
-  rel_heights = c(9,1,10))
+    label_x = c(0.2, 0.7), label_y = 0.95), 
+  nrow = 4, 
+  rel_heights = c(1.25,1,9,10))
 ggsave('_figures/fig04_precip.png', width = 12, height = 12, units = 'cm')
 
 ```
 
+# f(HC)
 
-# f(Q|PRCP, HC)
-
-```{r}
-source('_scripts/Q_sherlock.R')
-
-```
-
-## Fit lognormal distribution to soil moisture
+### Fit lognormal distribution to soil moisture
 ```{r}
 generate_soilmoisture(
   data.frame(n.AR = 1, n.precip = 1), 
@@ -421,8 +377,7 @@ plnorm(casestudy$sm, meanlog = fit.sm[1], sdlog = fit.sm[2])
 
 ```
 
-
-#### Plot observed soil moisture data vs. simulated lognormal distribution
+### Plot observed soil moisture data vs. simulated lognormal distribution
 ```{r}
 g5 <- data.frame(dx = seq(0, 200, length.out = 1e3)) %>% 
   mutate(fit = dlnorm(dx, meanlog = fit.sm[1], sdlog = fit.sm[2])) %>% 
@@ -439,7 +394,7 @@ g5 <- data.frame(dx = seq(0, 200, length.out = 1e3)) %>%
   scale_fill_manual(values = 'grey90') + 
   scale_size_manual(values = 0.5) + 
   scale_x_origin('Antecedent Soil Moisture (mm)') + 
-  scale_y_origin('Frequency of Occurrence') + 
+  scale_y_origin('Probability of Occurrence') + 
   theme(legend.title = element_blank(), 
         legend.position = 'bottom',
         legend.margin = margin(0,0,0,0))
@@ -448,12 +403,12 @@ g5 <- data.frame(dx = seq(0, 200, length.out = 1e3)) %>%
 
 ### Plot lognormal quantile plot
 ```{r}
-plot.sm <- catalog %>% 
-  select(sm) %>% 
-  arrange(sm) %>% 
-  mutate(p = (1:nrow(.))/(nrow(.)+1)) %>% 
-  mutate(fit = qlnorm(p, meanlog = fit.sm[1], sdlog = fit.sm[2]))
-xmax <- max(c(max(plot.sm$sm), max(plot.sm$fit)))
+# plot.sm <- catalog %>% 
+#   select(sm) %>% 
+#   arrange(sm) %>% 
+#   mutate(p = (1:nrow(.))/(nrow(.)+1)) %>% 
+#   mutate(fit = qlnorm(p, meanlog = fit.sm[1], sdlog = fit.sm[2]))
+# xmax <- max(c(max(plot.sm$sm), max(plot.sm$fit)))
 # ggplot(plot.sm) + 
 #   geom_point(aes(x = fit, y = sm)) + 
 #   scale_x_origin('Theoretical Lognormal Quantile') + 
@@ -463,21 +418,33 @@ xmax <- max(c(max(plot.sm$sm), max(plot.sm$fit)))
 
 ```
 
-## Generate simulated values for Qp & tp
+# f(Q|PRCP, HC)
+
+### Generate simulated values for Qp & tp
+```{r}
+source('_scripts/Q_GLS.R')
+
+```
 
 ```{r}
 ## define pinch point PRCP using the observed storm-total precipitation for the case study storm
 precip <- casestudy %>% 
-  transmute(n.AR = 1, n.precip = 1, n.hc = 1, IVT_max, duration, precip_mm, sm) %>% 
-  mutate(p = plnorm(q = sm, meanlog = fit.sm[1], sdlog = fit.sm[2]))
+  transmute(n.AR = 1, n.precip = 1, IVT_max, duration, precip_mm)
+
+## generate probabilistic realizations of HC, soil moisture
+precip.sm <- generate_soilmoisture(
+  precip = precip, 
+  catalog = catalog, 
+  probabilistic = TRUE, 
+  n.hc = 1e3)
 
 ## generate probabilistic realizations of R, runoff
 runoff <- 
   generate_runoff(
-    precip = precip, 
+    precip = precip.sm, 
     catalog = catalog, 
     probabilistic = TRUE,
-    n.runoff = 1e3)
+    n.runoff = 1)
 
 ## generate probabilistic realizations of Q, streamflow 
 hydrograph <-
@@ -487,18 +454,12 @@ hydrograph <-
     probabilistic = TRUE,
     n.hydro = 1)
 
-```
-
-```{r}
-## prove that this is better than the default
-caret::R2(
-  catalog$runoff_mm * (readNWISsite(11463500)$drain_area_va * 1609.344^2) / catalog$duration,
-  catalog$Qp_m3s)
-caret::R2(predict(model.Qp), catalog$Qp_m3s)
+## display fitted model values
+model.Qp$coefficients %>% scientific(digits = 4)
 
 ```
-
-#### Plot observed time to peak data vs. simulated lognormal distribution
+## tp 
+### Plot observed time to peak data vs. simulated lognormal distribution
 ```{r}
 g6 <- data.frame(dx = seq(0, 60, length.out = 1e3)) %>% 
   mutate(fit = dlnorm(dx, meanlog = fit.tp[1], sdlog = fit.tp[2])) %>% 
@@ -515,12 +476,12 @@ g6 <- data.frame(dx = seq(0, 60, length.out = 1e3)) %>%
   scale_fill_manual(values = 'grey90') + 
   scale_size_manual(values = 0.5) + 
   scale_x_origin('Time to Peak Streamflow @ USGS 11463500 (hrs)') + 
-  scale_y_origin('Frequency of Occurrence') + 
+  scale_y_origin('Probability of Occurrence') + 
   theme(legend.title = element_blank())
 
 ```
 
-
+### Generate paper figure 
 ```{r}
 plot_grid(
   g5 + theme(legend.position = 'none'), g6 + theme(legend.position = 'none'),
@@ -532,25 +493,96 @@ ggsave('_figures/fig06_lognormal.png', width = 8.3, height = 10, units = 'cm')
 
 ```
 
+## Qp
 ### Plot peak streamflow quantile plot
 ```{r}
-catalog.plot <- catalog %>% 
-  rename(precip = precip_mm, runoff = runoff_mm) %>% 
-  rename(Qp_obs = Qp_m3s) %>% 
-  mutate(Qp_sim = predict(model.Qp, .)) 
-Qp.max <- max(c(max(catalog.plot$Qp_obs), max(catalog.plot$Qp_sim)))
+## generate one realization of the catalog with uncertainty
+precip.qq <- catalog %>%
+  transmute(n.AR = 1:nrow(.), n.precip = 1, n.hc = 1, IVT_max, duration, precip_mm, sm)
+precip.qq <- generate_soilmoisture(precip = precip.qq, catalog = catalog, probabilistic = FALSE)
+runoff.qq <- generate_runoff(
+  precip = precip.qq, catalog = catalog, probabilistic = TRUE)
+hydro.qq <- generate_hydrograph(
+  runoff = runoff.qq, catalog = catalog, probabilistic = TRUE, mixratio = 0.9) %>% 
+  rename(Qp_sim = Qp_m3s) %>% 
+  left_join(catalog %>% transmute(n.AR = 1:nrow(.), Qp_obs = Qp_m3s), by = 'n.AR')
+hydro.max <- max(c(max(hydro.qq$Qp_obs), max(hydro.qq$Qp_sim)))
 
-g7 <- ggplot(catalog.plot) + 
+## plot Q-Q
+g7 <- ggplot(hydro.qq) + 
   geom_point(aes(x = sort(Qp_obs), y = sort(Qp_sim)), size = 0.75) + 
   geom_parity() + 
-  coord_cartesian(xlim = c(NA, Qp.max), ylim = c(NA, Qp.max)) + 
+  coord_cartesian(xlim = c(NA, hydro.max), ylim = c(NA, hydro.max)) + 
   scale_x_continuous(
     expression(paste('Observed ', Q[p], ' Quantile (', m^{3}, s^{-1}, ')')), 
     expand = expansion(mult = c(0, 0.05)), labels = comma) + 
   scale_y_continuous(
     expression(paste('Simulated ', Q[p], ' Quantile (', m^{3}, s^{-1}, ')')), 
-    expand = expansion(mult = c(0, 0.05)), labels = comma) + 
-  theme_bw_custom() 
+    expand = expansion(mult = c(0, 0.05)), labels = comma)
+
+```
+
+### Calculate K-S statistic
+```{r}
+d.crit <- 1.731 * sqrt(2/nrow(catalog))
+n <- 100
+
+cl <- parallel::makeCluster(num_cores)
+registerDoSNOW(cl)
+pb <- txtProgressBar(min = 0, max = n, style = 3)
+ks.value <- 
+  foreach (i = 1:n, 
+    # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+    .combine = 'c', .packages = c('pracma', 'fitdistrplus', 'tidyverse'), 
+    .export = c('generate_runoff', 'generate_hydrograph')) %dopar% {
+      runoff.qq <- generate_runoff(
+        precip = precip.qq, catalog = catalog, probabilistic = TRUE)
+      hydro.qq <- generate_hydrograph(
+        runoff = runoff.qq, catalog = catalog, probabilistic = TRUE)
+      sorted <- data.frame(
+        Qp.obs = sort(catalog$Qp_m3s),
+        Qp.sim = sort(hydro.qq$Qp_m3s)+4) %>% #add in baseflow
+        mutate(p = (1:nrow(.))/(nrow(.)+1))
+      data.frame(
+        Qp = seq(
+          sorted %>% select(-p) %>% apply(2, min) %>% max, 
+          sorted %>% select(-p) %>% apply(2, max) %>% min, 
+          length.out = 1000)) %>% 
+        mutate(p.obs = interp1(x = sorted$Qp.obs, y = sorted$p, xi = Qp)) %>%
+        mutate(p.sim = interp1(x = sorted$Qp.sim, y = sorted$p, xi = Qp)) %>% 
+        mutate(diff = abs(p.obs-p.sim)) %>% 
+        mutate(ks = diff/d.crit) %>% 
+        # arrange(desc(ks)) %>%
+        # filter(Qp > quantile(catalog$Qp_m3s, 0.25)) %>% 
+        pull(ks) %>% max
+      
+      # ggplot() +
+      #   geom_ribbon(data = sorted,
+      #     aes(ymin = p-d.crit, ymax = p+d.crit, x = precip.obs), fill = 'grey90') +
+      #   geom_line(data = prcp, aes(x = precip.obs, y = p), size = 1, color = 'grey60') +
+      #   geom_line(data = ks %>% arrange(p.sim), size = 1,
+      #     aes(x = precip, y = p.sim, color = pass, group = 1)) +
+      #   scale_color_manual(values = c(baker[2], 'grey25')) +
+      #   scale_x_origin() + scale_y_origin()
+  }
+stopCluster(cl)
+
+ggplot() + 
+  geom_histogram(aes(x = ks.value, y = ..density..), 
+    color = 'black', fill = 'grey90', bins = sqrt(length(ks.value))) + 
+  geom_vline(xintercept = 1, linetype = 'dashed', size = 1) + 
+  scale_x_continuous('Kolmogorov-Smirnov Statistic') + 
+  scale_y_origin('Probability of Occurrence')
+mean(ks.value)
+  
+```
+
+```{r}
+## prove that this is better than the default
+R2(
+  catalog$runoff_mm * (readNWISsite(11463500)$drain_area_va * 1609.344^2) / catalog$duration,
+  catalog$Qp_m3s)
+R2(predict(model.Qp), catalog$Qp_m3s)
 
 ```
 
@@ -629,12 +661,14 @@ g8 <- ggplot(flow.df) +
     limits = c(ymd_hms('2019-02-24 12:00:00PM', tz = 'America/Los_Angeles'),
                ymd_hms('2019-03-02 12:00:00AM', tz = 'America/Los_Angeles')), 
     date_breaks = 'day', date_labels = '%b %d', expand = c(0,0)) + 
+  # coord_cartesian(ylim = c(0, hydro.max)) + 
   theme(legend.position = c(0.9,0.65), 
         legend.margin = margin(-1, 0, -1, 0), 
         plot.margin = margin(10,25,10,10))
 
 ```
 
+### Generate paper figure
 ```{r}
 plot_grid(
   g7, g8, nrow = 2, align = 'v',
@@ -721,8 +755,8 @@ bed[][bed[]>1e9] <- NA
 
 gages.elev <- gages %>%
   st_as_sf(coords = c('dec_long_va', 'dec_lat_va'), crs = 4269) %>%
-  elevatr::get_elev_point() %>%
-  st_transform(6417) %>% 
+  # elevatr::get_elev_point() %>%
+  st_transform(6417) %>%
   mutate(lisflood_m = raster::extract(bed, ., small = TRUE)) %>%
   mutate(site_no = toNumber(site_no)) %>% 
   left_join(readNWISsite(gages$site_no) %>% select(site_no, alt_va, alt_datum_cd),
@@ -908,13 +942,8 @@ ggsave('_figures/fig07/fig07_floodmap.png', width = 6, height = 9, units = 'cm')
 ```
 
 ```{r}
-load('_data/buildings/buildings.Rdata')
-
 ## check number of inundated buildings
-buildings.coord <- buildings %>% 
-  st_as_sf(coords = c('X', 'Y'), crs = 4269) %>% 
-  st_transform(6417) %>% 
-  st_coordinates
+buildings.coord <- buildings %>% st_coordinates
 Sum(terra::extract(rast(flood.map), buildings.coord) >= 0) #simulated number
 Sum(terra::extract(rast(flood.map), buildings.coord) <= 0) #"true" number
 
@@ -933,12 +962,9 @@ Sum(terra::extract(rast(flood.map), buildings.coord) <= 0) #"true" number
 ## check surrogate model too
 source('_scripts/INUN_sherlock.R')
 load('_sensitivity/surrogate/checkpoints/samples.Rdata')
-load('_data/buildings/buildings.Rdata')
 
-
-num_cores <- 5
 cl <- parallel::makeCluster(num_cores)
-registerDoSNOW(cl)
+doParallel::registerDoParallel(cl)
 inundation <- 
   generate_inundation(
     hydrograph = casestudy %>% 
@@ -947,8 +973,6 @@ inundation <-
     buildings = buildings, 
     probabilistic = TRUE, n.inun = 1e3)
 stopCluster(cl)
-
-length(attr(inundation, 'wet.bldg'))
 
 ```
 
@@ -989,7 +1013,6 @@ note: rewrite samples.Rmd
 # hydrograph <- casestudy %>% mutate(n.AR = 1, n.precip = 1, n.hydro = 1)
 # load('C:/Users/cbowers/Desktop/samples.Rdata')
 # 
-# num_cores <- 5
 # cl <- parallel::makeCluster(num_cores)
 # registerDoSNOW(cl)
 # inundation <- 
@@ -1047,7 +1070,6 @@ beta.random <-
     mutate(depth_ft = toNumber(depth_ft)) 
 
 ## plot distributions & random samples vs. HAZUS
-load('_data/depthdamage/depthdamage.Rdata')
 g13 <- ggplot() + 
   ggridges::geom_density_ridges(
     data = beta.dist,
@@ -1077,7 +1099,6 @@ g13 <- ggplot() +
 
 
 ```{r}
-load('_data/buildings/buildings.Rdata')
 table(buildings$RESA_Status_GIS)
 
 buildings <- buildings %>% 
@@ -1122,7 +1143,6 @@ attributes(inundation)$buildings <-
 attributes(inundation)$wet.bldg <- wet.bldg
 
 ## format depth-damage information
-load('_data/depthdamage/depthdamage.Rdata')
 hazus <- hazus %>% 
   filter(Basement == 'Y') %>%
   mutate(depth_m = depth_m + 3/mft) %>%
@@ -1179,7 +1199,7 @@ tags <- c('Untagged \n(n = 469)', 'Tagged/Safe \n(n = 788)', 'Tagged/Unsafe \n(n
 #   scale_x_continuous('Simulated \nDamage Ratio\n\n', 
 #     expand = expansion(mult = c(0,0.1)),
 #     labels = percent_format(accuracy = 1)) + 
-#   scale_y_origin('Average Frequency of Occurrence') + 
+#   scale_y_origin('Average Probability of Occurrence') + 
 #   coord_flip() + 
 #   theme(axis.line.y = element_blank(),
 #         strip.background = element_blank(), 
@@ -1211,7 +1231,7 @@ g16 <- ggplot(damage) +
   scale_x_continuous('Simulated Damage Ratio', 
     limits = c(0,1), expand = expansion(mult = c(0,0)),
     labels = percent_format(accuracy = 1)) + 
-  scale_y_origin('Frequency of Occurrence \n') + 
+  scale_y_origin('Probability of Occurrence \n') + 
   coord_flip(clip = 'off') + 
   theme(strip.background = element_blank(), strip.placement = 'outside',
         panel.spacing.x = unit(0.1, 'lines'), panel.spacing.y = unit(0.1, 'lines'))

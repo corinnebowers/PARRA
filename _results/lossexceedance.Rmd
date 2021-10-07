@@ -18,6 +18,8 @@ The purpose of this script is to ...
 ```{r setup, include = FALSE}
 knitr::opts_knit$set(root.dir = 'D:/1-PARRA/')
 knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+knitr::opts_chunk$set(results = 'hold', fig.show = 'hold', fig.align = 'center')
+rm(list=ls())
 
 ```
 
@@ -46,13 +48,16 @@ print(casestudy)
 ```
 
 go to Sherlock and run for this case study
+```{r}
+load('_results/sept30/event_2019-69/DV.Rdata')
+
+```
 
 ## plot real loss vs. simulated loss distribution
 ```{r}
-load('_results/event_2019/prcp4/DV.Rdata')
 plot_loss_sim <- function(year, loss.est) {
   g <- loss.sim %>% 
-    filter(n.AR == 1) %>% 
+    # filter(n.AR == 1) %>% 
     # right_join(data.frame(n.precip = 1:1e4), by = 'n.precip') %>% 
     # mutate(loss = case_when(is.na(loss)~0, TRUE~loss)) %>% 
     ggplot() + 
@@ -78,8 +83,9 @@ ggsave('_figures/fig09/fig09_lossdist.png', width = 8.3, height = 5, units = 'cm
 
 ```
 
-
 ```{r}
+load('_results/sept30/event_2019-78/DV.Rdata')
+
 ## percentile
 1 - (sum(loss.sim$loss > loss.est) / 1e4)
 
@@ -87,32 +93,30 @@ ggsave('_figures/fig09/fig09_lossdist.png', width = 8.3, height = 5, units = 'cm
 max(loss.sim$loss)/1e6
 max(loss.sim$loss) / loss.est
 
+# sort(loss.sim$loss, decreasing = TRUE)[1:10] / 1e6
+
 ## nonzero events
-nrow(loss.sim)/1e4
+# nrow(loss.sim)/1e4
 
 ```
 
 ## spatial distribution of loss
 ```{r}
-load('_results/event_2019/prcp4/DV.Rdata')
-
 ## census block groups
-sonoma_cbgs <- block_groups(state = 'CA', county = 'Sonoma')
-sonoma_cbgs %>% 
+sonoma_cbgs <- block_groups(state = 'CA', county = 'Sonoma') %>% 
   mutate(group = toNumber(GEOID)) %>% 
   left_join(loss.group %>% mutate(group = toNumber(group)), by = 'group') %>% 
   mutate(loss = ifelse(is.na(loss), 0, loss)) %>% 
-  st_transform(6417) %>% st_crop(aoi) %>% 
-  ggplot() + 
-  geom_sf(data = sonoma %>% st_transform(6417), fill = 'grey90', color = 'grey60', size = 0.25) +
+  st_transform(6417) %>% st_crop(aoi)
+ggplot(sonoma_cbgs) + 
+  geom_sf(data = sonoma, fill = 'grey90', color = 'grey60', size = 0.25) +
   geom_sf(aes(fill = loss+1), color = NA) + 
   scale_fill_scico('Block Group \nLoss Estimate', palette = 'roma', 
-                   begin = 0.5, #trans = 'log10', 
-                   labels = comma_format(prefix = '$')) + 
+    begin = 0.5, labels = comma_format(prefix = '$')) + 
   ggnewscale::new_scale_fill() + 
   geom_sf(aes(fill = loss>0), color = NA, show.legend = FALSE) + 
   scale_fill_manual(values = c('white', NA), na.value = NA) + 
-  geom_sf(data = sonoma %>% st_transform(6417), fill = NA, size = 0.25, color = 'grey60') +
+  geom_sf(data = sonoma, fill = NA, size = 0.25, color = 'grey60') +
   geom_sf(data = st_union(sonoma), color = 'grey50', fill = NA) + 
   geom_sf(data = aoi, fill = NA, color = 'grey40') + 
   geom_sf(data = russian %>% st_transform(6417) %>% st_crop(sonoma), size = 0.75) + 
@@ -127,23 +131,18 @@ ggsave('_figures/fig09/fig09_lossmap.png', width = 6, height = 9, units = 'cm')
 
 ## calculate AAL for entire catalog
 ```{r}
-load(paste0('_results/stochastic/DV.Rdata'))
+load(paste0('_results/sept30/stochastic-69/DV.Rdata'))
 loss.stochastic <- loss.sim
 
-sum(loss.stochastic$loss)/3200/1e6
+AAL <- sum(loss.stochastic$loss)/3300/1e6
+AAL
 
 ```
 
 ## estimate return period for losses 
 ```{r}
-## Corringham et al. have 5.2 billion dollars in losses
-5.2e3 / 40
-
-```
-
-```{r}
 ## return period of 2019 event
-p <- sum(loss.stochastic$loss > 91.6e6)/3200
+p <- sum(loss.stochastic$loss > 91.6e6)/3300
 percent(p, accuracy = 0.01)
 comma(1/p, accuracy = 0.01)
 
@@ -158,7 +157,13 @@ loss.stochastic %>%
 
 ```
 
-## mitigated case
+```{r}
+## Corringham et al. have 5.2 billion dollars in losses
+5.2e3 / 40
+
+```
+
+## mitigation
 
 ```{r}
 ## raise buildings
@@ -183,23 +188,37 @@ buildings %>% st_drop_geometry %>% filter(raised_m > 0) %>% pull(raised_m) %>% m
 
 ```
 
+## mitigation prioritization tactic
+```{r}
+## pull results from Sherlock
+load('_results/mitigated/loss_bldg_dist_2.Rdata')
+sum(loss.bldg$new_AAL/1e6 > AAL/2)
+
+load('_results/mitigated/loss_bldg_elev_2.Rdata')
+sum(loss.bldg$new_AAL/1e6 > AAL/2)
+
+load('_results/mitigated/loss_bldg_random_1.Rdata')
+sum(loss.bldg$new_AAL/1e6 > AAL/2)
+
+load('_results/mitigated/loss_bldg_loss_1.Rdata')
+sum(loss.bldg$new_AAL/1e6 > AAL/2)
+
+
+```
 
 ```{r}
 ## check the mitigated case
-load(paste0('_results/mitigated/DV.Rdata'))
-loss.mitigated <- loss.sim
+loss.stochastic <- loss.bldg$loss.stochastic
+loss.mitigated <- c(loss.bldg$loss.mitigated[1:131], loss.bldg$loss.stochastic[-(1:131)])
+
+
 
 ## plot original vs. mitigated loss exceedance curve
 ggplot() + 
   geom_hline(yintercept = 1e-2, color = 'grey70', linetype = 'dashed') + 
-  geom_step(data = loss.stochastic %>% arrange(desc(loss)) %>% 
-               mutate(exceed = (1:nrow(.))/3200),
-             aes(x = loss, y = exceed, color = 'Original'), size = 0.75) +
-  geom_step(data = loss.mitigated %>% arrange(desc(loss)) %>%  
-               mutate(exceed = (1:nrow(.))/3200),
-             aes(x = loss, y = exceed, color = 'Mitigated'), size = 0.75) +
-  scale_x_origin('Loss Estimate ($M)', breaks = seq(0, 1e9, 5e7),
-                 labels = comma_format(scale = 1e-6)) + 
+  geom_step(aes(x = sort(loss.stochastic), y = (nrow(loss.bldg):1)/3200, color = 'Original'), size = 0.75) +
+  geom_step(aes(x = sort(loss.mitigated), y = (nrow(loss.bldg):1)/3200, color = 'Mitigated'), size = 0.75) +
+  scale_x_origin('Loss Estimate ($M)', breaks = seq(0, 1e3, 50), labels = comma) + 
   scale_y_log10('Probability of Exceedance', labels = scientific) +
   scale_color_manual('Building \nElevations', values = c('black', 'grey60'),
                      breaks = c('Original', 'Mitigated')) + 
@@ -209,20 +228,6 @@ ggsave('_figures/fig10_mitigated.png', width = 8.3, height = 6, units = 'cm')
 
 
 ```
-
-```{r}
-# left_join(
-#   loss.stochastic %>% arrange(desc(loss)) %>% 
-#     transmute(exceed = (1:nrow(.))/3200, loss.stochastic = loss),
-#   loss.mitigated %>% arrange(desc(loss)) %>% 
-#     transmute(exceed = (1:nrow(.))/3200, loss.mitigated = loss),
-#   by = 'exceed') %>% 
-#   ggplot() + 
-#   geom_point(aes(x = exceed, y = loss.stochastic-loss.mitigated)) + 
-#   scale_x_log10() + scale_y_origin(labels = comma_format(scale = 1e-6))
-
-```
-
 
 ```{r}
 ## calculate the mitigated AAL
@@ -244,62 +249,6 @@ loss.mitigated %>%
 
 ```
 
-## new mitigation tactic
-```{r}
-load('_data/buildings/buildings.Rdata')
-buildings <- buildings %>% rename(value.sd = acs.sd)
-
-## get original losses by building & by simulation
-load(paste0('_results/stochastic/DM.Rdata'))
-id.wet <- attr(damage, 'buildings') %>% as.data.frame %>% pull(id)
-buildings.wet <- buildings %>% arrange(bldg) %>% 
-  filter(bldg %in% id.wet) %>% 
-  st_drop_geometry
-values <- map2_dbl(
-  .x = buildings.wet$value, .y = buildings.wet$value.sd,
-  ~rnorm(1, mean = .x, sd = .y)) %>% 
-  cbind(0) %>% apply(1, max)
-loss.stochastic <- damage %>% 
-  lapply(function(x) {
-    x %>% as.data.frame %>% 
-      select(-n.inun, -n.damage, -bldg) %>% 
-      sweep(1, values, '*') %>% 
-      cbind(x %>% as.data.frame %>% select(n.inun, n.damage, bldg))})
-
-## get mitigated losses by building & by simulation
-load(paste0('_results/mitigated/DM.Rdata'))
-id.wet <- attr(damage, 'buildings') %>% as.data.frame %>% pull(id)
-buildings.wet <- buildings %>% arrange(bldg) %>% 
-  filter(bldg %in% id.wet) %>% 
-  st_drop_geometry
-values <- map2_dbl(
-  .x = buildings.wet$value, .y = buildings.wet$value.sd,
-  ~rnorm(1, mean = .x, sd = .y)) %>% 
-  cbind(0) %>% apply(1, max)
-loss.mitigated <- damage %>% 
-  lapply(function(x) {
-    x %>% as.data.frame %>% 
-      select(-n.inun, -n.damage, -bldg) %>% 
-      sweep(1, values, '*') %>% 
-      cbind(x %>% as.data.frame %>% select(n.inun, n.damage, bldg))})
-
-## combine into one dataframe
-loss.bldg <- 
-  left_join(
-    loss.stochastic[[1]] %>% 
-      select(-n.damage, -n.inun, -bldg) %>% 
-      apply(1, mean) %>% 
-      cbind(loss.stochastic = ., bldg = loss.stochastic[[1]]$bldg) %>% 
-      as.data.frame,
-    loss.mitigated[[1]] %>% 
-      select(-n.damage, -n.inun, -bldg) %>% 
-      apply(1, mean) %>% 
-      cbind(loss.mitigated = ., bldg = loss.mitigated[[1]]$bldg) %>% 
-      as.data.frame,
-    by = 'bldg') %>% 
-  arrange(desc(loss.stochastic))
-
-```
 
 
 ```{r}

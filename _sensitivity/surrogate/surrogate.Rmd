@@ -31,6 +31,9 @@ num_cores <- 5
 ## load location information
 load('_data/lisflood/dem.Rdata')
 
+## load catalog
+load('_data/catalog/catalog.Rdata')
+
 ```
 
 
@@ -52,7 +55,7 @@ sims <- files %>% gsub('gridded', '', .) %>% gsub('.max', '', .) %>% toNumber
 bad1 <- (1:n)[!(1:n %in% sims)]
 
 ## remove simulations that do not reach the ocean
-pt <- data.frame(lat = 38.45064279, lon = -123.12917330) %>% 
+pt <- data.frame(lat = 38.45166, lon = -123.12934) %>% 
   st_as_sf(coords = c('lon', 'lat'), crs = 4326) %>% 
   st_transform(6417) %>% 
   st_coordinates
@@ -72,15 +75,21 @@ stopCluster(cl)
 Sys.time() - start
 bad2 <- files[badfile] %>% 
   str_remove('gridded') %>% str_remove('.max') %>% toNumber %>% sort
-write.table(bad2, file = 'C:/Users/cbowers/Desktop/id.txt',
-            row.names = FALSE, col.names = FALSE)
+# write.table(bad2, file = 'C:/Users/cbowers/Desktop/id.txt',
+#             row.names = FALSE, col.names = FALSE)
 
 ## keep successful simulations
-good <- (1:n)[-c(bad1, bad2)]
+if (length(bad1) == 0 & length(bad2) == 0) {
+  good <- 1:n
+} else {
+  good <- (1:n)[-c(bad1, bad2)]
+}
 
 ```
 
-We check the 5,000 simulations and disqualify those that either (a) do not produce an inundation map or (b) produce inundation maps where the flow does not fill the river channel all the way to the Pacific Ocean. 
+
+
+We check the `r comma_format(n)` simulations and disqualify those that either (a) do not produce an inundation map or (b) produce inundation maps where the flow does not fill the river channel all the way to the Pacific Ocean. 
 This leaves us with `r length(good)` valid simulations to use for the surrogate model search space. 
 
 ```{r samples}
@@ -114,6 +123,7 @@ samples <- samples %>% mutate(cv = replace(NA, sim %in% good, cv))
 save(samples, file = '_sensitivity/surrogate/checkpoints/samples.Rdata')
 
 ```
+
 
 # Set up the surrogate model
 
@@ -157,7 +167,7 @@ Rather than the rigorous parameter fit process we conducted for the LISFLOOD env
 
 
 ```{r}
-files <- paste0('_sensitivity/surrogate/sherlock_npalpha/error', 1:10, '.csv')[-6]
+files <- paste0('_sensitivity/surrogate/sherlock_npalpha/error', 1:10, '.csv')
 columns <- cols(
   X1 = col_double(),
   sim = col_double(),
@@ -211,58 +221,17 @@ do.call(plot_grid, temp)
 
 ```{r}
 ## iteratively remove points
+# error.subset <- error.npalpha %>% 
+#   filter(alpha > 0.25) %>%
+#   filter(p >= 1)
+# error.subset <- error.npalpha %>% 
+#   filter(alpha >= 0.5 & alpha <= 0.8) %>%
+#   filter(n >= 3 & n <= 10) %>%
+#   filter(p > 1 & p < 5)
 error.subset <- error.npalpha %>% 
-  filter(alpha > 0.25 & alpha != 1) %>%
-  filter(n >= 5 & n <= 10) %>%
-  filter(p >= 1 & p <= 4)
-
-# require(plotly)
-# plot_ly(
-#   data = error.subset, 
-#   x = ~RMSE.median, y = ~SRSS, color = ~factor(n), 
-#   colors = scico(n = length(unique(error.subset$n)), palette = 'roma'))
-# plot_ly(
-#   data = error.subset, 
-#   x = ~RMSE.median, y = ~SRSS, color = ~factor(p), 
-#   colors = scico(n = length(unique(error.subset$p)), palette = 'roma'))
-# plot_ly(
-#   data = error.subset, 
-#   x = ~RMSE.median, y = ~SRSS, color = ~factor(alpha), 
-#   colors = scico(n = length(unique(error.subset$alpha)), palette = 'roma'))
-
-temp <- 
-  lapply(X = c('n', 'p', 'alpha'),
-    FUN = function(x) {
-      ggplot(error.subset) + 
-        geom_point(aes(x = RMSE.median, y = SRSS, color = get(x))) + 
-        scale_color_scico(x, palette = 'roma') +
-        scale_x_origin() + scale_y_origin()})
-do.call(plot_grid, temp)
-temp <- 
-  lapply(X = c('n', 'p', 'alpha'),
-    FUN = function(x) {
-      ggplot(error.subset) + 
-        geom_point(aes(x = RMSE.05, y = RMSE.95, color = get(x))) + 
-        scale_color_scico(x, palette = 'roma') +
-        scale_x_origin() + scale_y_origin()})
-do.call(plot_grid, temp)
-
-
-ggplot(error.npalpha %>% filter(alpha != 0 & alpha != 1)) + 
-  geom_point(aes(x = RMSE.median, y = SRSS), color = 'grey70') + 
-  geom_point(data = error.subset, aes(x = RMSE.median, y = SRSS))
-ggplot(error.npalpha %>% filter(alpha != 0 & alpha != 1)) + 
-  geom_point(aes(x = RMSE.05, y = RMSE.95), color = 'grey70') + 
-  geom_point(data = error.subset, aes(x = RMSE.05, y = RMSE.95))
-
-```
-
-```{r}
-## iteratively remove points
-error.subset <- error.npalpha %>% 
-  filter(alpha > 0.4 & alpha < 0.9) %>%
-  filter(n >= 5 & n <= 10) %>%
-  filter(p >= 2 & p < 4)
+  filter(alpha > 0.5 & alpha < 0.8) %>%
+  filter(n >= 4 & n <= 6) %>%
+  filter(p >= 2 & p <= 3)
 
 # require(plotly)
 # plot_ly(
@@ -278,22 +247,22 @@ error.subset <- error.npalpha %>%
 #   x = ~RMSE.median, y = ~SRSS, color = ~factor(alpha),
 #   colors = scico(n = length(unique(error.subset$alpha)), palette = 'roma'))
 
-temp <- 
-  lapply(X = c('n', 'p', 'alpha'),
-    FUN = function(x) {
-      ggplot(error.subset) + 
-        geom_point(aes(x = RMSE.median, y = SRSS, color = get(x))) + 
-        scale_color_scico(x, palette = 'roma') +
-        scale_x_origin() + scale_y_origin()})
-do.call(plot_grid, temp)
-temp <- 
-  lapply(X = c('n', 'p', 'alpha'),
-    FUN = function(x) {
-      ggplot(error.subset) + 
-        geom_point(aes(x = RMSE.05, y = RMSE.95, color = get(x))) + 
-        scale_color_scico(x, palette = 'roma') +
-        scale_x_origin() + scale_y_origin()})
-do.call(plot_grid, temp)
+# temp <- 
+#   lapply(X = c('n', 'p', 'alpha'),
+#     FUN = function(x) {
+#       ggplot(error.subset) + 
+#         geom_point(aes(x = RMSE.median, y = SRSS, color = get(x))) + 
+#         scale_color_scico(x, palette = 'roma') +
+#         scale_x_origin() + scale_y_origin()})
+# do.call(plot_grid, temp)
+# temp <- 
+#   lapply(X = c('n', 'p', 'alpha'),
+#     FUN = function(x) {
+#       ggplot(error.subset) + 
+#         geom_point(aes(x = RMSE.05, y = RMSE.95, color = get(x))) + 
+#         scale_color_scico(x, palette = 'roma') +
+#         scale_x_origin() + scale_y_origin()})
+# do.call(plot_grid, temp)
 
 ggplot(error.npalpha %>% filter(alpha != 0 & alpha != 1)) + 
   geom_point(aes(x = RMSE.median, y = SRSS), color = 'grey70') + 
@@ -316,10 +285,27 @@ Conclusions:
 <!-- Finally we discuss the error vs. the computational advantage of using IDW as a surrogate model.  -->
 
 ```{r}
-error.best <- error %>% filter(n == 8 & p == 2 & alpha == 0.8)
-median(error.best$RMSE)
+error %>% 
+  filter(alpha > 0.5 & alpha < 0.8) %>%
+  filter(n >= 4 & n <= 6) %>%
+  filter(p >= 2 & p <= 3) %>% 
+  group_by(n, p, alpha) %>% 
+  summarize(median_RMSE = median(RMSE)) %>% 
+  arrange(median_RMSE) %>% 
+  .[1,]
 
 ```
 
 
+```{r}
+## tack on last sample
+
+samples <- samples %>% rbind(c(tp = 1e-6, Qp = 1e-6, sim = 1001, cv = 1))
+save(samples, file = '_sensitivity/surrogate/checkpoints/samples.Rdata')
+
+## update the previous samples.Rdata to be samples_grid.Rdata
+## I just copy-pasted the file into sherlock/grid_final and named it gridded1001.max
+## need to redo CV randomization!
+
+```
 
