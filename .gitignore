@@ -8,4 +8,4 @@ _data/NHD/NHD_H_California_State_GDB.gdb*
 _figures/
 *.html
 *.R
-*.Rmd
+_results/sept30
