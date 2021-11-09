@@ -1,4 +1,4 @@
-_data/\*.Rmd
+_data/*/*.Rmd
 _data/catalog/soilw.mon.mean.v2.nc
 _data/foundations/nsi1.csv
 _data/lisflood/SonomaVegMap*
