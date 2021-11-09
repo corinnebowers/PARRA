@@ -68,13 +68,6 @@ roma.colors <- scico(n = 5, palette = 'roma')
 ## to plot rasters in ggplot environment
 raster.df <- function(x) x %>% as.data.frame(xy = TRUE) %>% setNames(c('x', 'y', 'value'))
 
-roma.colors <- scico(n = 5, palette = 'roma')
-## geometry: Russian River
-# https://data.ca.gov/dataset/national-hydrography-dataset-nhd
-russian <- st_read('_data/NHD/MajorRivers.shp', quiet = TRUE) %>% 
-  st_zm(st_transform(6417)) %>% 
-  subset(grepl('Russian', GNIS_Name))
-
 ## geometry: Sonoma County census tracts
 sonoma <- tracts(state = 'CA', county = 'Sonoma') %>% 
   subset(NAME != 9901) %>% 

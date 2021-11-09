@@ -1,12 +1,28 @@
+## _data
 _data/*/*.Rmd
+_data/*/*.csv
+_data/*/checkpoints/
+
 _data/catalog/soilw.mon.mean.v2.nc
-_data/foundations/nsi1.csv
+_data/catalog/inlet/
+_data/catalog/outlet/
+
 _data/lisflood/SonomaVegMap*
 _data/lisflood/topobathy*
 _data/lisflood/transect_10*
+_data/lisflood/*.asc
+
 _data/NFHL/NFHL_06_20190810.gdb*
-_data/NHD/NHD_H_California_State_GDB.gdb*
+
+_data/NHD/MajorRivers*
+_data/NHD/NHD_H_California_State_GDB*
+
+_data/lulc/manning_values.txt
+
+## _scripts
 _scripts/old/
+
+## other
 _figures/
 _sensitivity/
 *.html
