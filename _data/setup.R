@@ -17,7 +17,6 @@ suppressPackageStartupMessages({
   require(rnoaa); rnoaa_options(cache_messages = FALSE)
   require(mvtnorm)
   require(evd)
-  # require(quantreg)
   require(caret)
   require(pracma)
   require(dataRetrieval)

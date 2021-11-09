@@ -1,3 +1,4 @@
+_data/\*.Rmd
 _data/catalog/soilw.mon.mean.v2.nc
 _data/foundations/nsi1.csv
 _data/lisflood/SonomaVegMap*
@@ -7,5 +8,4 @@ _data/NFHL/NFHL_06_20190810.gdb*
 _data/NHD/NHD_H_California_State_GDB.gdb*
 _figures/
 *.html
-*.R
-_results/sept30
+
