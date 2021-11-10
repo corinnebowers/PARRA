@@ -69,14 +69,14 @@ fit_generate_runoff <- function(
       P <- wateryear.df$precip_in[index]
       R <- wateryear.df$runoff_in[index]
       S.val <- ifelse(P>0 & R>0, 5*(P + 2*R - sqrt(5*P*R + 4*R^2)), NA)
-      boot.mean[b] <- mean(S.val, na.rm = TRUE)
-      boot.sd[b] <- sd(S.val, na.rm = TRUE)
+      boot.mean[b] <- mean(log(S.val), na.rm = TRUE)
+      boot.sd[b] <- sd(log(S.val), na.rm = TRUE)
     }
     ## sample a CN value from the bootstrapped distribution
     runoff <- runoff %>% mutate(
       S.mean = rnorm(nrow(.), mean(boot.mean), sd(boot.mean)),
       S.sd = rnorm(nrow(.), mean(boot.sd), sd(boot.sd)),
-      S = qnorm(p = (sm-min(sm)+0.5)/(max(sm)-min(sm)+1), mean = S.mean, sd = S.sd),
+      S = exp(qnorm(p = (sm-min(sm)+0.5)/(max(sm)-min(sm)+1), mean = S.mean, sd = S.sd)),
       CN = 1000/(10+S))
     
   } else {
@@ -84,10 +84,10 @@ fit_generate_runoff <- function(
     P <- wateryear.df$precip_in
     R <- wateryear.df$runoff_in
     S.val <- ifelse(P>0 & R>0, 5*(P + 2*R - sqrt(5*P*R + 4*R^2)), NA)
-    S.mean <- mean(S.val, na.rm = TRUE)
-    S.sd <- sd(S.val, na.rm = TRUE)
+    S.mean <- mean(log(S.val), na.rm = TRUE)
+    S.sd <- sd(log(S.val), na.rm = TRUE)
     runoff <- runoff %>% mutate(
-      S = qnorm(p = (sm-min(sm)+0.5)/(max(sm)-min(sm)+1), mean = S.mean, sd = S.sd), 
+      S = exp(qnorm(p = (sm-min(sm)+0.5)/(max(sm)-min(sm)+1), mean = S.mean, sd = S.sd)), 
       CN = 1000/(10+S), 
       n.runoff = NA)
   }

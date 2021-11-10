@@ -22,6 +22,12 @@ _data/lulc/manning_values.txt
 ## _scripts
 _scripts/old/
 
+_scripts/5_INUN/fit_inundation/*/files/
+_scripts/5_INUN/fit_inundation/*/logfiles/
+_scripts/5_INUN/fit_inundation/*/checkpoints/
+_scripts/5_INUN/fit_inundation/*/*.Rmd
+
+
 ## other
 _figures/
 _sensitivity/

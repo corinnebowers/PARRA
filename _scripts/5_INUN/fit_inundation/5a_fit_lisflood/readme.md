@@ -431,7 +431,7 @@ falsification process with that reduced set.
     mds.fstat$dim90 <- min(which(cumsum(mds.fstat$var) > 0.9))
     mds.hd$dim90 <- min(which(cumsum(mds.hd$var) > 0.9))
 
-<img src="fit_lisflood_files/figure-markdown_strict/plot.mds-1.png" style="display: block; margin: auto;" />
+<img src="readme_files/figure-markdown_strict/plot.mds-1.png" style="display: block; margin: auto;" />
 
 In the plots above, we see that the FEMA NFHL point falls within the
 range of and/or along the line of LISFLOOD simulations using both the
@@ -462,7 +462,7 @@ shown in the plots below.
 
 ## 5.1 Run RSA for multiple values of k
 
-<img src="fit_lisflood_files/figure-markdown_strict/run.RSA-1.png" style="display: block; margin: auto;" /><img src="fit_lisflood_files/figure-markdown_strict/run.RSA-2.png" style="display: block; margin: auto;" /><img src="fit_lisflood_files/figure-markdown_strict/run.RSA-3.png" style="display: block; margin: auto;" />
+<img src="readme_files/figure-markdown_strict/run.RSA-1.png" style="display: block; margin: auto;" /><img src="readme_files/figure-markdown_strict/run.RSA-2.png" style="display: block; margin: auto;" /><img src="readme_files/figure-markdown_strict/run.RSA-3.png" style="display: block; margin: auto;" />
 
 ## 5.2 Test stability of RSA results
 
@@ -480,7 +480,7 @@ shown in the plots below.
     # save(rsa.mc, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/rsa_mc.Rdata')
     load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/rsa_mc.Rdata')
 
-<img src="fit_lisflood_files/figure-markdown_strict/plot.montecarlo-1.png" style="display: block; margin: auto;" />
+<img src="readme_files/figure-markdown_strict/plot.montecarlo-1.png" style="display: block; margin: auto;" />
 
 The horizontal axis of this plot shows the twenty parameters under
 consideration. The vertical axis represents the cluster size *k* for the
@@ -560,7 +560,7 @@ the DGSA algorithm and the resulting interactions plot are shown below.
     #      file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/interactions.Rdata')
     load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/interactions.Rdata')
 
-<img src="fit_lisflood_files/figure-markdown_strict/plot.interactions-1.png" style="display: block; margin: auto;" />
+<img src="readme_files/figure-markdown_strict/plot.interactions-1.png" style="display: block; margin: auto;" />
 
 Based on the interactions plot, we have updated the list of significant
 parameters to include the following:
@@ -682,7 +682,7 @@ distribution test.
         theme(axis.title.y = element_blank())}) 
     do.call(ggarrange, c(important.plot, list(nrow = 2, ncol = 2)))
 
-<img src="fit_lisflood_files/figure-markdown_strict/plot.ks-1.png" style="display: block; margin: auto;" /><img src="fit_lisflood_files/figure-markdown_strict/plot.ks-2.png" style="display: block; margin: auto;" />
+<img src="readme_files/figure-markdown_strict/plot.ks-1.png" style="display: block; margin: auto;" /><img src="readme_files/figure-markdown_strict/plot.ks-2.png" style="display: block; margin: auto;" />
 
 The histograms show the values of significant parameters for the closest
 1.7% of simulations. The shaded gray rectangles show the expected

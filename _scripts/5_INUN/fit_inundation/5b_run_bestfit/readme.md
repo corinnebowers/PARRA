@@ -1,4 +1,4 @@
-% b) Report accuracy for LISFLOOD best-fit model
+# b) Report accuracy for LISFLOOD best-fit model
 
 For this step, we use the best-fit parameters determined in step (a) to
 generate one more LISFLOOD inundation map. We then compare this
@@ -26,7 +26,7 @@ data.
 This process was completed using Sherlock, Stanford’s high-performance
 computing cluster. An outline of that process is enumerated below.
 
-1.  Input best-fit parameters from *5a\_fit\_lisflood* in the
+1.  Input best-fit parameters from **5a\_fit\_lisflood** in the
     appropriate sections in `generate_files.R` (tp, m, LULC) and
     `run_lisflood.sh` (SGCn, SGCr, SGCp).
 2.  Run `generate_files.sbatch` to create .bci, .bdy, and .n files based
@@ -139,4 +139,4 @@ the LISFLOOD environment parameters calculated here for all further
 LISFLOOD modeling. A map of over vs. underprediction within the study
 area is included below.
 
-<img src="report_accuracy_files/figure-markdown_strict/plot.bestfit-1.png" style="display: block; margin: auto;" />
+<img src="readme_files/figure-markdown_strict/plot.bestfit-1.png" style="display: block; margin: auto;" />

@@ -38,7 +38,8 @@ load('_data/aoi/aoi.Rdata')
 ```
 
 
-# Compute full loss histogram
+# $P(DV|DM)$
+
 
 ## Identify case study storm
 ```{r}
@@ -47,14 +48,14 @@ print(casestudy)
 
 ```
 
-go to Sherlock and run for this case study
+## Load simulation results from Sherlock
 ```{r}
 load('_results/final/_results/event2019/DV.Rdata')
 # load('_results/sept30/event_2019-90/DV.Rdata')
 
 ```
 
-## plot real loss vs. simulated loss distribution
+## Plot observed vs. simulated loss
 ```{r}
 plot_loss_sim <- function(year, loss.est) {
   g <- loss.sim %>% 
@@ -77,6 +78,7 @@ ggsave('_figures/fig09/fig09_lossdist.png', width = 8.3, height = 5, units = 'cm
 
 ```
 
+## Find the percentile of the observed loss within the simulated distribution
 ```{r}
 ## percentile
 1 - (sum(loss.sim$loss > loss.est) / 1e4)
@@ -87,7 +89,7 @@ max(loss.sim$loss) / loss.est
 
 ```
 
-## spatial distribution of loss
+## Plot spatial distribution of simulated loss
 ```{r}
 ## census block groups
 sonoma_cbgs <- block_groups(state = 'CA', county = 'Sonoma') %>% 
@@ -115,6 +117,8 @@ ggplot(sonoma_cbgs) +
 ggsave('_figures/fig09/fig09_lossmap.png', width = 6, height = 9, units = 'cm')
 
 ```
+
+# Average Annual Loss (AAL)
 
 ## calculate AAL for entire catalog
 ```{r}
@@ -146,40 +150,34 @@ loss.stochastic %>%
 
 ```
 
+## Calculate comparison AAL from Corringham et al. (2020)
 ```{r}
 ## Corringham et al. have 5.2 billion dollars in losses
 5.2e3 / 40
 
 ```
 
-## mitigation
+# Loss Exceedance Curve
 ```{r}
-## what happens if we elevate all buildings above the 100-year floodplain?
-
-load('_results/final/_results/elevated/DV.Rdata')
-loss.elevated <- loss.sim
-
-sum(loss.elevated$loss)/3200/1e6  #elevated AAL
-
+n <- nrow(loss.stochastic)
 ggplot() + 
   geom_hline(yintercept = 1e-2, color = 'grey70', linetype = 'dashed') + 
-  geom_step(aes(x = sort(loss.stochastic$loss), 
-                y = (nrow(loss.stochastic):1)/(nrow(loss.stochastic)+1),
-                color = 'Original'), size = 1) + 
-  geom_step(aes(x = sort(loss.elevated$loss), 
-                y = (nrow(loss.elevated):1)/(nrow(loss.elevated)+1),
-                color = 'Elevated'), size = 1) + 
-  scale_color_manual(values = c('grey60', 'black')) + 
-  scale_x_origin('Loss ($M)', labels = comma_format(scale = 1e-6), 
-                 breaks = seq(0, 5e8, 5e7)) + 
+  geom_step(aes(x = sort(loss.stochastic$loss), y = (n:1)/(n+1)), size = 1) + 
+  scale_x_origin('Loss ($M)', labels = comma_format(scale = 1e-6), breaks = seq(0, 5e8, 5e7)) + 
   scale_y_log10('Rate of Exceedance') + annotation_logticks(side = 'l')
 
 ```
 
+# Mitigation Scenario
 
-## what happens if we elevate them one at a time?
+## Calculate building-level losses for elevated case
+```{r}
+load('_results/final/_results/elevated/DV.Rdata')
+loss.elevated <- loss.sim
 
-#### attach different prioritization schemes to buildings dataframe
+```
+
+## Consider different prioritization schemes for building elevations
 ```{r}
 load('_data/buildings/buildings.Rdata')
 
@@ -345,62 +343,4 @@ loss.mitigated %>%
 
 ```
 
-
-
-```{r}
-## grab simulation tracker
-simulations <- attr(damage, 'sim')
-
-# ## elevate buildings iteratively & calculate new AAL
-# start <- Sys.time()
-# num_cores <- 5
-# cl <- parallel::makeCluster(num_cores)
-# registerDoSNOW(cl)
-# pb <- txtProgressBar(min = 0, max = nrow(loss.bldg), style = 3)
-# loss.bldg$new_AAL <-
-#   foreach(
-#     i = 1:nrow(loss.bldg), 
-#     .combine = 'c', .packages = 'tidyverse', 
-#     .options.snow = list(progress = function(n) setTxtProgressBar(pb, n))) %dopar% {
-#       simulations$loss <- 
-#         rbind(
-#           loss.stochastic[[1]] %>% filter(!(bldg %in% loss.bldg$bldg[1:i])),
-#           loss.mitigated[[1]] %>% filter(bldg %in% loss.bldg$bldg[1:i])) %>% 
-#         select(-bldg, -n.damage, -n.inun) %>% 
-#         apply(2, sum)
-#       sum(simulations$loss)/3200
-#     }
-# stopCluster(cl)
-# Sys.time() - start
-
-load('loss.bldg.Rdata')
-
-ggplot(loss.bldg[1:100,]) + 
-  geom_point(aes(x = 1:100, y = new_AAL)) + 
-  geom_hline(yintercept = 134e6) +
-  geom_hline(yintercept = 67e6) +
-  scale_x_origin() + scale_y_origin()
-
-```
-
-```{r}
-buildings <- buildings %>% 
-  mutate(bad = case_when(bldg %in% loss.bldg[loss.bldg$new_AAL > 67e6, 'bldg'] ~ TRUE, TRUE ~ FALSE))
-
-load('_data/aoi/aoi.Rdata')
-ggplot() + 
-  geom_sf(data = sonoma %>% st_union %>% st_crop(aoi), fill = 'grey90', color = 'grey70') +
-  geom_sf(data = russian %>% st_transform(6417) %>% st_crop(aoi), size = 1) + 
-  geom_sf(data = buildings, aes(color = bad))
-
-temp <- buildings[buildings$bad,]
-temp
-
-mapview(temp)
-
-ggplot(buildings %>% arrange(bad)) + 
-  geom_point(aes(x = bldg_sqft, y = value, color = bad))
-
-
-```
 
