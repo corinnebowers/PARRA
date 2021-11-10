@@ -1,4 +1,4 @@
-% d) Populate “grid” of LISFLOOD samples for surrogate modeling
+# d) Populate “grid” of LISFLOOD samples for surrogate modeling
 
 Because of the computational expense in running LISFLOOD, we replace the
 hydrodynamic simulation with a surrogate model. The surrogate model
