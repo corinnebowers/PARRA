@@ -1,4 +1,4 @@
-% a) Fit LISFLOOD parameters
+# a) Fit LISFLOOD parameters
 
 This folder represents step 1 in fitting the inundation component model.
 The purpose of this step is to (a) find out which parameters produce the
@@ -25,120 +25,18 @@ best-fit LISFLOOD model of the 100-year floodplain in Sonoma County, and
     ## load support functions for this markdown files
     source('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/fit_lisflood_functions.R')
 
-# 1 Generate LISFLOOD simulations
+# 1 Define parameters of interest
 
-The first goal is to define the parameters of interest and calculate
-inundation maps for those sets of parameters. This process was completed
-using Sherlock, Stanford’s high-performance computing cluster. An
-outline of that process is enumerated below.
-
-1.  Input user-defined parameters in the appropriate section in
-    `generate_files.R`.
-2.  Run `generate_files.sbatch` to
-    1.  generate random samples of LISFLOOD parameter values using Latin
-        hypercube sampling (LHS), and
-    2.  create .bci, .bdy, and .n.asc files based on those random
-        parameter values for each sample index.
-3.  Run `run_lisflood.sh` to generate .par files and calculate LISFLOOD
-    inundation maps for each sample index.
-4.  Once all simulations have finished running, run
-    `cleanup_lisflood.sh` to organize LISFLOOD output files. *Please
-    note that this could be several hours or days.*
-5.  Run `generate_files_2.sbatch` to identify failed LISFLOOD model runs
-    (either did not finish or did not reach the ocean) and recalculate
-    .bci, .bdy, and .n.asc files for these indices.
-6.  Run `run_lisflood_2.sh` to regenerate .par files and recalculate
-    LISFLOOD inundation maps for the failed model runs.
-7.  Iterate steps 4-6 until the number of failed model runs meets some
-    acceptable threshold, i.e. less than 5% of all indices.
-
-This establishes a database of LISFLOOD runs we can draw from to
-determine which parameters significantly impact inundation results and
-to estimate best-fit values for those sensitive parameters.
-
-# 2 Determine accuracy metrics
-
-The next goal is to determine some measure of accuracy, i.e. how well
-the LISFLOOD simulations are able to recreate the “true” case. In this
-case the data used as a source of truth is the Federal Emergency
-Management Program (FEMA) 100-year floodplain as downloaded from the
-National Flood Hazard Layer (NFHL). This is a fairly standard practice
-for validating flood models, such as the one used by First Street
-Foundation (Wing et al., 2020). We estimated the peak inflow at USGS
-gage 11463500 to be
-*Q*<sub>*p*</sub> = 112, 000 *c**f**s* = 3, 171 *m*<sup>3</sup>/*s*
-using the USGS StreamStats tool. This value is fixed, and several other
-parameters are varied to find the best-fit LISFLOOD model. We consider
-twenty different parameters that can be changed in the LISFLOOD model to
-modify the resulting inundation map. A table of these parameters and the
-values considered for each parameter is included below.
-
-We then compare these 1,000 simulated inundation maps to the FEMA NFHL
-using two different accuracy metrics: the critical success ratio (fstat)
-and the Hausdorff distance (hausdorff). The critical success ratio is a
-the ratio of correctly predicted flood cells (i.e. true positives) over
-all flood cells (i.e. true positives + true negatives + false
-positives). This produces a balanced measure of over-
-vs. under-prediction. The Hausdorff distance is a spatial measure of how
-well the shape of the simulated floodplain matches the shape of the FEMA
-NFHL. It is important to note that both of these accuracy metrics are
-meant to measure the goodness-of-fit of binary (i.e. wet/dry) outcomes.
-While LISFLOOD outputs a flood depth at every location, the NFHL data
-does not provide this information, and therefore all validation was
-performed only on the quality of the fit between the “true”
-vs. simulated 100-year flood extents.
-
-## 2.1 Compute accuracy metrics (critical success ratio & Hausdorff distance) for each inundation map
-
-    ## load simulated data
-    samples.rp100 <-
-      read.table('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/samples_lisflood.txt', header = TRUE)
-    vars <- names(samples.rp100)
-    N <- 100 #nrow(samples.rp100)
-    id <- read.table('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/id.txt') %>%
-      unlist %>% unname
-    sim.list <- (1:N)[!(1:N %in% id)]
-
-    # ## compute accuracy metrics
-    # start <- Sys.time()
-    # pb <- txtProgressBar(min = 0, max = N, style = 3)
-    # cl <- parallel::makeCluster(num_cores)
-    # registerDoSNOW(cl)
-    # accuracy <-
-    #   foreach(i = sim.list, .inorder = FALSE,
-    #     .combine = 'rbind', .export = c('confusion', 'binary'),
-    #     .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
-    #     .packages = c('raster', 'dplyr', 'pracma')) %dorng% {
-    #       
-    #       ## load LISFLOOD inundation map
-    #       sim <- paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', i, '.max') %>%
-    #         raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
-    # 
-    #       ## calculate confusion matrix
-    #       tb <- overlay(obs, sim, fun = confusion)[] %>% table
-    # 
-    #       ## calculate Hausdorff distance
-    #       hd <- hausdorff_dist(binary(sim), as.matrix(obs))
-    # 
-    #       ## save metrics as dataframe
-    #       c(id = i,
-    #         hitrate = unname(tb['0'] / (tb['-1'] + tb['0'])),
-    #         falsalarm = unname(tb['1'] / (tb['0'] + tb['1'])),
-    #         fstat = unname(tb['0'] / sum(tb)),
-    #         bias = unname(tb['1'] / tb['-1']),
-    #         hausdorff = hd)
-    #     }
-    # stopCluster(cl)
-    # Sys.time() - start
-    # 
-    # ## save checkpoint
-    # save(accuracy, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/accuracy.Rdata')
-    load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/accuracy.Rdata')
-
-    ## join to samples dataframe
-    samples.rp100 <- samples.rp100 %>%
-      mutate(id = 1:nrow(.)) %>% 
-      left_join(data.frame(accuracy), by = 'id')
+We consider twenty parameters when fitting the LISFLOOD model. Fifteen
+of the parameters are related to Manning’s n values (roughness
+coefficient) of different land cover types within the floodplain. Three
+of the parameters are related to the Manning’s roughness and depth of
+the river channel, and two of the parameters are related to the shape of
+the forcing hydrograph at the inlet to the study area. All of these
+parameters and the range of values considered for each one are
+summarized below. For the random simulation process, the distribution of
+parameters values is assumed to be uniform between the minimum and
+maximum.
 
 <table style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif; display: table; border-collapse: collapse; margin-left: auto; margin-right: auto; color: #333333; font-size: 16px; font-weight: normal; font-style: normal; background-color: #FFFFFF; width: auto; border-top-style: solid; border-top-width: 2px; border-top-color: #A8A8A8; border-right-style: none; border-right-width: 2px; border-right-color: #D3D3D3; border-bottom-style: solid; border-bottom-width: 2px; border-bottom-color: #A8A8A8; border-left-style: none; border-left-width: 2px; border-left-color: #D3D3D3;">
   <thead style="">
@@ -279,7 +177,121 @@ vs. simulated 100-year flood extents.
   
 </table>
 
-# 3 Attempt model falsification
+# 2 Generate LISFLOOD simulations
+
+Calculating inundation maps for these sets of parameters was completed
+using Sherlock, Stanford’s high-performance computing cluster. An
+outline of that process is enumerated below.
+
+1.  Input user-defined parameters in the appropriate section in
+    `generate_files.R`.
+2.  Run `generate_files.sbatch` to
+    1.  generate random samples of LISFLOOD parameter values using Latin
+        hypercube sampling (LHS), and
+    2.  create .bci, .bdy, and .n.asc files based on those random
+        parameter values for each sample index.
+3.  Run `run_lisflood.sh` to generate .par files and calculate LISFLOOD
+    inundation maps for each sample index.
+4.  Once all simulations have finished running, run
+    `cleanup_lisflood.sh` to organize LISFLOOD output files. *Please
+    note that this could be several hours or days.*
+5.  Run `generate_files_2.sbatch` to identify failed LISFLOOD model runs
+    (either did not finish or did not reach the ocean) and recalculate
+    .bci, .bdy, and .n.asc files for these indices.
+6.  Run `run_lisflood_2.sh` to regenerate .par files and recalculate
+    LISFLOOD inundation maps for the failed model runs.
+7.  Iterate steps 4-6 until the number of failed model runs meets some
+    acceptable threshold, i.e. less than 5% of all indices.
+
+This establishes a database of LISFLOOD runs we can draw from to
+determine which parameters significantly impact inundation results and
+to estimate best-fit values for those sensitive parameters.
+
+# 3 Determine accuracy metrics
+
+The next goal is to determine some measure of accuracy, i.e. how well
+the LISFLOOD simulations are able to recreate the “true” case. In this
+case the data used as a source of truth is the Federal Emergency
+Management Program (FEMA) 100-year floodplain as downloaded from the
+National Flood Hazard Layer (NFHL). This is a fairly standard practice
+for validating flood models, such as the one used by First Street
+Foundation (Wing et al., 2020). We estimated the peak inflow at USGS
+gage 11463500 to be
+*Q*<sub>*p*</sub> = 112, 000 *c**f**s* = 3, 171 *m*<sup>3</sup>/*s*
+using the USGS StreamStats tool. This value is fixed, and several other
+parameters are varied to find the best-fit LISFLOOD model. We consider
+twenty different parameters that can be changed in the LISFLOOD model to
+modify the resulting inundation map. A table of these parameters and the
+values considered for each parameter is included below.
+
+We then compare these 1,000 simulated inundation maps to the FEMA NFHL
+using two different accuracy metrics: the critical success ratio (fstat)
+and the Hausdorff distance (hausdorff). The critical success ratio is a
+the ratio of correctly predicted flood cells (i.e. true positives) over
+all flood cells (i.e. true positives + true negatives + false
+positives). This produces a balanced measure of over-
+vs. under-prediction. The Hausdorff distance is a spatial measure of how
+well the shape of the simulated floodplain matches the shape of the FEMA
+NFHL. It is important to note that both of these accuracy metrics are
+meant to measure the goodness-of-fit of binary (i.e. wet/dry) outcomes.
+While LISFLOOD outputs a flood depth at every location, the NFHL data
+does not provide this information, and therefore all validation was
+performed only on the quality of the fit between the “true”
+vs. simulated 100-year flood extents.
+
+## 3.1 Compute accuracy metrics (critical success ratio & Hausdorff distance) for each inundation map
+
+    ## load simulated data
+    samples.rp100 <-
+      read.table('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/samples_lisflood.txt', header = TRUE)
+    vars <- names(samples.rp100)
+    N <- 100 #nrow(samples.rp100)
+    id <- read.table('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/id.txt') %>%
+      unlist %>% unname
+    sim.list <- (1:N)[!(1:N %in% id)]
+
+    # ## compute accuracy metrics
+    # start <- Sys.time()
+    # pb <- txtProgressBar(min = 0, max = N, style = 3)
+    # cl <- parallel::makeCluster(num_cores)
+    # registerDoSNOW(cl)
+    # accuracy <-
+    #   foreach(i = sim.list, .inorder = FALSE,
+    #     .combine = 'rbind', .export = c('confusion', 'binary'),
+    #     .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+    #     .packages = c('raster', 'dplyr', 'pracma')) %dorng% {
+    #       
+    #       ## load LISFLOOD inundation map
+    #       sim <- paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', i, '.max') %>%
+    #         raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+    # 
+    #       ## calculate confusion matrix
+    #       tb <- overlay(obs, sim, fun = confusion)[] %>% table
+    # 
+    #       ## calculate Hausdorff distance
+    #       hd <- hausdorff_dist(binary(sim), as.matrix(obs))
+    # 
+    #       ## save metrics as dataframe
+    #       c(id = i,
+    #         hitrate = unname(tb['0'] / (tb['-1'] + tb['0'])),
+    #         falsalarm = unname(tb['1'] / (tb['0'] + tb['1'])),
+    #         fstat = unname(tb['0'] / sum(tb)),
+    #         bias = unname(tb['1'] / tb['-1']),
+    #         hausdorff = hd)
+    #     }
+    # stopCluster(cl)
+    # Sys.time() - start
+    # 
+    # ## save checkpoint
+    # save(accuracy, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/accuracy.Rdata')
+    load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/accuracy.Rdata')
+
+    ## join to samples dataframe
+    samples.rp100 <- samples.rp100 %>%
+      mutate(id = 1:nrow(.)) %>% 
+      left_join(data.frame(accuracy), by = 'id')
+
+# 4 Attempt model falsification
 
 The third goal is to attempt model falsification. This process helps us
 to understand whether or not the parameter ranges we have chosen are
@@ -303,7 +315,7 @@ computationally expensive. Therefore we first use k-means clustering to
 identify 100 representative simulations and perform the MDS
 falsification process with that reduced set.
 
-## 3.1 Cluster LISFLOOD simulations to reduce computational demand
+## 4.1 Cluster LISFLOOD simulations to reduce computational demand
 
     # ## run k-means clustering algorithm
     n <- 10
@@ -326,7 +338,7 @@ falsification process with that reduced set.
          file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/samples_cluster.Rdata')
     # load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/samples_cluster.Rdata')
 
-## 3.2 Create distance matrix based on critical success ratio
+## 4.2 Create distance matrix based on critical success ratio
 
     # ## generate matrix
     # start <- Sys.time()
@@ -366,7 +378,7 @@ falsification process with that reduced set.
     # save(fstat, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/fstat.Rdata')
     load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/fstat.Rdata')
 
-## 3.3 Create distance matrix based on Hausdorff distance
+## 4.3 Create distance matrix based on Hausdorff distance
 
     # ## generate matrix
     # start <- Sys.time()
@@ -405,7 +417,7 @@ falsification process with that reduced set.
     # save(hausdorff, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/hausdorff.Rdata')
     load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/hausdorff.Rdata')
 
-## 3.4 Perform multi-dimensional scaling (MDS) on distance matrices
+## 4.4 Perform multi-dimensional scaling (MDS) on distance matrices
 
     ## compute MDS values
     mds.fstat <- cmdscale(fstat, eig = TRUE, k = 0.8*n)
@@ -427,7 +439,7 @@ critical success ratio and the Hausdorff distance as metrics. Therefore
 we are unable to falsify the model and we assume that the parameter
 ranges we have chosen are reasonable.
 
-# 4 Examine parameter sensitivity
+# 5 Examine parameter sensitivity
 
 The next task to determine which of the twenty parameters of interest
 actually have a significant effect on the resulting inundation maps
@@ -448,11 +460,11 @@ We use the Hausdorff MDS distance matrix for this analysis, and we
 repeat the RSA process for a variety of *k* values. The results are
 shown in the plots below.
 
-## 4.1 Run RSA for multiple values of k
+## 5.1 Run RSA for multiple values of k
 
 <img src="fit_lisflood_files/figure-markdown_strict/run.RSA-1.png" style="display: block; margin: auto;" /><img src="fit_lisflood_files/figure-markdown_strict/run.RSA-2.png" style="display: block; margin: auto;" /><img src="fit_lisflood_files/figure-markdown_strict/run.RSA-3.png" style="display: block; margin: auto;" />
 
-## 4.2 Test stability of RSA results
+## 5.2 Test stability of RSA results
 
     ## run RSA for k = 2:10, 10 times each
     cv <- 3
@@ -501,7 +513,7 @@ significant. DGSA also allows for asymmetric parameter interactions,
 i.e. *A*|*B* does not necessarily equal *B*|*A*. The code to implement
 the DGSA algorithm and the resulting interactions plot are shown below.
 
-## 4.3 Create distance-based generalized sensitivity analysis (DGSA) matrix
+## 5.3 Create distance-based generalized sensitivity analysis (DGSA) matrix
 
     #### create DGSA interactions matrix ####
 
@@ -557,7 +569,7 @@ parameters to include the following:
 
 These parameters are shown in the top left corner of the plot.
 
-# 5 Choose best-fit parameter values
+# 6 Choose best-fit parameter values
 
 The next step of this process is to determine the best-fit values for
 the significant (sensitive) parameters. All parameters classified as
@@ -571,7 +583,7 @@ differs from the expected distribution. We assess the departure from
 uniform both visually and through the Kolmogorov-Smirnov (K-S)
 distribution test.
 
-## 5.1 Inspect the original vs. updated parameter distributions
+## 6.1 Inspect the original vs. updated parameter distributions
 
     ## figure out which points are closest in MDS space
     hd.dist <- map_dbl(.x = 1:n, 
