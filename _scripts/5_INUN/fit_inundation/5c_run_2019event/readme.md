@@ -1,4 +1,4 @@
-# 1 c) Generate LISFLOOD inundation map for 2019 scenario event
+# c) Generate LISFLOOD inundation map for 2019 scenario event
 
 Here we use the best-fit site condition parameters determined in step
 (a), i.e. channel parameters and floodplain roughness parameters, along
