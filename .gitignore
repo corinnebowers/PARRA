@@ -26,5 +26,6 @@ _scripts/old/
 _figures/
 _sensitivity/
 *.html
+*.log
 troubleshooting*
 
