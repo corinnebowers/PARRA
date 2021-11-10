@@ -40,7 +40,7 @@ fit_precip <- function(catalog, extremeratio = 0.1) {
     mutate(n.AR = 1:nrow(.)) %>% 
     filter(duration >= quantile(duration, 1-extremeratio) & 
              IVT_max >= quantile(IVT_max, 1-extremeratio)) %>% pull(n.AR)
-  extreme.resid <- model.wls$residuals[extreme.id]
+  extreme.resid <- model.prcp$residuals[extreme.id]
   se.extreme <- sd(extreme.resid)
   
   ## save out error model

@@ -212,7 +212,7 @@ generate_hydrograph <- function(
   n.runoff <- max(runoff$n.runoff)
 
   ## generate new realizations of Qp and tp
-  runoff$prediction <- predict(model, runoff)
+  runoff$prediction <- predict(model.Qp, runoff)
   if (probabilistic) { #add stochastic uncertainty to realizations
     hydrograph <- 
       map_dfr(
