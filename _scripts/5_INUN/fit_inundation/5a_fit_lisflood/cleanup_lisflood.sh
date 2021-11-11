@@ -12,3 +12,7 @@ mv *.max max
 mv *.mxe mxe
 mv *.*tm tm
 rm *.dem 
+
+## zip .max files
+cd max
+zip -u maxes.zip *

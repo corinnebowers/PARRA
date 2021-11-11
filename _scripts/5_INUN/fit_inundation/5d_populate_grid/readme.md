@@ -18,6 +18,9 @@ produce the new inundation estimate. –&gt;
     source('_data/setup.R')
     source('_data/plots.R')
 
+    ## set seed for reproducibility
+    set.seed(2021)
+
     ## load historic catalog
     load('_data/catalog/catalog.Rdata')
 
@@ -50,11 +53,19 @@ computing cluster. An outline of that process is enumerated below.
 
 <!-- -->
 
+    ## load sample data
     samples.grid <- 
       read.table('_scripts/5_INUN/fit_inundation/5d_populate_grid/samples_grid.txt', header = TRUE)
 
+    ## determine which indices have valid LISFLOOD models associated with them
+    N <- nrow(samples.grid)
+    # id <- read.table('_scripts/5_INUN/fit_inundation/5d_populate_grid/id.txt') %>%
+    #   unlist %>% unname
+    # sim.list <- (1:N)[!(1:N %in% id)]
+    sim.list <- 1:N
+
     ggplot() + 
-      geom_point(data = samples.grid, aes(x = Qp, y = tp, color = 'Pre-Computed Simulations')) + 
+      geom_point(data = samples.grid[sim.list,], aes(x = Qp, y = tp, color = 'Pre-Computed Simulations')) + 
       geom_point(data = catalog, aes(x = Qp_m3s, y = tp_hrs, color = 'Historic Catalog')) + 
       ggtitle('Surrogate Model Search Space') + 
       scale_color_manual('Source', values = c('black', 'grey75')) + 
@@ -70,3 +81,18 @@ the populated grid, compared against the values of *Q*<sub>*p*</sub> and
 values in the grid larger than the extent of the catalog because we want
 to be able to capture the effects and impacts of storms not seen in the
 historic record.
+
+# 2 Save samples for (e)
+
+In the next step of the fitting process, we will use 10-fold
+cross-validation to determine best-fit hyperparameters for the surrogate
+model. Here we prepare for that by assigning each sample an index
+between 1 and 10 so that the cross-validation splits are consistent.
+
+    ## add a cross-validation index column
+    cv <- sample(1:10, size = length(sim.list), replace = TRUE)
+    samples.grid <- samples.grid %>% 
+      mutate(sim = 1:nrow(.), cv = replace(NA, sim %in% sim.list, cv))
+
+    ## save out for Sherlock
+    save(samples.grid, file = '_scripts/5_INUN/fit_inundation/5d_populate_grid/samples_grid.Rdata')

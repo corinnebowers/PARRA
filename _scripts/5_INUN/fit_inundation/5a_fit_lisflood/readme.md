@@ -5,26 +5,6 @@ The purpose of this step is to (a) find out which parameters produce the
 best-fit LISFLOOD model of the 100-year floodplain in Sonoma County, and
 (b) determine which parameters the results are sensitive to.
 
-    ## setup information
-    source('_data/setup.R')
-    source('_data/plots.R')
-
-    ## set random seed for reproducibility
-    set.seed(2021)
-
-    ## set parallel backend
-    num_cores <- 5
-
-    ## load location information
-    load('_data/lisflood/dem.Rdata')
-    load('_data/aoi/aoi.Rdata')
-
-    ## load NFHL "observed" data
-    load('_data/NFHL/NFHL.Rdata')
-
-    ## load support functions for this markdown files
-    source('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/fit_lisflood_functions.R')
-
 # 1 Define parameters of interest
 
 We consider twenty parameters when fitting the LISFLOOD model. Fifteen
@@ -37,6 +17,26 @@ parameters and the range of values considered for each one are
 summarized below. For the random simulation process, the distribution of
 parameters values is assumed to be uniform between the minimum and
 maximum.
+
+    ## load variables/parameters of interest
+    vars <- c('X95','X90','X82','X81','X71','X52','X43','X42','X41','X31', 
+              'X24','X23','X22','X21','X11','SGCn','tp','SGCp','SGCr','m')
+    vars.df <- read.table('_data/lulc/manning_values.txt', header = TRUE) %>% 
+      transmute(vars = code, description = name, var.min = n.min, var.max = n.max, default) %>% 
+      rbind(data.frame(vars = vars[16], description = 'Channel Roughness Parameter', 
+              var.min = 0.015, var.max = 0.075, default = 0.035)) %>% 
+      rbind(data.frame(vars = vars[17], description = 'Time to Peak Flow (hrs)', 
+              var.min = 1, var.max = 80, default = 24)) %>% 
+      rbind(data.frame(vars = vars[18], description = 'Channel Depth Parameter', 
+              var.min = 0.69, var.max = 0.82, default = 0.76)) %>% 
+      rbind(data.frame(vars = vars[19], description = 'Channel Depth Parameter', 
+              var.min = 0.05, var.max = 0.5, default = 0.3)) %>% 
+      rbind(data.frame(vars = vars[20], description = 'Hydrograph Shape Parameter',
+              var.min = 0, var.max = 10, default = 4)) %>% 
+      cbind(group = c(rep('Floodplain Roughness Parameters', 15), 'Channel Parameters',
+            'Hydrograph Parameters', rep('Channel Parameters', 2), 'Hydrograph Parameters'))
+
+    ## show formatted table
 
 <table style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif; display: table; border-collapse: collapse; margin-left: auto; margin-right: auto; color: #333333; font-size: 16px; font-weight: normal; font-style: normal; background-color: #FFFFFF; width: auto; border-top-style: solid; border-top-width: 2px; border-top-color: #A8A8A8; border-right-style: none; border-right-width: 2px; border-right-color: #D3D3D3; border-bottom-style: solid; border-bottom-width: 2px; border-bottom-color: #A8A8A8; border-left-style: none; border-left-width: 2px; border-left-color: #D3D3D3;">
   <thead style="">
@@ -245,46 +245,48 @@ vs. simulated 100-year flood extents.
     samples.rp100 <-
       read.table('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/samples_lisflood.txt', header = TRUE)
     vars <- names(samples.rp100)
-    N <- 100 #nrow(samples.rp100)
+    N <- nrow(samples.rp100)
     id <- read.table('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/id.txt') %>%
       unlist %>% unname
     sim.list <- (1:N)[!(1:N %in% id)]
 
-    # ## compute accuracy metrics
-    # start <- Sys.time()
+    ## compute accuracy metrics
+    start <- Sys.time()
     # pb <- txtProgressBar(min = 0, max = N, style = 3)
-    # cl <- parallel::makeCluster(num_cores)
-    # registerDoSNOW(cl)
-    # accuracy <-
-    #   foreach(i = sim.list, .inorder = FALSE,
-    #     .combine = 'rbind', .export = c('confusion', 'binary'),
-    #     .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
-    #     .packages = c('raster', 'dplyr', 'pracma')) %dorng% {
-    #       
-    #       ## load LISFLOOD inundation map
-    #       sim <- paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', i, '.max') %>%
-    #         raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
-    # 
-    #       ## calculate confusion matrix
-    #       tb <- overlay(obs, sim, fun = confusion)[] %>% table
-    # 
-    #       ## calculate Hausdorff distance
-    #       hd <- hausdorff_dist(binary(sim), as.matrix(obs))
-    # 
-    #       ## save metrics as dataframe
-    #       c(id = i,
-    #         hitrate = unname(tb['0'] / (tb['-1'] + tb['0'])),
-    #         falsalarm = unname(tb['1'] / (tb['0'] + tb['1'])),
-    #         fstat = unname(tb['0'] / sum(tb)),
-    #         bias = unname(tb['1'] / tb['-1']),
-    #         hausdorff = hd)
-    #     }
-    # stopCluster(cl)
-    # Sys.time() - start
-    # 
-    # ## save checkpoint
-    # save(accuracy, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/accuracy.Rdata')
-    load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/accuracy.Rdata')
+    cl <- parallel::makeCluster(num_cores)
+    registerDoSNOW(cl)
+    accuracy <-
+      foreach(i = sim.list, .inorder = FALSE,
+        .combine = 'rbind', .export = c('confusion', 'binary'),
+        # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+        .packages = c('raster', 'dplyr', 'pracma')) %dorng% {
+
+          ## load LISFLOOD inundation map
+          sim <- paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', i, '.max') %>%
+            raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+
+          ## calculate confusion matrix
+          tb <- overlay(obs, sim, fun = confusion)[] %>% table
+
+          ## calculate Hausdorff distance
+          hd <- hausdorff_dist(binary(sim), as.matrix(obs))
+
+          ## save metrics as dataframe
+          c(id = i,
+            hitrate = unname(tb['0'] / (tb['-1'] + tb['0'])),
+            falsalarm = unname(tb['1'] / (tb['0'] + tb['1'])),
+            fstat = unname(tb['0'] / sum(tb)),
+            bias = unname(tb['1'] / tb['-1']),
+            hausdorff = hd)
+        }
+    stopCluster(cl)
+    Sys.time() - start
+
+    ## Time difference of 6.071672 mins
+
+    ## save checkpoint
+    save(accuracy, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/accuracy.Rdata')
+    # load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/accuracy.Rdata')
 
     ## join to samples dataframe
     samples.rp100 <- samples.rp100 %>%
@@ -318,7 +320,7 @@ falsification process with that reduced set.
 ## 4.1 Cluster LISFLOOD simulations to reduce computational demand
 
     # ## run k-means clustering algorithm
-    n <- 10
+    n <- 50
     samples.k <- samples.rp100 %>%
       filter(complete.cases(.)) %>%
       mutate(bias.odds = bias / (1 + bias),
@@ -334,88 +336,92 @@ falsification process with that reduced set.
       summarize(id = id[which.min(test)], .groups = 'drop') %>% pull(id)
 
     ## save checkpoint
-    save(samples.rp100, cluster.id, 
+    save(samples.rp100, cluster.id,
          file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/samples_cluster.Rdata')
     # load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/samples_cluster.Rdata')
 
 ## 4.2 Create distance matrix based on critical success ratio
 
-    # ## generate matrix
-    # start <- Sys.time()
+    ## generate matrix
+    start <- Sys.time()
     # pb <- txtProgressBar(min = 0, max = n, style = 3)
-    # cl <- parallel::makeCluster(num_cores)
-    # registerDoSNOW(cl)
-    # fstat <-
-    #   foreach(i = 1:n,
-    #     .combine = 'rbind', .export = 'confusion',
-    #     .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
-    #     .packages = c('raster', 'dplyr', 'pracma', 'foreach')) %dorng% {
-    #       sim.i <-
-    #         paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', cluster.id[i], '.max') %>%
-    #         raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
-    #       foreach(j = 1:n, .combine = 'c') %do% {
-    #         if (i >= j) 0 else {
-    #           sim.j <- 
-    #             paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', cluster.id[j], '.max') %>%
-    #             raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
-    #           tb <- overlay(sim.i, sim.j, fun = confusion)[] %>% table
-    #           1 - tb['0']/sum(tb)
-    #         }
-    #       }
-    #     }
-    # stopCluster(cl)
-    # Sys.time() - start
-    # 
-    # ## add "observed" NFHL point
-    # fstat <- fstat %>%
-    #   cbind(1-samples.rp100$fstat[cluster.id]) %>%
-    #   rbind(rep(0, n+1))
-    # 
-    # ## format matrix for MDS
-    # fstat <- fstat + t(fstat)
-    # 
-    # ## save checkpoint
-    # save(fstat, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/fstat.Rdata')
-    load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/fstat.Rdata')
+    cl <- parallel::makeCluster(num_cores)
+    registerDoSNOW(cl)
+    fstat <-
+      foreach(i = 1:n,
+        .combine = 'rbind', .export = 'confusion',
+        # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+        .packages = c('raster', 'dplyr', 'pracma', 'foreach')) %dorng% {
+          sim.i <-
+            paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', cluster.id[i], '.max') %>%
+            raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+          foreach(j = 1:n, .combine = 'c') %do% {
+            if (i >= j) 0 else {
+              sim.j <-
+                paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', cluster.id[j], '.max') %>%
+                raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+              tb <- overlay(sim.i, sim.j, fun = confusion)[] %>% table
+              1 - tb['0']/sum(tb)
+            }
+          }
+        }
+    stopCluster(cl)
+    Sys.time() - start
+
+    ## Time difference of 4.879772 mins
+
+    ## add "observed" NFHL point
+    fstat <- fstat %>%
+      cbind(1-samples.rp100$fstat[cluster.id]) %>%
+      rbind(rep(0, n+1))
+
+    ## format matrix for MDS
+    fstat <- fstat + t(fstat)
+
+    ## save checkpoint
+    save(fstat, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/fstat.Rdata')
+    # load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/fstat.Rdata')
 
 ## 4.3 Create distance matrix based on Hausdorff distance
 
-    # ## generate matrix
-    # start <- Sys.time()
+    ## generate matrix
+    start <- Sys.time()
     # pb <- txtProgressBar(min = 0, max = n, style = 3)
-    # cl <- parallel::makeCluster(num_cores)
-    # registerDoSNOW(cl)
-    # hausdorff <-
-    #   foreach(i = 1:n,
-    #     .combine = 'rbind', .export = 'binary',
-    #     .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
-    #     .packages = c('raster', 'dplyr', 'pracma', 'foreach')) %dorng% {
-    #       sim.i <- 
-    #         paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', cluster.id[i], '.max') %>%
-    #         raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
-    #       foreach(j = 1:n, .combine = 'c') %do% {
-    #         if (i >= j) 0 else {
-    #           sim.j <- 
-    #             paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', cluster.id[j], '.max') %>%
-    #             raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
-    #           hausdorff_dist(binary(sim.i), binary(sim.j))
-    #         }
-    #       }
-    #     }
-    # stopCluster(cl)
-    # Sys.time() - start
-    # 
-    # ## add "observed" NFHL point
-    # hausdorff <- hausdorff %>%
-    #   cbind(samples.rp100$hausdorff[cluster.id]) %>%
-    #   rbind(rep(0, n+1))
-    # 
-    # ## format matrix for MDS
-    # hausdorff <- hausdorff + t(hausdorff)
-    # 
-    # ## save checkpoint
-    # save(hausdorff, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/hausdorff.Rdata')
-    load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/hausdorff.Rdata')
+    cl <- parallel::makeCluster(num_cores)
+    registerDoSNOW(cl)
+    hausdorff <-
+      foreach(i = 1:n,
+        .combine = 'rbind', .export = 'binary',
+        # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+        .packages = c('raster', 'dplyr', 'pracma', 'foreach')) %dorng% {
+          sim.i <-
+            paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', cluster.id[i], '.max') %>%
+            raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+          foreach(j = 1:n, .combine = 'c') %do% {
+            if (i >= j) 0 else {
+              sim.j <-
+                paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', cluster.id[j], '.max') %>%
+                raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+              hausdorff_dist(binary(sim.i), binary(sim.j))
+            }
+          }
+        }
+    stopCluster(cl)
+    Sys.time() - start
+
+    ## Time difference of 14.08313 mins
+
+    ## add "observed" NFHL point
+    hausdorff <- hausdorff %>%
+      cbind(samples.rp100$hausdorff[cluster.id]) %>%
+      rbind(rep(0, n+1))
+
+    ## format matrix for MDS
+    hausdorff <- hausdorff + t(hausdorff)
+
+    ## save checkpoint
+    save(hausdorff, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/hausdorff.Rdata')
+    # load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/hausdorff.Rdata')
 
 ## 4.4 Perform multi-dimensional scaling (MDS) on distance matrices
 
@@ -430,6 +436,8 @@ falsification process with that reduced set.
     ## determine how many dimensions it requires to get to 90% of variance explained
     mds.fstat$dim90 <- min(which(cumsum(mds.fstat$var) > 0.9))
     mds.hd$dim90 <- min(which(cumsum(mds.hd$var) > 0.9))
+
+    ## plot first two MDS dimensions
 
 <img src="readme_files/figure-markdown_strict/plot.mds-1.png" style="display: block; margin: auto;" />
 
@@ -467,20 +475,27 @@ shown in the plots below.
 ## 5.2 Test stability of RSA results
 
     ## run RSA for k = 2:10, 10 times each
-    cv <- 3
-    kmax <- 3
-    # start <- Sys.time()
-    # rsa.mc <- purrr::map(.x = 2:kmax,
-    #   .f = function(k) {
-    #     purrr::map(.x = 1:cv, .f = ~RSA(k, data = TRUE) %>%
-    #           filter(pass) %>% pull(var) %>% unique)})
-    # Sys.time() - start
-    # 
-    # ## save checkpoint
-    # save(rsa.mc, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/rsa_mc.Rdata')
-    load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/rsa_mc.Rdata')
+    cv <- 10
+    kmax <- 10
+    start <- Sys.time()
+    rsa.mc <- purrr::map(.x = 2:kmax,
+      .f = function(k) {
+        purrr::map(.x = 1:cv, .f = ~RSA(k, data = TRUE) %>%
+              filter(pass) %>% pull(var) %>% unique)})
+    Sys.time() - start
+
+    ## Time difference of 15.32913 mins
+
+    ## save checkpoint
+    save(rsa.mc, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/rsa_mc.Rdata')
+    # load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/rsa_mc.Rdata')
+
+    ## plot results and look at stability of parameter significance
 
 <img src="readme_files/figure-markdown_strict/plot.montecarlo-1.png" style="display: block; margin: auto;" />
+
+    ## define important variables
+    important <- rsa.mc %>% filter(k <= 4 & pass >= 0.5) %>% pull(vars) %>% unique
 
 The horizontal axis of this plot shows the twenty parameters under
 consideration. The vertical axis represents the cluster size *k* for the
@@ -495,7 +510,7 @@ parameters found to be significant at lower values of *k*.
 The parameters deemed significant for further analysis are the
 following:
 
-    ## [1] "tp"
+    ## [1] "X95"  "X42"  "SGCn" "tp"   "m"
 
 We can also consider interactions between these parameters using
 distance-based generalized sensitivity analysis (DGSA) (Fenwick et al.,
@@ -521,51 +536,56 @@ the DGSA algorithm and the resulting interactions plot are shown below.
     k <- 3
     df <- RSA(k, data = TRUE)
 
-    # ## find parameter interactions within those clusters
-    # start <- Sys.time()
+    ## find parameter interactions within those clusters
+    start <- Sys.time()
     # pb <- txtProgressBar(min = 0, max = length(vars)^2, style = 3)
-    # cl <- parallel::makeCluster(num_cores)
-    # registerDoSNOW(cl)
-    # interactions <-
-    #   foreach (i = 1:length(vars), .combine = 'rbind',
-    #     .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
-    #     .export = 'L1_boot', .packages = c('pracma', 'tidyverse', 'foreach')) %:%
-    #   foreach (j = 1:length(vars), .combine = 'c') %dopar% {
-    #     if (i == j) {
-    #       ## fill in the main diagonal
-    #       df %>% filter(var == vars[i]) %>% pull(d.norm) %>% max
-    # 
-    #     } else {
-    #       ## fill in the off-diagonals
-    #       foreach (cl = 1:k, .combine = 'max') %do% {
-    #         df.subset <- df.cluster %>% filter(rsa.cluster == cl)
-    #         df.subset$dgsa.cluster <-
-    #           kmeans(df.subset %>% pull(vars[j]),
-    #                  centers = 2, iter.max = 1000, nstart = 100)$cluster
-    #         d <- L1_boot(df.subset, 'dgsa.cluster', 1, vars[i], NA)
-    #         d95 <- L1_boot(df.subset, 'dgsa.cluster', 1, vars[i]) %>% quantile(0.95)
-    #         val.1 <- d/d95
-    #         d <- L1_boot(df.subset, 'dgsa.cluster', 2, vars[i], boot = NA)
-    #         d95 <- L1_boot(df.subset, 'dgsa.cluster', 2, vars[i]) %>% quantile(0.95)
-    #         val.2 <- d/d95
-    #         max(val.1, val.2)
-    #       }
-    #     }
-    #   }
-    # stopCluster(cl)
-    # Sys.time() - start
-    # 
-    # ## save checkpoint
-    # save(interactions, 
-    #      file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/interactions.Rdata')
-    load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/interactions.Rdata')
+    cl <- parallel::makeCluster(num_cores)
+    registerDoSNOW(cl)
+    interactions <-
+      foreach (i = 1:length(vars), .combine = 'rbind',
+        # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+        .export = 'L1_boot', .packages = c('pracma', 'tidyverse', 'foreach')) %:%
+      foreach (j = 1:length(vars), .combine = 'c') %dopar% {
+        if (i == j) {
+          ## fill in the main diagonal
+          df %>% filter(var == vars[i]) %>% pull(d.norm) %>% max
+
+        } else {
+          ## fill in the off-diagonals
+          foreach (cl = 1:k, .combine = 'max') %do% {
+            df.subset <- df.cluster %>% filter(rsa.cluster == cl)
+            df.subset$dgsa.cluster <-
+              kmeans(df.subset %>% pull(vars[j]),
+                     centers = 2, iter.max = 1000, nstart = 100)$cluster
+            d <- L1_boot(df.subset, 'dgsa.cluster', 1, vars[i], NA)
+            d95 <- L1_boot(df.subset, 'dgsa.cluster', 1, vars[i]) %>% quantile(0.95)
+            val.1 <- d/d95
+            d <- L1_boot(df.subset, 'dgsa.cluster', 2, vars[i], boot = NA)
+            d95 <- L1_boot(df.subset, 'dgsa.cluster', 2, vars[i]) %>% quantile(0.95)
+            val.2 <- d/d95
+            max(val.1, val.2)
+          }
+        }
+      }
+    stopCluster(cl)
+    Sys.time() - start
+
+    ## Time difference of 2.845569 mins
+
+    ## save checkpoint
+    save(interactions,
+         file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/interactions.Rdata')
+    # load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/interactions.Rdata')
+
+    ## plot interactions
 
 <img src="readme_files/figure-markdown_strict/plot.interactions-1.png" style="display: block; margin: auto;" />
 
 Based on the interactions plot, we have updated the list of significant
 parameters to include the following:
 
-    ## [1] "tp"
+    ##  [1] "m"    "SGCn" "SGCp" "SGCr" "tp"   "X22"  "X41"  "X42"  "X43"  "X52" 
+    ## [11] "X90"  "X95"
 
 These parameters are shown in the top left corner of the plot.
 
@@ -625,67 +645,28 @@ distribution test.
       pivot_longer(cols = -vars, names_to = 'cl', values_to = 'ks') %>% 
       mutate(cl = gsub('result.', '', cl) %>% toNumber)
 
-    # var <- 'tp'
-    # vmin <- vars.df[which(var==vars), 'var.min']
-    # vmax <- vars.df[which(var==vars), 'var.max']
-    # vmed <- vars.df[which(var==vars), 'default']
-    # lab <- vars.df[which(vars.df$vars == gsub('X', '', var)), 'description']
-    # for (cl in 1:n) {
-    #   samples.subset <- 
-    #     data.frame(mds.cluster = 1:n, dist = hd.dist) %>% 
-    #     arrange(dist) %>% .[1:cl,] %>% 
-    #     left_join(samples.rp100, by = 'mds.cluster')
-    #   g <- ggplot() + 
-    #     geom_rect(aes(xmin = vmin, xmax = vmax, ymin = 0, ymax = nrow(samples.subset)/8), 
-    #               fill = 'black', alpha = 0.1) +
-    #     geom_histogram(data = samples.subset, aes(x = get(var)),
-    #                    color = 'black', fill = 'black', alpha = 0.2,
-    #                    breaks = seq(vmin, vmax, length.out = 9)) + 
-    #     geom_vline(xintercept = vmed, linetype = 'dotted', size = 1) + 
-    #     scale_x_continuous(paste0(gsub('X', '', var), ': ', lab)) + 
-    #     scale_y_origin() + 
-    #     theme(axis.title.y = element_blank())
-    #   print(g)
-    # }
-
     ## plot K-S test results
-    ggplot(ks) +
-      geom_line(aes(x = cl, y = ks, group = vars, color = vars), size = 1) +
-      geom_hline(yintercept = 1, linetype = 'dashed') +
-      scale_x_continuous('Number of MDS Clusters Considered') +
-      scale_y_origin('Kolmogorov-Smirnov Test Statistic')
+
+<img src="readme_files/figure-markdown_strict/plot.ks1-1.png" style="display: block; margin: auto;" />
 
     ## plot individual parameter distributions
-    important.ks <- ks %>% 
-      filter(cl <= n/2) %>% 
-      group_by(vars) %>% summarize(ks.max = max(ks)) %>% 
-      filter(ks.max > 1) %>% pull(vars)
-    samples.subset <- 
-      data.frame(mds.cluster = 1:n, dist = hd.dist) %>% 
-      arrange(dist) %>% .[1:n.clusters,] %>% 
-      left_join(samples.rp100, by = 'mds.cluster')
-    important.plot <- lapply(important, function(var) {
-      vmin <- vars.df[which(var==vars), 'var.min']
-      vmax <- vars.df[which(var==vars), 'var.max']
-      vmed <- vars.df[which(var==vars), 'default']
-      lab <- vars.df[which(vars.df$vars == gsub('X', '', var)), 'description']
-      ggplot() + 
-        geom_rect(aes(xmin = vmin, xmax = vmax, ymin = 0, ymax = nrow(samples.subset)/10), 
-                  fill = 'black', alpha = 0.1) +
-        geom_histogram(data = samples.subset, aes(x = get(var)),
-                       color = 'black', fill = 'black',
-                       alpha = ifelse(var %in% important.ks, 0.5, 0.2),
-                       breaks = seq(vmin, vmax, length.out = 11)) + 
-        geom_vline(xintercept = vmed, linetype = 'dotted', size = 1) + 
-        scale_x_continuous(paste0(gsub('X', '', var), ': ', lab)) + 
-        scale_y_origin() + 
-        theme(axis.title.y = element_blank())}) 
-    do.call(ggarrange, c(important.plot, list(nrow = 2, ncol = 2)))
 
-<img src="readme_files/figure-markdown_strict/plot.ks-1.png" style="display: block; margin: auto;" /><img src="readme_files/figure-markdown_strict/plot.ks-2.png" style="display: block; margin: auto;" />
+    ## $`1`
+
+    ## 
+    ## $`2`
+
+    ## 
+    ## $`3`
+
+    ## 
+    ## attr(,"class")
+    ## [1] "list"      "ggarrange"
+
+<img src="readme_files/figure-markdown_strict/plot.ks2-1.png" style="display: block; margin: auto;" /><img src="readme_files/figure-markdown_strict/plot.ks2-2.png" style="display: block; margin: auto;" /><img src="readme_files/figure-markdown_strict/plot.ks2-3.png" style="display: block; margin: auto;" />
 
 The histograms show the values of significant parameters for the closest
-1.7% of simulations. The shaded gray rectangles show the expected
+5.9% of simulations. The shaded gray rectangles show the expected
 histogram if the distributions were uniform, and the dotted lines show
 the default values from the table at the top of the document. Only a
 handful of parameters (those with darker histograms) met the K-S
@@ -693,6 +674,26 @@ criteria to be significantly different than the uniform distribution. We
 updated the best-fit values for these parameters to match the mode of
 the histogram. All other parameters were left with their default values,
 as shown in the table below.
+
+    ## update parameter table to list best-fit values
+    ks.temp <- ks %>% 
+      filter(cl <= n/2) %>% 
+      group_by(vars) %>% summarize(ks.max = max(ks)) %>% 
+      full_join(data.frame(vars), by = 'vars') %>% 
+      mutate(vars = gsub('X', '', vars))
+    vars.df$newval <-
+      foreach(var = vars, .combine = 'c') %do% {
+        value <- ks.temp %>% filter(vars == gsub('X', '', var)) %>% pull(ks.max)
+        if (is.na(value) | value < 1) NA else {
+          vmin <- vars.df %>% filter(vars == gsub('X', '', var)) %>% pull(var.min)
+          vmax <- vars.df %>% filter(vars == gsub('X', '', var)) %>% pull(var.max)
+          temp <- hist(samples.subset %>% pull(var), 
+                       breaks = seq(vmin, vmax, length.out = 11), plot = FALSE)
+          temp$mids[temp$density %in% max(temp$density)] %>% mean
+        } 
+      }
+
+    ## show formatted table
 
 <table style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif; display: table; border-collapse: collapse; margin-left: auto; margin-right: auto; color: #333333; font-size: 16px; font-weight: normal; font-style: normal; background-color: #FFFFFF; width: auto; border-top-style: solid; border-top-width: 2px; border-top-color: #A8A8A8; border-right-style: none; border-right-width: 2px; border-right-color: #D3D3D3; border-bottom-style: solid; border-bottom-width: 2px; border-bottom-color: #A8A8A8; border-left-style: none; border-left-width: 2px; border-left-color: #D3D3D3;">
   <thead style="">
@@ -719,12 +720,62 @@ as shown in the table below.
   </thead>
   <tbody style="border-top-style: solid; border-top-width: 2px; border-top-color: #D3D3D3; border-bottom-style: solid; border-bottom-width: 2px; border-bottom-color: #D3D3D3;">
     <tr style="">
+      <td colspan="4" style="padding: 8px; color: #333333; background-color: #f2f2f2; font-size: 100%; font-weight: initial; text-transform: inherit; border-top-style: solid; border-top-width: 2px; border-top-color: #D3D3D3; border-bottom-style: solid; border-bottom-width: 2px; border-bottom-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle;">Floodplain Roughness Parameters</td>
+    </tr>
+    <tr><td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">95</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">Emergent herbaceous wetlands</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">0.045</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">-</td></tr>
+    <tr><td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">90</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">Woody wetlands</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">0.070</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">-</td></tr>
+    <tr><td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">52</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">Shrub/scrub</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">0.050</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">-</td></tr>
+    <tr><td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">43</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">Mixed forest</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">0.12</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">-</td></tr>
+    <tr><td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">42</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">Evergreen forest</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">0.15</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">-</td></tr>
+    <tr><td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">41</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">Deciduous forest</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">0.10</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">-</td></tr>
+    <tr><td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">22</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">Developed, low intensity</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">0.080</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">0.19</td></tr>
+    <tr style="">
+      <td colspan="4" style="padding: 8px; color: #333333; background-color: #f2f2f2; font-size: 100%; font-weight: initial; text-transform: inherit; border-top-style: solid; border-top-width: 2px; border-top-color: #D3D3D3; border-bottom-style: solid; border-bottom-width: 2px; border-bottom-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle;">Channel Parameters</td>
+    </tr>
+    <tr><td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">SGCn</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">Channel Roughness Parameter</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">0.035</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">0.018</td></tr>
+    <tr><td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">SGCp</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">Channel Depth Parameter</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">0.76</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">-</td></tr>
+    <tr><td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">SGCr</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">Channel Depth Parameter</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">0.30</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">-</td></tr>
+    <tr style="">
       <td colspan="4" style="padding: 8px; color: #333333; background-color: #f2f2f2; font-size: 100%; font-weight: initial; text-transform: inherit; border-top-style: solid; border-top-width: 2px; border-top-color: #D3D3D3; border-bottom-style: solid; border-bottom-width: 2px; border-bottom-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle;">Hydrograph Parameters</td>
     </tr>
     <tr><td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">tp</td>
 <td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">Time to Peak Flow (hrs)</td>
 <td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">24</td>
-<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">76</td></tr>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">56</td></tr>
+    <tr><td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">m</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: left;">Hydrograph Shape Parameter</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">4.0</td>
+<td style="padding-top: 8px; padding-bottom: 8px; padding-left: 5px; padding-right: 5px; margin: 10px; border-top-style: solid; border-top-width: 1px; border-top-color: #D3D3D3; border-left-style: none; border-left-width: 1px; border-left-color: #D3D3D3; border-right-style: none; border-right-width: 1px; border-right-color: #D3D3D3; vertical-align: middle; overflow-x: hidden; text-align: right; font-variant-numeric: tabular-nums;">8.5</td></tr>
   </tbody>
   
   

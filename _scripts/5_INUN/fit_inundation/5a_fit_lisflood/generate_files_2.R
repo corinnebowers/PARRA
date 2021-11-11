@@ -47,6 +47,8 @@ print('identifying incomplete simulations...')
 
 ## remove simulations that errored out in Sherlock
 files <- list.files('results/max')
+zip <- which(files == 'maxes.zip')
+files <- files[-zip]
 sims <- files %>% str_remove('fitrp') %>% str_remove('.max') %>% toNumber
 bad1 <- (1:n)[!(1:n %in% sims)]
 
@@ -55,8 +57,8 @@ pt <- data.frame(lat = 38.45166, lon = -123.12934) %>%
   st_as_sf(coords = c('lon', 'lat'), crs = 4326) %>% 
   st_transform(6417) %>% 
   st_coordinates
-filenames <- list.files('results/max', full.names = TRUE)
-pb <- txtProgressBar(min = 0, max = length(files), style = 3)
+filenames <- list.files('results/max', full.names = TRUE)[-zip]
+pb <- txtProgressBar(min = 0, max = length(filenames), style = 3)
 cl <- parallel::makeCluster(round(detectCores()*2/3))
 registerDoSNOW(cl)
 badfile <-
