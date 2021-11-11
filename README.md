@@ -18,6 +18,6 @@ Each of the subfolders represents one of the pinch point variables, or the arrow
 The `\_results` folder contains raw code for markdown files that reproduce key results from the paper. The markdown files are also available as interactive HTML documents through the links below.
 
 * [demonstration.Rmd](https://corinnebowers.github.io/demonstration.html) walks through most of the case study demonstration presented in Section 3 of the paper, which compares observed vs. simulated values for each component model and presents results from recreating a severe 2019 atmospheric river event. This file reproduces Figures 2 through 8 from the paper.
-* [results.Rmd]() presents results from running the entire framework in sequence and reproduces Figures 9 and 10 from the paper. 
+* [results.Rmd](https://corinnebowers.github.io/results.html) presents results from running the entire framework in sequence and reproduces Figures 9 and 10 from the paper. 
 
 If you have any further questions please contact Corinne Bowers. 
