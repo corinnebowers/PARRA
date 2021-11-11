@@ -25,6 +25,7 @@ _scripts/old/
 _scripts/5_INUN/fit_inundation/*/files/
 _scripts/5_INUN/fit_inundation/*/logfiles/
 _scripts/5_INUN/fit_inundation/*/checkpoints/
+_scripts/5_INUN/fit_inundation/*/results/
 _scripts/5_INUN/fit_inundation/*/*.Rmd
 
 

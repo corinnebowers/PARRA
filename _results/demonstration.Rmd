@@ -1,5 +1,5 @@
 ---
-title: "componentmodels"
+title: "demonstration"
 output:
   html_document:
     toc: true 
@@ -11,7 +11,7 @@ output:
     highlight: tango  #https://www.garrickadenbuie.com/blog/pandoc-syntax-highlighting-examples/
 ---
 
-The purpose of this script is to generate figures and results for a case study application of the PARRA framework. 
+The purpose of this script is to reproduce figures and numeric results for the paper "" (doi:XX). 
 We implement a model-by-model comparison of the PARRA simulations at each pinch point vs. the observed values from a severe 2019 AR event in Sonoma County, CA. 
 
 Please note: all figures are formatted for publication, and therefore certain features may not display correctly in this markdown file. 
@@ -25,9 +25,14 @@ rm(list=ls())
 ```
 
 ```{r}
+## set random seed for reproducibility
+set.seed(2021)
+
 ## setup information
 source('_data/setup.R')
 source('_data/plots.R')
+
+## load required packages
 require(dataRetrieval)
 
 ## set parallel backend
@@ -39,6 +44,7 @@ load('_data/catalog/catalog.Rdata')
 ## load location information
 load('_data/lisflood/dem.Rdata')
 load('_data/aoi/aoi.Rdata')
+load('_data/NHD/NHD.Rdata')
 
 ## load building information
 load('_data/buildings/buildings.Rdata')
@@ -47,13 +53,10 @@ load('_data/foundations/foundations.Rdata')
 ## load depth-damage relationships
 load('_data/depthdamage/depthdamage.Rdata')
 
-## set random seed for reproducibility
-set.seed(2021)
-
 ```
 
 ```{r echo = FALSE}
-## should figures be saved out?
+## should figures be saved out for the publication?
 publish <- FALSE
 
 if (!publish) {
@@ -64,6 +67,72 @@ if (!publish) {
       axis.ticks = element_line(size = 0.5, color = 'black'),
       legend.key.size = unit(0.5, 'cm')))
   }
+
+```
+
+# Define area of interest
+
+Figure 2 in the paper shows the context of the case study location. 
+It is a two-part figure: the first plot is a map of Sonoma County, with important cities/towns and rivers/creeks identified, and the second plot is a map of California with the Russian River and Sonoma County highlighted.
+Additional text and callout lines were added outside of R through the image editing software Inkscape.
+
+## Define important geographies 
+```{r}
+## load California county polygons
+california <- counties(state = 'CA', class= 'sf') %>% st_transform(6417)
+
+## define highlighted cities within Sonoma County
+cities <- matrix(
+  c(38.507930, -122.985860, 'Guerneville', 1, 
+    38.616588, -122.858989, 'Healdsburg', 2, 
+    38.46539312043779, -123.00905110596939, 'Monte Rio', 1, 
+    38.708491304036954, -122.9028864411151, 'Geyserville', 1,
+    38.47356804731463, -122.89069701384281, 'Forestville', 1), 
+  byrow = TRUE, ncol = 4) %>%
+  data.frame %>%
+  setNames(c('lat', 'long', 'city', 'importance')) %>%
+  mutate(lat = toNumber(lat), long = toNumber(long)) %>%
+  st_as_sf(coords = c('long', 'lat'), crs = 4269) %>% 
+  st_transform(6417)
+
+```
+
+## Plot Sonoma County
+
+```{r fig2a, echo = FALSE}
+ggplot() + 
+  geom_sf(data = st_union(sonoma), fill = 'grey90', color = NA, alpha = 0.5) +
+  geom_sf(data = aoi, fill = 'grey70', color = 'grey40', alpha = 0.35) +
+  geom_sf(data = st_union(sonoma), fill = NA, color = 'grey25', size = 0.75) +
+  geom_sf(data = russian %>% summarize(GNIS_Name = GNIS_Name[1]) %>%
+            st_transform(6417) %>% st_crop(st_union(sonoma)),
+          color = scico(5, palette = 'roma')[5], size = 1) +
+  geom_sf(data = creeks %>% st_intersection(st_union(sonoma)),
+          color = scico(5, palette = 'roma')[5]) +
+  geom_sf(data = cities, aes(size = importance), show.legend = FALSE) + 
+  scale_size_manual(values = c(1.5, 1.5)) + 
+  annotation_scale(width_hint = 0.25, height = unit(0.25, 'cm'),
+                   pad_x = unit(0.5, 'cm'), pad_y = unit(0.5, 'cm'),
+                   text_family = 'Segoe UI', text_cex = 2/3) + 
+  theme_void() 
+ggsave('_figures/fig02/fig02_sonoma.png', width = 8.5, units = 'cm', dpi = 600)
+
+```
+
+## Plot California
+
+```{r fig2b, echo = FALSE}
+california <-
+  california %>% st_union %>% st_sf %>% st_cast('POLYGON') %>% .[1,] %>% 
+    st_intersection(california %>% st_cast('POLYGON'), .)
+
+ggplot() + 
+  geom_sf(data = california, fill = 'grey90', color = 'grey40', alpha = 0.5, size = 0.25) + 
+  geom_sf(data = california %>% filter(NAME == 'Sonoma'),
+          fill = 'grey50', color = 'grey25', size = 0.5) +
+  geom_sf(data = st_union(california), fill = NA, color = 'grey25', size = 0.5) + 
+  theme_void() 
+ggsave('_figures/fig02/fig02_california.png', width = 3, units = 'cm', dpi = 600)
 
 ```
 
@@ -206,7 +275,7 @@ g.ivt <- ggplot(catalog) +
 g.dur <- ggplot(catalog) + 
   geom_histogram(aes(x = duration), color = 'black', fill = 'grey90',
                  bins = sqrt(nrow(catalog)), boundary = 0, size = 0.25) + 
-  scale_x_continuous('Storm Duration (hrs)', expand = c(0,0), 
+  scale_x_continuous('Storm Duration (h)', expand = c(0,0), 
                      breaks = seq(0, 240, 24), minor_breaks = seq(0, 240, 24)) + 
   scale_y_origin() +
   coord_flip(xlim = c(0,192), clip = 'off') +
@@ -243,20 +312,12 @@ Model coefficients are included below.
 
 ```{r}
 ## load precipitation function(s)
-source('_scripts/PRCP_GLS.R')
+source('_scripts/2_PRCP/PRCP.R')
 
-## generate one stochastic realization of PRCP
-precip.qq <- 
-  generate_precip(
-    AR = catalog %>% transmute(n.AR = 1:nrow(.), IVT_max, duration, sm), 
-    catalog = catalog, 
-    probabilistic = TRUE, n.precip = 1) %>% 
-  rename(precip_sim = precip_mm) %>% 
-  left_join(catalog %>% transmute(n.AR = 1:nrow(.), precip_obs = precip_mm),
-            by = 'n.AR')
-precip.max <- max(c(max(precip.qq$precip_sim), max(precip.qq$precip_obs)))
+## fit precipitation regression
+fit_precip(catalog)
 
-## display fitted model values
+## display fitted regression values
 ```
 
 ```{r echo = FALSE}
@@ -305,7 +366,7 @@ g1 <- ggplot(catalog) +
     limits = c(250, NA), expand = c(0,0), 
     breaks = seq(250, 1500, 250), minor_breaks = seq(250, 1500, 250)) + 
   scale_y_origin('Storm Total Precipitation (mm)') + 
-  scale_color_manual('Duration (hrs)', 
+  scale_color_manual('Duration (h)', 
     values = roma.colors[5:3], 
     breaks = c('72', '24', '6')) + 
   coord_cartesian(clip = 'off') + 
@@ -377,10 +438,9 @@ ks.value <-
     .export = 'generate_precip') %dopar% {
       ## generate one realization of precipitation
       precip.ks <- generate_precip(
-        AR = catalog %>% transmute(n.AR = 1:nrow(.), IVT_max, duration, sm),
-        catalog = catalog, 
-        probabilistic = TRUE,
-        n.precip = 1)
+        AR = catalog %>% transmute(n.AR = 1:nrow(.), IVT_max, duration, sm), 
+        model.prcp, se.prcp,
+        probabilistic = TRUE, n.precip = 1)
       ## create a dataframe of sorted values 
       sorted <- data.frame(
         precip.obs = sort(catalog$precip_mm),
@@ -412,6 +472,17 @@ mean(ks.value) %>% as.data.frame %>%
 ```
 
 ```{r}
+## generate one stochastic realization of PRCP for every event in the historic catalog
+precip.qq <- 
+  generate_precip(
+    AR = catalog %>% transmute(n.AR = 1:nrow(.), IVT_max, duration, sm), 
+    model.prcp, se.prcp,
+    probabilistic = TRUE, n.precip = 1) %>% 
+  rename(precip_sim = precip_mm) %>% 
+  left_join(catalog %>% transmute(n.AR = 1:nrow(.), precip_obs = precip_mm),
+            by = 'n.AR')
+precip.max <- max(c(max(precip.qq$precip_sim), max(precip.qq$precip_obs)))
+
 ## plot figure 4(c): quantile plot of observed vs. simulated precipitation for the historic catalog
 ```
 
@@ -448,7 +519,7 @@ The results are included as panel (d) in the figure below.
 precip <- 
   generate_precip(
     AR = casestudy %>% transmute(n.AR = 1, IVT_max, duration, sm), 
-    catalog = catalog,
+    model.prcp, se.prcp,
     probabilistic = TRUE,
     n.precip = 1e3)
 
@@ -489,7 +560,7 @@ plot_grid(
     label_x = c(0.2, 0.7), label_y = 0.95), 
   nrow = 4, 
   rel_heights = c(1.25,1,9,10))
-ggsave('_figures/fig04_precip.png', width = 12, height = 12, units = 'cm')
+ggsave('_figures/fig04_precip.png', width = 12, height = 12, units = 'cm', dpi = 600)
 
 ```
 
@@ -505,8 +576,11 @@ We found that soil moisture records in the historic catalog were well represente
 The parameters of the distribution are displayed below.
 
 ```{r results = 'hide'}
+## load antecedent hydrologic condition function(s)
+source('_scripts/3_HC/HC.R')
+
 ## fit lognormal distribution to soil moisture records in the historic catalog 
-fit.sm <- fitdist(catalog$sm, distr = 'lnorm')$estimate
+fit_soilmoisture(catalog)
 
 ## report parameters of lognormal distribution
 ```
@@ -564,147 +638,18 @@ From Equation 4 in the paper we know that $Q$ is a function of three parameters.
 These are $Q_p$, peak streamflow; $t_p$, time to peak streamflow; and $m$, a unitless shape parameter.
 We discuss each of these in more detail. 
 
-## $Q_p$
-
-### Fit peak streamflow regression model
-
-In order to estimate $Q_p$, we first calculated runoff $R$ using the curve number method, then performed an ordinary least squares regression to predict $Q_p$ as a function of runoff and precipitation using the equation below: 
-
-$$ Q_{p,i} = \beta_0 + \beta_1 (PRCP_i) + \beta_2 (R_i) + \beta_3 (PRCP_i:R_i) + \sigma_i $$ 
-
-Similar to the preciptiation model, the uncertainty $\sigma_i$ is once again represented by a mixture model, with 90\% of errors based on the bulk distribution and 10\% of errors based on the 10\% most extreme AR events in the historic catalog.
-Model coefficients are shown below.
-
-```{r results = 'hide'}
-## load streamflow functions(s)
-source('_scripts/Q_GLS.R')
-
-## generate one stochastic realization of Q_p 
-precip.qq <- catalog %>%
-  transmute(n.AR = 1:nrow(.), n.precip = 1, n.hc = 1, IVT_max, duration, precip_mm, sm)
-precip.qq <- generate_soilmoisture(precip = precip.qq, catalog = catalog, probabilistic = FALSE)
-runoff.qq <- generate_runoff(
-  precip = precip.qq, catalog = catalog, probabilistic = TRUE)
-hydro.qq <- generate_hydrograph(
-  runoff = runoff.qq, catalog = catalog, probabilistic = TRUE, mixratio = 0.9) %>% 
-  rename(Qp_sim = Qp_m3s) %>% 
-  left_join(catalog %>% transmute(n.AR = 1:nrow(.), Qp_obs = Qp_m3s), by = 'n.AR')
-hydro.max <- max(c(max(hydro.qq$Qp_obs), max(hydro.qq$Qp_sim)))
-
-## display fitted model values
-```
-
-```{r echo = FALSE}
-model.Qp$coefficients %>% 
-  t %>% as.data.frame %>% 
-  gt %>% 
-  fmt_number(columns = c(`(Intercept)`, precip_mm, runoff_mm, `precip_mm:runoff_mm`), n_sigfig = 3) %>% 
-  cols_label(
-    `(Intercept)` = 'Intercept',
-    precip_mm = 'Precipitation', 
-    runoff_mm = 'Runoff', 
-    `precip_mm:runoff_mm` = 'Precipitation * Runoff') %>% 
-  tab_header(title = 'Peak Streamflow Regression Coefficients') %>% 
-  tab_options(heading.background.color = '#d9d9d9', 
-              column_labels.background.color = '#f2f2f2')
-
-```
-
-### Assess distribution fit
-
-We follow the same process as the precipitation component model to fit and validate this equation. 
-We present both a quantile plot for visual inspection and a formal two-sample K-S test to validate the fit of the overall peak streamflow distribution as compared to the historic catalog. 
-
-```{r}
-## determine d.crit, the value of the 95% confidence threshold
-d.crit <- 1.731 * sqrt(2/nrow(catalog))
-
-## calculate the K-S statistic for 100 simulations
-n <- 100
-cl <- parallel::makeCluster(num_cores)
-registerDoSNOW(cl)
-ks.value <- 
-  foreach (i = 1:n, 
-    .combine = 'c', .packages = c('pracma', 'fitdistrplus', 'tidyverse'), 
-    .export = c('generate_runoff', 'generate_hydrograph')) %dopar% {
-      ## generate one realization of peak streamflow
-      runoff.qq <- generate_runoff(
-        precip = precip.qq, catalog = catalog, probabilistic = TRUE)
-      hydro.qq <- generate_hydrograph(
-        runoff = runoff.qq, catalog = catalog, probabilistic = TRUE)
-      ## create a dataframe of sorted values 
-      sorted <- data.frame(
-        Qp.obs = sort(catalog$Qp_m3s),
-        Qp.sim = sort(hydro.qq$Qp_m3s)+4) %>% #add in baseflow
-        mutate(p = (1:nrow(.))/(nrow(.)+1))
-      ## find the maximum distance between the observed CDF and simulated CDF
-      data.frame(
-        Qp = seq(
-          sorted %>% select(-p) %>% apply(2, min) %>% max, 
-          sorted %>% select(-p) %>% apply(2, max) %>% min, 
-          length.out = 1000)) %>% 
-        mutate(p.obs = interp1(x = sorted$Qp.obs, y = sorted$p, xi = Qp)) %>%
-        mutate(p.sim = interp1(x = sorted$Qp.sim, y = sorted$p, xi = Qp)) %>% 
-        mutate(d = abs(p.obs-p.sim)) %>% 
-        mutate(ks = d/d.crit) %>% 
-        pull(ks) %>% max
-  }
-stopCluster(cl)
-
-## report K-S statistic
-```
-
-```{r echo = FALSE}
-mean(ks.value) %>% as.data.frame %>% 
-  setNames('Mean K-S Statistic') %>% 
-  gt %>% 
-  fmt_number(`Mean K-S Statistic`, decimals = 3) %>% 
-  tab_options(column_labels.background.color = '#f2f2f2')
-
-```
-
-```{r}
-## plot panel 5(a): quantile plot of observed vs. simulated peak streamflow for the historic catalog
-```
-
-```{r fig5a, echo = FALSE}
-g7 <- ggplot(hydro.qq) + 
-  geom_point(aes(x = sort(Qp_obs), y = sort(Qp_sim)), size = 0.75) + 
-  geom_parity() + 
-  coord_cartesian(xlim = c(NA, hydro.max), ylim = c(NA, hydro.max)) + 
-  scale_x_continuous(
-    expression(paste('Observed ', Q[p], ' Quantile (', m^{3}, s^{-1}, ')')), 
-    expand = expansion(mult = c(0, 0.05)), labels = comma) + 
-  scale_y_continuous(
-    expression(paste('Simulated ', Q[p], ' Quantile (', m^{3}, s^{-1}, ')')), 
-    expand = expansion(mult = c(0, 0.05)), labels = comma)
-if (!publish) g7
-
-```
-
-```{r include = FALSE}
-# ## plot distribution of K-S statistic 
-# ggplot() + 
-#   geom_histogram(aes(x = ks.value, y = ..density..), 
-#     color = 'black', fill = 'grey90', bins = sqrt(length(ks.value))) + 
-#   geom_vline(xintercept = 1, linetype = 'dashed', size = 1) + 
-#   scale_x_continuous('Kolmogorov-Smirnov Statistic') + 
-#   scale_y_origin('Probability of Occurrence')
-# 
-# ## prove that this method is better than the default unit conversion
-# R2(
-#   catalog$runoff_mm * (readNWISsite(11463500)$drain_area_va * 1609.344^2) / catalog$duration,
-#   catalog$Qp_m3s)
-# R2(predict(model.Qp), catalog$Qp_m3s)
-
-```
-
 ## $t_p$ 
 
 Like the antecedent soil moisture, records of time to peak streamflow $t_p$ in the historic catalog were found to be well represented by a lognormal distribution. 
 The parameters of the distribution are displayed below.
 
-```{r}
+```{r results = 'hide'}
+## load streamflow functions(s)
+source('_scripts/4_Q/Q.R')
+
+## fit lognormal distribution to time to peak streamflow records in the historic catalog 
+fit_tp(catalog)
+
 ## report parameters of lognormal distribution
 ```
 
@@ -739,7 +684,7 @@ g6 <- data.frame(dx = seq(0, 60, length.out = 1e3)) %>%
     label = '2019 Observed', family = 'Segoe UI', size = 8/.pt) + 
   scale_fill_manual(values = 'grey90') + 
   scale_size_manual(values = 0.5) + 
-  scale_x_origin('Time to Peak Streamflow @ USGS 11463500 (hrs)') + 
+  scale_x_origin('Time to Peak Streamflow @ USGS 11463500 (h)') + 
   scale_y_origin('Probability of Occurrence') + 
   theme(legend.title = element_blank())
 if (!publish) g6
@@ -749,6 +694,154 @@ if (!publish) g6
 ```{r}
 ## find percentile of 2019 event
 plnorm(casestudy$tp_hrs, meanlog = fit.tp[1], sdlog = fit.tp[2])
+
+```
+
+## $Q_p$
+
+### Fit peak streamflow regression model
+
+In order to estimate $Q_p$, we first calculated runoff $R$ using the curve number method, then performed an ordinary least squares regression to predict $Q_p$ as a function of runoff and precipitation using the equation below: 
+
+$$ Q_{p,i} = \beta_0 + \beta_1 (PRCP_i) + \beta_2 (R_i) + \beta_3 (PRCP_i:R_i) + \sigma_i $$ 
+
+Similar to the preciptiation model, the uncertainty $\sigma_i$ is once again represented by a mixture model, with 90\% of errors based on the bulk distribution and 10\% of errors based on the 10\% most extreme AR events in the historic catalog.
+Model coefficients are shown below.
+
+```{r results = 'hide'}
+## fit peak streamflow regression
+fit_Qp(catalog)
+
+## display fitted model values
+```
+
+```{r echo = FALSE}
+model.Qp$coefficients %>% 
+  t %>% as.data.frame %>% 
+  gt %>% 
+  fmt_number(columns = c(`(Intercept)`, precip_mm, runoff_mm, `precip_mm:runoff_mm`), n_sigfig = 3) %>% 
+  cols_label(
+    `(Intercept)` = 'Intercept',
+    precip_mm = 'Precipitation', 
+    runoff_mm = 'Runoff', 
+    `precip_mm:runoff_mm` = 'Precipitation * Runoff') %>% 
+  tab_header(title = 'Peak Streamflow Regression Coefficients') %>% 
+  tab_options(heading.background.color = '#d9d9d9', 
+              column_labels.background.color = '#f2f2f2')
+
+```
+
+### Assess distribution fit
+
+We follow the same process as the precipitation component model to fit and validate this equation. 
+We present both a quantile plot for visual inspection and a formal two-sample K-S test to validate the fit of the overall peak streamflow distribution as compared to the historic catalog. 
+
+```{r}
+## determine d.crit, the value of the 95% confidence threshold
+d.crit <- 1.731 * sqrt(2/nrow(catalog))
+
+# precip.qq <- catalog %>%
+#   transmute(n.AR = 1:nrow(.), n.precip = 1, n.hc = 1, IVT_max, duration, precip_mm, sm)
+# precip.qq <- generate_soilmoisture(precip = precip.qq, catalog = catalog, probabilistic = FALSE)
+
+## calculate the K-S statistic for 100 simulations
+n <- 100
+cl <- parallel::makeCluster(num_cores)
+registerDoSNOW(cl)
+ks.value <- 
+  foreach (i = 1:n, 
+    .combine = 'c', .packages = c('pracma', 'fitdistrplus', 'tidyverse'), 
+    .export = c('fit_generate_runoff', 'generate_hydrograph')) %dopar% {
+      ## generate one realization of peak streamflow
+      runoff.ks <- fit_generate_runoff(
+        precip = catalog %>% 
+          transmute(n.AR = 1:nrow(.), n.precip = 1, n.hc = 1, 
+                    IVT_max, duration, precip_mm, sm), 
+        catalog = catalog, probabilistic = TRUE)
+      hydro.ks <- generate_hydrograph(
+        runoff = runoff.ks, 
+        model.Qp = model.Qp, se.Qp = se.Qp, fit.tp = fit.tp, 
+        probabilistic = TRUE)
+      ## create a dataframe of sorted values 
+      sorted <- data.frame(
+        Qp.obs = sort(catalog$Qp_m3s),
+        Qp.sim = sort(hydro.ks$Qp_m3s)+4) %>% #add in baseflow
+        mutate(p = (1:nrow(.))/(nrow(.)+1))
+      ## find the maximum distance between the observed CDF and simulated CDF
+      data.frame(
+        Qp = seq(
+          sorted %>% select(-p) %>% apply(2, min) %>% max, 
+          sorted %>% select(-p) %>% apply(2, max) %>% min, 
+          length.out = 1000)) %>% 
+        mutate(p.obs = interp1(x = sorted$Qp.obs, y = sorted$p, xi = Qp)) %>%
+        mutate(p.sim = interp1(x = sorted$Qp.sim, y = sorted$p, xi = Qp)) %>% 
+        mutate(d = abs(p.obs-p.sim)) %>% 
+        mutate(ks = d/d.crit) %>% 
+        pull(ks) %>% max
+  }
+stopCluster(cl)
+
+## report K-S statistic
+```
+
+```{r echo = FALSE}
+mean(ks.value) %>% as.data.frame %>% 
+  setNames('Mean K-S Statistic') %>% 
+  gt %>% 
+  fmt_number(`Mean K-S Statistic`, decimals = 3) %>% 
+  tab_options(column_labels.background.color = '#f2f2f2')
+
+```
+
+```{r include = FALSE}
+# ## plot distribution of K-S statistic 
+# ggplot() + 
+#   geom_histogram(aes(x = ks.value, y = ..density..), 
+#     color = 'black', fill = 'grey90', bins = sqrt(length(ks.value))) + 
+#   geom_vline(xintercept = 1, linetype = 'dashed', size = 1) + 
+#   scale_x_continuous('Kolmogorov-Smirnov Statistic') + 
+#   scale_y_origin('Probability of Occurrence')
+# 
+# ## prove that this method is better than the default unit conversion
+# R2(
+#   catalog$runoff_mm * (readNWISsite(11463500)$drain_area_va * 1609.344^2) / catalog$duration,
+#   catalog$Qp_m3s)
+# R2(predict(model.Qp), catalog$Qp_m3s)
+
+```
+
+```{r}
+## generate one stochastic realization of Qp for every event in the historic catalog
+runoff.qq <- fit_generate_runoff(
+  precip = catalog %>% 
+    transmute(n.AR = 1:nrow(.), n.precip = 1, n.hc = 1, IVT_max, duration, precip_mm, sm), 
+  catalog = catalog, probabilistic = TRUE)
+hydro.qq <- generate_hydrograph(
+  runoff = runoff.qq, 
+  model.Qp = model.Qp, se.Qp = se.Qp, fit.tp = fit.tp, 
+  probabilistic = TRUE) %>% 
+  rename(Qp_sim = Qp_m3s) %>% 
+  left_join(
+    catalog %>% 
+      transmute(n.AR = 1:nrow(.), n.precip = 1, n.hc = 1, n.runoff = 1, n.hydro = 1, Qp_obs = Qp_m3s), 
+            by = c('n.AR', 'n.precip', 'n.hc', 'n.runoff', 'n.hydro'))
+hydro.max <- max(c(max(hydro.qq$Qp_obs), max(hydro.qq$Qp_sim)))
+
+## plot panel 5(a): quantile plot of observed vs. simulated peak streamflow for the historic catalog
+```
+
+```{r fig5a, echo = FALSE}
+g7 <- ggplot(hydro.qq) + 
+  geom_point(aes(x = sort(Qp_obs), y = sort(Qp_sim)), size = 0.75) + 
+  geom_parity() + 
+  coord_cartesian(xlim = c(NA, hydro.max), ylim = c(NA, hydro.max)) + 
+  scale_x_continuous(
+    expression(paste('Observed ', Q[p], ' Quantile (', m^{3}, s^{-1}, ')')), 
+    expand = expansion(mult = c(0, 0.05)), labels = comma) + 
+  scale_y_continuous(
+    expression(paste('Simulated ', Q[p], ' Quantile (', m^{3}, s^{-1}, ')')), 
+    expand = expansion(mult = c(0, 0.05)), labels = comma)
+if (!publish) g7
 
 ```
 
@@ -781,30 +874,30 @@ flow <- readNWISdata(
 ```
 
 ### Generate simulated realizations of streamflow parameters for the 2019 event
-We then generating 1,000 realizations of peak streamflow $Q_p$ and time to peak streamflow $t_p$. 
+We then generate 1,000 realizations of peak streamflow $Q_p$ and time to peak streamflow $t_p$. 
 The hydrograph shape parameter $m$ is held constant. 
 
-```{r results = 'hide'}
-## attach "observed" HC (soil moisture) for the 2019 event
-precip.sm <- generate_soilmoisture(
-  precip = casestudy %>% transmute(n.AR = 1, n.precip = 1, IVT_max, duration, precip_mm, sm), 
-  catalog = catalog, 
-  probabilistic = TRUE, 
-  n.hc = 1e3)
+```{r}
+## load observed precipitation for the 2019 event
+precip <- casestudy %>%
+  transmute(n.AR = 1, n.precip = 1, IVT_max, duration, precip_mm)
+
+## generate probabilistic realizations of HC (soil moisture) for the 2019 event
+precip <- generate_soilmoisture(precip, fit.sm, probabilistic = TRUE, n.hc = 1e3)
 
 ## generate probabilistic realizations of R (runoff) for the 2019 event
 runoff <- 
-  generate_runoff(
-    precip = precip.sm, 
+  fit_generate_runoff(
+    precip = precip, 
     catalog = catalog, 
-    probabilistic = TRUE,
+    probabilistic = TRUE, 
     n.runoff = 1)
 
 ## generate probabilistic realizations of Q (streamflow) for the 2019 event 
 hydrograph <-
   generate_hydrograph(
     runoff = runoff,
-    catalog = catalog,
+    model.Qp = model.Qp, se.Qp = se.Qp, fit.tp = fit.tp, 
     probabilistic = TRUE,
     n.hydro = 1)
 
@@ -828,9 +921,9 @@ cl <- parallel::makeCluster(num_cores)
 registerDoSNOW(cl)
 flow.sim <- 
   foreach (i = 1:nrow(hydrograph), 
-    .packages = 'lubridate') %dopar% {
+    .packages = 'lubridate') %dorng% {
     Qp <- hydrograph$Qp_m3s[i]
-    tp <- hydrograph$tp_hrs[i]*60^2
+    tp <- hydrograph$tp_hrs[i]*60^2 #seconds
     q <- apply(cbind(exp(m*(1-t/tp)) * (t/tp)^m * Qp, rep(baseflow, length(t))), 1, max)
     sim <- data.frame(t = lubridate::now() + seconds(t), q = q)
     dt <- sim[which.max(sim$q), 't'] - flow[which.max(flow$Flow_Inst), 'dateTime']
@@ -1431,7 +1524,7 @@ flemo <- flemo %>%
             damage_max = Max(damage_pct))
 
 ## load depth-damage function(s)
-source('_scripts/DM_sherlock.R')
+source('_scripts/6_DM/DM.R')
 
 ## calculate damage using the Wing et al. (2020) relationships
 cl <- parallel::makeCluster(num_cores)
@@ -1441,7 +1534,7 @@ damage.beta <- generate_damage(
   buildings = buildings %>% st_drop_geometry %>% rename(GEOID = tract),
   foundations = nsi1.base,
   curve = 'beta', 
-  hazus = hazus, flemo = flemo, beta = wing2020,
+  hazus = hazus, beta = wing2020,
   probabilistic = TRUE,
   n.damage = 1e3)
 damage.beta <- damage.beta[[1]] %>% 
@@ -1453,7 +1546,7 @@ damage.hazus <- generate_damage(
   buildings = buildings %>% st_drop_geometry %>% rename(GEOID = tract),
   foundations = nsi1.base,
   curve = 'hazus',
-  hazus = hazus, flemo = flemo, beta = wing2020,
+  hazus = hazus, beta = wing2020,
   probabilistic = TRUE,
   n.damage = 1e3)
 damage.hazus <- damage.hazus[[1]] %>% 
