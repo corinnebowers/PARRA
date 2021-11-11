@@ -36,9 +36,9 @@ which are as follows:
 -   *α* defines the anisotropy (asymmetry of information content)
     between *Q*<sub>*p*</sub> and *t*<sub>*p*</sub>.
 
-$$ \\mathrm{M}^\* = \\frac{\\sum\\limits\_{i=1}^n \\lambda\_i \\mathrm{M}\_i}{\\sum\\limits\_{i=1}^n\\lambda\_i} $$
+*M*<sup>\*</sup> = *Σ*<sub>*i* = 1</sub><sup>*n*</sup>*λ*<sub>*i*</sub>*M*<sub>*i*</sub>/*Σ*<sub>*i* = 1</sub><sup>*n*</sup>*λ*<sub>*i*</sub>
 
-$$ \\lambda\_i = \\frac{1}{\\lVert \\mathrm{\\textbf{x}}^\*, \\mathrm{\\textbf{x}}\_i \\rVert ^p} $$
+*λ*<sub>*i*</sub> = ∥**x**<sup>\*</sup>, **x**<sub>*i*</sub>∥<sup> − *p*</sup>
 
 **x** = {*α* \* *z*<sub>*Q*<sub>*p*</sub></sub>, (1−*α*) \* *z*<sub>*t*<sub>*p*</sub></sub>}
 
