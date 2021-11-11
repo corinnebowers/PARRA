@@ -10,7 +10,7 @@ This repository provides supplementary information to the paper "A Performance-B
   <img src="https://user-images.githubusercontent.com/49569602/141232598-58d62a27-bd04-4d48-a49d-76c8fe636796.png" width=75% height=75%>
 </p>
 
-This is Figure 1 from the paper ilustrating the theoretical outline of the PARRA framework, with a few additional annotations. The annotations represent R markdown files that provide additional context and replicate the figures from the paper. These five markdown files are described in more detail below.
+This is Figure 1 from the paper, illustrating the theoretical outline of the PARRA framework. 
 
 * <a href="https://corinnebowers.github.io/sonoma.html">sonoma.Rmd</a>: Generates a figure of Sonoma County with rivers, creeks, and major cities/towns identified, as well as a figure inset of the state of California for regional context.
 * <a href="https://corinnebowers.github.io/rp100.html">rp100.Rmd</a>: Performs sensitivity analysis and best-fit calibration for LISFLOOD environmental parameters (floodplain roughness, channel shape, etc.).
