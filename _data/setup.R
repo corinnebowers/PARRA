@@ -44,18 +44,8 @@ sum.na <- function(x) sum(is.na(x))
 
 wateryear <- function(d) year(d) + ifelse(month(d) %in% 10:12, 1, 0)
 
-# predict.se <- function(model, fitdata, newdata) {
-#   dof <- nrow(fitdata) - ncol(model.matrix(model, fitdata)) #find degrees of freedom
-#   MSE <- sqrt(sum(residuals(model)^2)/dof) #find MSE
-#   V <- solve(t(model.matrix(model, fitdata)) %*% 
-#                model.matrix(model, fitdata)) * MSE^2 #find var-cov matrix of coefficients
-#   X <- model.matrix(delete.response(terms(model)), newdata) #create matrix of new data
-#   yhat <- predict(model, newdata) #predict new response
-#   var.fit <- rowSums((X %*% V) * X) #find the diagonal of the var-cov matrix for yhat
-#   # se.conf <- sqrt(var.fit) #find pointwise standard errors of predicted mean (CI)
-#   se.pred <- sqrt(var.fit + MSE^2) #find standard error of the prediction interval (PI)
-#   return(se.pred)
-# }
+progress <- function(n) setTxtProgressBar(pb, n)
+opts <- list(progress = progress)
 
 
 ###################################################################################################

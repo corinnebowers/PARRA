@@ -6,6 +6,7 @@ _data/*/checkpoints/
 _data/catalog/soilw.mon.mean.v2.nc
 _data/catalog/inlet/
 _data/catalog/outlet/
+_data/catalog/grid_catalog*
 
 _data/lisflood/SonomaVegMap*
 _data/lisflood/topobathy*

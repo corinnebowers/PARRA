@@ -1,20 +1,20 @@
 ---
-title: "demonstration"
+title: "Sonoma 2019 AR Case Study Demonstration"
 output:
   html_document:
     toc: true 
     toc_float: true
     #toc_depth: 3  
-    code_folding: show
+    code_folding: hide
     number_sections: true 
     theme: spacelab   #https://www.datadreaming.org/post/r-markdown-theme-gallery/
     highlight: tango  #https://www.garrickadenbuie.com/blog/pandoc-syntax-highlighting-examples/
 ---
 
-The purpose of this script is to reproduce figures and numeric results for the paper "" (doi:XX). 
-We implement a model-by-model comparison of the PARRA simulations at each pinch point vs. the observed values from a severe 2019 AR event in Sonoma County, CA. 
+The purpose of this script is to reproduce figures and numeric results for the paper "A Performance-Based Approach to Quantify Atmospheric River Flood Risk" (doi:XX). 
+We implement a model-by-model comparison of the PARRA simulations at each pinch point vs. the observed values from a severe 2019 atmospheric river (AR) event in Sonoma County, California. 
 
-Please note: all figures are formatted for publication, and therefore certain features may not display correctly in this markdown file. 
+Please note: all figures are formatted for publication, therefore certain features may not display correctly in this markdown file. 
 
 ```{r setup, include = FALSE}
 knitr::opts_knit$set(root.dir = 'D:/1-PARRA/')
@@ -70,13 +70,20 @@ if (!publish) {
 
 ```
 
-# Define area of interest
+# $f(AR)$
 
-Figure 2 in the paper shows the context of the case study location. 
-It is a two-part figure: the first plot is a map of Sonoma County, with important cities/towns and rivers/creeks identified, and the second plot is a map of California with the Russian River and Sonoma County highlighted.
+The first component model in the PARRA framework is $f(AR)$, or the representation of AR magnitude. 
+Instead of generating simulated realizations, we use the observed maximum IVT and duration from the 2019 event as inputs to the next component model. 
+
+## Define area of interest
+
+Figure 2 in the paper shows the study area as a two-part figure.
+The first panel is a map of Sonoma County, with important cities/towns and rivers/creeks identified and with the study area marked by a shaded rectangle.
+The second plot is a map of California with the Russian River and Sonoma County highlighted for geographic context.
 Additional text and callout lines were added outside of R through the image editing software Inkscape.
 
-## Define important geographies 
+### Plot Sonoma County
+
 ```{r}
 ## load California county polygons
 california <- counties(state = 'CA', class= 'sf') %>% st_transform(6417)
@@ -95,9 +102,8 @@ cities <- matrix(
   st_as_sf(coords = c('long', 'lat'), crs = 4269) %>% 
   st_transform(6417)
 
+## plot figure 2a: Sonoma County study area
 ```
-
-## Plot Sonoma County
 
 ```{r fig2a, echo = FALSE}
 ggplot() + 
@@ -119,7 +125,11 @@ ggsave('_figures/fig02/fig02_sonoma.png', width = 8.5, units = 'cm', dpi = 600)
 
 ```
 
-## Plot California
+### Plot California
+
+```{r}
+## plot figure 2b: California
+```
 
 ```{r fig2b, echo = FALSE}
 california <-
@@ -136,16 +146,11 @@ ggsave('_figures/fig02/fig02_california.png', width = 3, units = 'cm', dpi = 600
 
 ```
 
+## Generate historic catalog
 
-# $f(AR)$
-
-The first component model in the PARRA framework is $f(AR)$, or the representation of AR magnitude. 
-Instead of generating simulated realizations, we use the observed maximum IVT and duration as inputs to the next component model. 
-
-## Report historic catalog statistics 
-
-We first start by generating a historic catalog of ARs that have occurred in Sonoma County from 1997 to 2019. 
-All data sources and calculations can be found in the script $catalog.Rmd$, and the results are summarized in the table below.
+We first start by generating a historic catalog of ARs that have occurred in the Sonoma County study area over a 32-year period from 1997 to 2019. 
+<!-- All data sources and calculations can be found in the script `catalog.Rmd`. -->
+Results are summarized in Table 1 below.
 
 ```{r tab1, echo = FALSE}
 catalog %>% 
@@ -177,7 +182,7 @@ catalog %>%
 
 ## Identify case study AR
 
-We have identified this particular AR as well-suited for a case study for two reasons: first because it was a relatively extreme event that caused significant flooding and damage along the lower Russian River, and second because it was recent enough that we have validation data avaialable for almost every pinch point in the PARRA framework.
+We have identified the 2019 AR event as well-suited for a case study for two reasons: first because it was a relatively extreme event that caused significant flooding and damage along the lower Russian River, and second because it was recent enough that we have validation data available for almost every pinch point in the PARRA framework.
 The table below shows some of the values recorded in Sonoma County due to this AR event. 
 
 ```{r}
@@ -209,9 +214,10 @@ casestudy %>%
 
 ```
 
-## Plot IVT vs. duration for the historic catalog
+## Plot AR characteristics from the historic catalog
 
-This figure summarizes the maximum IVT and duration values from the historic catalog generated for Sonoma County and highlights the 2019 case study AR in relation to the rest of the catalog.
+We summarize ARs in terms of two variables: maximum recorded integrated water vapor transport (IVT, kg/m/s) and duration (hrs).
+Figure 3 from the paper summarizes the maximum IVT and duration values from the Sonoma County historic catalog and highlights the 2019 case study AR in relation to the rest of the catalog.
 The bottom and left histograms represent the marginal distributions of maximum IVT and duration, respectively. 
 The scatterplot shows the joint distribution of these two variables for all ARs in the historic catalog.
 The background colors show the AR intensity categories from Ralph et al. (2020), and the dashed bullseye lines represent the 2019 case study event. 
@@ -236,7 +242,7 @@ ARcat <- function(IVT, duration) {
 for (i in 1:nrow(df)) {df$cat[i] <- ARcat(df$IVT[i], df$duration[i])}
 df <- df %>% mutate(cat = ifelse(cat == 0, 1, cat))
 
-## plot figure 3
+## plot figure 3: maximum IVT vs. duration for the historic catalog
 ```
 
 ```{r fig3, echo = FALSE}
@@ -296,22 +302,23 @@ ggsave('_figures/fig03_AR.png', height = 5.75, width = 8.3, units = 'cm', dpi = 
 
 ```
 
+
 # $f(PRCP|AR)$
 
-The second component model is $f(PRCP|AR)$, which estimates precipitation as a function of a given maximum IVT and duration. 
+The second component model is $f(PRCP|AR)$, which estimates precipitation as a function of two AR characteristics, maximum IVT ($IVT$) and duration ($DUR$). 
 
 ## Fit precipitation regression model
 
-The precipitation component model uses a weighted least squares linear regression to estimate precipitation. The form of the equation is as follows: 
+The precipitation component model uses a weighted least squares (WLS) linear regression to estimate a total precipitation (mm) averaged over the inlet watershed. The form of the equation is as follows: 
 
 $$ PRCP_i = \beta_0 + \beta_1 (IVT_i) + \beta_2 (DUR_i) + \beta_3 (IVT_i* DUR_i) + \sigma_i $$
 
-The weighted least squares regression was chosen to account for the significant heterskedasticity in the data. 
+The WLS regression was chosen to account for the significant heterskedasticity in the data. 
 The uncertainty $\sigma_i$ is represented by a mixture model, with 90\% of errors based on the bulk distribution and 10\% of errors based on the 10\% most extreme AR events in the historic catalog.
-Model coefficients are included below.
+Model coefficients are displayed below.
 
 ```{r}
-## load precipitation function(s)
+## load precipitation component model functions
 source('_scripts/2_PRCP/PRCP.R')
 
 ## fit precipitation regression
@@ -335,6 +342,10 @@ model.prcp$coefficients %>%
               column_labels.background.color = '#f2f2f2')
 
 ```
+
+Figures 4(a)-(b) show the regression fit vs. the observed data.
+In 4(a) the relationship between maximum IVT and precipitation is shown at three specified duration values ($DUR = $6, 24, & 72 hours). 
+In 4(b) the relationship between duration and precipitation is shown at three specified maximum IVT values ($IVT = $250, 500, & 1000 kg/m/s).
 
 ```{r}
 ## plot figures
@@ -410,16 +421,44 @@ if (!publish) g1; g2
 
 ## Assess distribution fit
 
-We assessed model fit based on the accuracy in reproducing the entire distribution of precipitation rather than accuracy in replicating individual records. 
+Because we are using the component model for generating new synthetic precipitation realizations, we assessed model fit based on the accuracy in reproducing the entire distribution of precipitation rather than in replicating individual records. 
 We present two assessment tools here. 
+
 The first is the quantile plot, which plots the sorted values of one distribution against the sorted values of another and visually checks for linearity. 
-This is shown as panel (c) in Figure 3 of the paper.
+This is shown as Figure 4(c) in the paper.
+
+```{r}
+## generate one stochastic realization of PRCP for every event in the historic catalog
+precip.qq <- 
+  generate_precip(
+    AR = catalog %>% transmute(n.AR = 1:nrow(.), IVT_max, duration, sm), 
+    model.prcp, se.prcp,
+    probabilistic = TRUE, n.precip = 1) %>% 
+  rename(precip_sim = precip_mm) %>% 
+  left_join(catalog %>% transmute(n.AR = 1:nrow(.), precip_obs = precip_mm),
+            by = 'n.AR')
+precip.max <- max(c(max(precip.qq$precip_sim), max(precip.qq$precip_obs)))
+
+## plot figure 4(c): quantile plot of observed vs. simulated precipitation for the historic catalog
+```
+
+```{r fig4c, echo = FALSE}
+g3 <- ggplot(precip.qq) + 
+  geom_point(aes(x = sort(precip_obs), y = sort(precip_sim)), size = 0.75) + 
+  coord_cartesian(xlim = c(NA, precip.max), ylim = c(NA, precip.max)) + 
+  scale_x_origin('Observed Precipitation Quantile (mm)') + 
+  scale_y_origin('Simulated Precipitation Quantile (mm)') + 
+  geom_parity() + coord_fixed(xlim = c(0, precip.max), ylim = c(0, precip.max))
+if (!publish) g3 
+
+```
+
 The second is the two-sample Kolmogorov-Smirnov (K-S) test, which is a formal test of fit. 
 If the simulated CDF is pulled from the same distribution as the observed CDF, then the distance $d$ between the two follows the K-S distribution, and the following is true: 
 
-$$ \mathrm{P} \left(d > 1.731\sqrt{\frac{2}{n}} \right) \approx 0.05 
-\to d_{crit} = 1.731\sqrt{\frac{2}{n}} $$
-where $n$ = the number of events in the historic catalog.
+$$ \mathrm{P} \left(d > 1.731\sqrt{\frac{2}{N}} \right) \approx 0.05 
+\to d_{crit} = 1.731\sqrt{\frac{2}{N}} $$
+where $N$ = the number of events in the historic catalog.
 
 We define the distance between the observed and simulated precipitation CDFs as $d_{PRCP}$ and perform a hypothesis test to determine whether $\frac{d_{PRCP}}{d_{crit}} \leq 1$ with 95\% confidence. 
 We repeat this process 100 times to account for the probabilistic nature of the simulation process and report the mean test statistic below.
@@ -471,32 +510,6 @@ mean(ks.value) %>% as.data.frame %>%
 
 ```
 
-```{r}
-## generate one stochastic realization of PRCP for every event in the historic catalog
-precip.qq <- 
-  generate_precip(
-    AR = catalog %>% transmute(n.AR = 1:nrow(.), IVT_max, duration, sm), 
-    model.prcp, se.prcp,
-    probabilistic = TRUE, n.precip = 1) %>% 
-  rename(precip_sim = precip_mm) %>% 
-  left_join(catalog %>% transmute(n.AR = 1:nrow(.), precip_obs = precip_mm),
-            by = 'n.AR')
-precip.max <- max(c(max(precip.qq$precip_sim), max(precip.qq$precip_obs)))
-
-## plot figure 4(c): quantile plot of observed vs. simulated precipitation for the historic catalog
-```
-
-```{r fig4c, echo = FALSE}
-g3 <- ggplot(precip.qq) + 
-  geom_point(aes(x = sort(precip_obs), y = sort(precip_sim)), size = 0.75) + 
-  coord_cartesian(xlim = c(NA, precip.max), ylim = c(NA, precip.max)) + 
-  scale_x_origin('Observed Precipitation Quantile (mm)') + 
-  scale_y_origin('Simulated Precipitation Quantile (mm)') + 
-  geom_parity() + coord_fixed(xlim = c(0, precip.max), ylim = c(0, precip.max))
-if (!publish) g3 
-
-```
-
 ```{r include = FALSE}
 # ## plot distribution of K-S statistic 
 # ggplot() + 
@@ -508,11 +521,13 @@ if (!publish) g3
 
 ```
 
+Based on a visual assessment of the quantile plot and the fact that the test statistic is much smaller than 1, we consider the fit of the precipitation component model as sufficient to accurately represent the historic catalog.
+
 ## Assess case study performance
 
 Once we have confirmed that the WLS regression model produces an accurate representation of the precipitation distribution, we can also consider how well it is able to reproduce the 2019 event. 
 We generate 1,000 realizations of precipitation given the observed maximum IVT and duration from the 2019 event, then compare that distribution to the true observed precipitation. 
-The results are included as panel (d) in the figure below. 
+The results are included as Figure 4(d) in the paper. 
 
 ```{r}
 ## generate 1,000 probabilistic realizations of PRCP for the 2019 event
@@ -568,12 +583,13 @@ ggsave('_figures/fig04_precip.png', width = 12, height = 12, units = 'cm', dpi =
 # $f(HC)$
 
 This component model represents the distribution of potential antecedent hydrologic conditions.
-In this implementation we are defining antecedent hydrologic conditions in terms of soil moisture, which is measured as the equivalent height of water (mm) in the top meter of the subsurface. 
+In this implementation we are using soil moisture as a proxy for antecedent hydrologic conditions.
+Soil moisture is measured as the equivalent height of water (mm) in the top meter of the subsurface. 
 
 ## Fit lognormal distribution to soil moisture
 
 We found that soil moisture records in the historic catalog were well represented by a lognormal distribution. 
-The parameters of the distribution are displayed below.
+The parameters of the distribution are displayed below, and the empirical vs. modeled distribution is shown in Figure 6(a).
 
 ```{r results = 'hide'}
 ## load antecedent hydrologic condition function(s)
@@ -625,7 +641,7 @@ if (!publish) g5
 
 ```
 
-```{r}
+```{r include = FALSE}
 ## find percentile of 2019 event
 plnorm(casestudy$sm, meanlog = fit.sm[1], sdlog = fit.sm[2])
 
@@ -633,69 +649,10 @@ plnorm(casestudy$sm, meanlog = fit.sm[1], sdlog = fit.sm[2])
 
 # $f(Q|PRCP, HC)$
 
-The next component model estimates streamflow $Q$ as a function of precipitation and soil moisture (antecedent hydrologic conditions). 
+The next component model estimates streamflow ($Q$) as a function of precipitation ($PRCP$) and soil moisture ($HC$). 
 From Equation 4 in the paper we know that $Q$ is a function of three parameters.
-These are $Q_p$, peak streamflow; $t_p$, time to peak streamflow; and $m$, a unitless shape parameter.
+These are: $Q_p$, peak streamflow; $t_p$, time to peak streamflow; and $m$, a unitless shape parameter.
 We discuss each of these in more detail. 
-
-## $t_p$ 
-
-Like the antecedent soil moisture, records of time to peak streamflow $t_p$ in the historic catalog were found to be well represented by a lognormal distribution. 
-The parameters of the distribution are displayed below.
-
-```{r results = 'hide'}
-## load streamflow functions(s)
-source('_scripts/4_Q/Q.R')
-
-## fit lognormal distribution to time to peak streamflow records in the historic catalog 
-fit_tp(catalog)
-
-## report parameters of lognormal distribution
-```
-
-```{r echo = FALSE}
-fit.tp %>% 
-  t %>% as.data.frame %>% 
-  gt %>% 
-  fmt_number(c('meanlog', 'sdlog'), n_sigfig = 4) %>% 
-  cols_label('meanlog' = 'Lognormal Mean', 'sdlog' = 'Lognormal Std. Dev.') %>% 
-  tab_header(title = 'Time to Peak Streamflow Parameters') %>% 
-  tab_options(heading.background.color = '#d9d9d9', 
-              column_labels.background.color = '#f2f2f2')
-
-```
-
-```{r}
-## plot panel 6(b): observed vs. simulated time to peak streamflow
-```
-
-```{r fig6b, echo = FALSE}
-g6 <- data.frame(dx = seq(0, 60, length.out = 1e3)) %>% 
-  mutate(fit = dlnorm(dx, meanlog = fit.tp[1], sdlog = fit.tp[2])) %>% 
-  ggplot() + 
-  geom_histogram(
-    data = catalog, 
-    aes(x = tp_hrs, y = ..density.., fill = 'Observed Historic Catalog'),
-    color = 'black', size = 0.25) + 
-  geom_line(aes(x = dx, y = fit, size = 'Lognormal Distribution')) + 
-  geom_vline(xintercept = casestudy$tp_hrs, linetype = 'dashed') + 
-  annotate(geom = 'text', 
-    x = casestudy$tp_hrs - 1.8, y = 0.0425, angle = 90,
-    label = '2019 Observed', family = 'Segoe UI', size = 8/.pt) + 
-  scale_fill_manual(values = 'grey90') + 
-  scale_size_manual(values = 0.5) + 
-  scale_x_origin('Time to Peak Streamflow @ USGS 11463500 (h)') + 
-  scale_y_origin('Probability of Occurrence') + 
-  theme(legend.title = element_blank())
-if (!publish) g6
-
-```
-
-```{r}
-## find percentile of 2019 event
-plnorm(casestudy$tp_hrs, meanlog = fit.tp[1], sdlog = fit.tp[2])
-
-```
 
 ## $Q_p$
 
@@ -705,10 +662,13 @@ In order to estimate $Q_p$, we first calculated runoff $R$ using the curve numbe
 
 $$ Q_{p,i} = \beta_0 + \beta_1 (PRCP_i) + \beta_2 (R_i) + \beta_3 (PRCP_i:R_i) + \sigma_i $$ 
 
-Similar to the preciptiation model, the uncertainty $\sigma_i$ is once again represented by a mixture model, with 90\% of errors based on the bulk distribution and 10\% of errors based on the 10\% most extreme AR events in the historic catalog.
+Similar to the precipitation model, the uncertainty $\sigma_i$ is once again represented by a mixture model, with 90\% of errors based on the bulk distribution and 10\% of errors based on the 10\% most extreme AR events in the historic catalog.
 Model coefficients are shown below.
 
 ```{r results = 'hide'}
+## load streamflow functions(s)
+source('_scripts/4_Q/Q.R')
+
 ## fit peak streamflow regression
 fit_Qp(catalog)
 
@@ -734,15 +694,52 @@ model.Qp$coefficients %>%
 ### Assess distribution fit
 
 We follow the same process as the precipitation component model to fit and validate this equation. 
-We present both a quantile plot for visual inspection and a formal two-sample K-S test to validate the fit of the overall peak streamflow distribution as compared to the historic catalog. 
+We present both a quantile plot for visual inspection in Figure 5(a) and a formal two-sample K-S test to validate the fit of the overall peak streamflow distribution as compared to the historic catalog. 
+
+```{r results = 'hide', echo = FALSE}
+## fit lognormal distribution to time to peak streamflow records in the historic catalog 
+fit_tp(catalog)
+
+```
+
+```{r}
+## generate one stochastic realization of Qp for every event in the historic catalog
+runoff.qq <- fit_generate_runoff(
+  precip = catalog %>% 
+    transmute(n.AR = 1:nrow(.), n.precip = 1, n.hc = 1, IVT_max, duration, precip_mm, sm), 
+  catalog = catalog, probabilistic = TRUE)
+hydro.qq <- generate_hydrograph(
+  runoff = runoff.qq, 
+  model.Qp = model.Qp, se.Qp = se.Qp, fit.tp = fit.tp, 
+  probabilistic = TRUE) %>% 
+  rename(Qp_sim = Qp_m3s) %>% 
+  left_join(
+    catalog %>% 
+      transmute(n.AR = 1:nrow(.), n.precip = 1, n.hc = 1, n.runoff = 1, n.hydro = 1, Qp_obs = Qp_m3s), 
+            by = c('n.AR', 'n.precip', 'n.hc', 'n.runoff', 'n.hydro'))
+hydro.max <- max(c(max(hydro.qq$Qp_obs), max(hydro.qq$Qp_sim)))
+
+## plot panel 5(a): quantile plot of observed vs. simulated peak streamflow for the historic catalog
+```
+
+```{r fig5a, echo = FALSE}
+g7 <- ggplot(hydro.qq) + 
+  geom_point(aes(x = sort(Qp_obs), y = sort(Qp_sim)), size = 0.75) + 
+  geom_parity() + 
+  coord_cartesian(xlim = c(NA, hydro.max), ylim = c(NA, hydro.max)) + 
+  scale_x_continuous(
+    expression(paste('Observed ', Q[p], ' Quantile (', m^{3}, s^{-1}, ')')), 
+    expand = expansion(mult = c(0, 0.05)), labels = comma) + 
+  scale_y_continuous(
+    expression(paste('Simulated ', Q[p], ' Quantile (', m^{3}, s^{-1}, ')')), 
+    expand = expansion(mult = c(0, 0.05)), labels = comma)
+if (!publish) g7
+
+```
 
 ```{r}
 ## determine d.crit, the value of the 95% confidence threshold
 d.crit <- 1.731 * sqrt(2/nrow(catalog))
-
-# precip.qq <- catalog %>%
-#   transmute(n.AR = 1:nrow(.), n.precip = 1, n.hc = 1, IVT_max, duration, precip_mm, sm)
-# precip.qq <- generate_soilmoisture(precip = precip.qq, catalog = catalog, probabilistic = FALSE)
 
 ## calculate the K-S statistic for 100 simulations
 n <- 100
@@ -810,60 +807,86 @@ mean(ks.value) %>% as.data.frame %>%
 
 ```
 
-```{r}
-## generate one stochastic realization of Qp for every event in the historic catalog
-runoff.qq <- fit_generate_runoff(
-  precip = catalog %>% 
-    transmute(n.AR = 1:nrow(.), n.precip = 1, n.hc = 1, IVT_max, duration, precip_mm, sm), 
-  catalog = catalog, probabilistic = TRUE)
-hydro.qq <- generate_hydrograph(
-  runoff = runoff.qq, 
-  model.Qp = model.Qp, se.Qp = se.Qp, fit.tp = fit.tp, 
-  probabilistic = TRUE) %>% 
-  rename(Qp_sim = Qp_m3s) %>% 
-  left_join(
-    catalog %>% 
-      transmute(n.AR = 1:nrow(.), n.precip = 1, n.hc = 1, n.runoff = 1, n.hydro = 1, Qp_obs = Qp_m3s), 
-            by = c('n.AR', 'n.precip', 'n.hc', 'n.runoff', 'n.hydro'))
-hydro.max <- max(c(max(hydro.qq$Qp_obs), max(hydro.qq$Qp_sim)))
+The test statistic is still under 1, so once again this regression model is sufficient to accurately represent the peak streamflow distribution in the historic catalog.
 
-## plot panel 5(a): quantile plot of observed vs. simulated peak streamflow for the historic catalog
+## $t_p$ 
+
+Like the antecedent soil moisture, records of time to peak streamflow $t_p$ in the historic catalog were found to be well represented by a lognormal distribution. 
+The parameters of the distribution are displayed below, and the empirical vs. modeled distribution is shown in Figure 6(b).
+
+```{r results = 'hide'}
+## fit lognormal distribution to time to peak streamflow records in the historic catalog 
+fit_tp(catalog)
+
+## report parameters of lognormal distribution
 ```
 
-```{r fig5a, echo = FALSE}
-g7 <- ggplot(hydro.qq) + 
-  geom_point(aes(x = sort(Qp_obs), y = sort(Qp_sim)), size = 0.75) + 
-  geom_parity() + 
-  coord_cartesian(xlim = c(NA, hydro.max), ylim = c(NA, hydro.max)) + 
-  scale_x_continuous(
-    expression(paste('Observed ', Q[p], ' Quantile (', m^{3}, s^{-1}, ')')), 
-    expand = expansion(mult = c(0, 0.05)), labels = comma) + 
-  scale_y_continuous(
-    expression(paste('Simulated ', Q[p], ' Quantile (', m^{3}, s^{-1}, ')')), 
-    expand = expansion(mult = c(0, 0.05)), labels = comma)
-if (!publish) g7
+```{r echo = FALSE}
+fit.tp %>% 
+  t %>% as.data.frame %>% 
+  gt %>% 
+  fmt_number(c('meanlog', 'sdlog'), n_sigfig = 4) %>% 
+  cols_label('meanlog' = 'Lognormal Mean', 'sdlog' = 'Lognormal Std. Dev.') %>% 
+  tab_header(title = 'Time to Peak Streamflow Parameters') %>% 
+  tab_options(heading.background.color = '#d9d9d9', 
+              column_labels.background.color = '#f2f2f2')
+
+```
+
+```{r}
+## plot panel 6(b): observed vs. simulated time to peak streamflow
+```
+
+```{r fig6b, echo = FALSE}
+g6 <- data.frame(dx = seq(0, 60, length.out = 1e3)) %>% 
+  mutate(fit = dlnorm(dx, meanlog = fit.tp[1], sdlog = fit.tp[2])) %>% 
+  ggplot() + 
+  geom_histogram(
+    data = catalog, 
+    aes(x = tp_hrs, y = ..density.., fill = 'Observed Historic Catalog'),
+    color = 'black', size = 0.25) + 
+  geom_line(aes(x = dx, y = fit, size = 'Lognormal Distribution')) + 
+  geom_vline(xintercept = casestudy$tp_hrs, linetype = 'dashed') + 
+  annotate(geom = 'text', 
+    x = casestudy$tp_hrs - 1.8, y = 0.0425, angle = 90,
+    label = '2019 Observed', family = 'Segoe UI', size = 8/.pt) + 
+  scale_fill_manual(values = 'grey90') + 
+  scale_size_manual(values = 0.5) + 
+  scale_x_origin('Time to Peak Streamflow @ USGS 11463500 (h)') + 
+  scale_y_origin('Probability of Occurrence') + 
+  theme(legend.title = element_blank())
+if (!publish) g6
+
+```
+
+```{r include = FALSE}
+## find percentile of 2019 event
+plnorm(casestudy$tp_hrs, meanlog = fit.tp[1], sdlog = fit.tp[2])
 
 ```
 
 ## $m$
 
-A value of $m=4$ was chosen based on an inspection of observed hydrographs for the Russian River in Sonoma County, and on the recommendation of the National Engineering Handbook.
+A value of $m=4$ was chosen based on an inspection of observed hydrographs for the Russian River in Sonoma County and on the recommendation found in the National Engineering Handbook.
 
 ## Plot real vs. simulated streamflow hydrograph
 
-After validating the estimation and selection of $Q_p$, $t_p$, and $m$, we now assess how well the streamflow component model can replicate the 2019 case study event.
-We first generate simulated realizations of streamflow given the real precipitation and soil moisture, then compare the realizations to the true observed hydrograph.
+After validating the estimation of $Q_p$, $t_p$, and $m$, we now assess how well the streamflow component model can replicate the 2019 case study event.
+We first generate simulated realizations of streamflow given the real precipitation, then compare the realizations to the true observed hydrograph.
 
-### Load observed streamflow timeseries (hydrograph) for the 2019 event
+### Load observed streamflow hydrographs for the 2019 event
 
 We start by finding the true streamflow hydrograph for the 2019 event for comparison. 
-For this case study, streamflow was measured at USGS gage 11463500, which was defined as the inlet to the study area.  
+For this case study, streamflow was measured at USGS gage 11463500, which is at the inlet to the study area.  
 
 ```{r}
-## download real gauge info
-param <- c('00060', '00065'); names(param) <- c('discharge_cfs', 'gageht_ft')
-statcode <- c('00001', '00002', '00003', '00008'); names(statcode) <- c('max', 'min', 'mean', 'median')
-sites <- readNWISsite(11463500)
+## define parameters & statistics to request from USGS streamgage service
+param <- c('00060', '00065')
+names(param) <- c('discharge_cfs', 'gageht_ft')
+statcode <- c('00001', '00002', '00003', '00008')
+names(statcode) <- c('max', 'min', 'mean', 'median')
+
+## download real gauge information
 flow <- readNWISdata(
   sites = 11463500, parameterCd = param, 
   startDate = ymd(casestudy$start_day) - days(1), 
@@ -873,7 +896,8 @@ flow <- readNWISdata(
 
 ```
 
-### Generate simulated realizations of streamflow parameters for the 2019 event
+### Generate simulated realizations of streamflow parameters
+
 We then generate 1,000 realizations of peak streamflow $Q_p$ and time to peak streamflow $t_p$. 
 The hydrograph shape parameter $m$ is held constant. 
 
@@ -906,7 +930,7 @@ hydrograph <-
 ### Generate simulated hydrographs for the 2019 event
 
 Finally, we use our simulated parameters to construct synthetic hydrographs for the 2019 event. 
-These hydrographs are aggregated and the overall statistics of the timeseries distribution are shown in Figure 5.
+These hydrographs are aggregated and the overall statistics of the timeseries distribution are shown in Figure 5(b).
 
 ```{r}
 ## set constants
@@ -1003,35 +1027,33 @@ ggsave('_figures/fig06_lognormal.png', width = 8.3, height = 10, units = 'cm')
 
 # $f(INUN|Q)$
 
-This component model estimates inundation as a function of the streamflow hydrograph.
+This component model estimates inundation ($INUN$) as a function of the streamflow hydrograph ($Q$).
 This step includes a large increase in memory and computing requirements compared to the other component models, because each streamflow hydrograph (represented by three parameters) is transformed into inundation heights at thousands of building locations within the study area.
+
 The model used in this implementation is also much more complex than any of the other component models thus far.
+We used the hydrodynamic solver LISFLOOD as the base model to estimate inundation heights as a function of streamflow hydrographs. 
+The fit of the LISFLOOD model is explained in the `5a_run_lisflood` and `5b_run_bestfit` folders.
+We then applied a low-dimensional surrogate model to rapidly estimate inundation based on a pre-computed bank of LISFLOOD inundation maps, as explained in the `5d_populate_grid` and `5e_fit_surrogate` folders.
+We refer the user to these locations for more information about the fit and validation of the inundation component model.
+Here we focus on the results of the 2019 event case study, which are found in the `5c_run_2019event` folder.
 
-We used the hydrodynamic solver LISFLOOD as the base model to estimate inundation heights as a function of streamflow hydrographs.
-In the $rp100.Rmd$ script, we calibrated the LISFLOOD model such that the extent of inundation due to the 100-year streamflow matched the FEMA 100-year National Flood Hazard Layer.
-<!-- In the $surrogate.Rmd$ script, we fit a surrogate model to generate rapid inundation predictions and improve the speed of the overall framework implementation.  -->
-We refer the user to this file for more information about the fit and validation of the inundation model component, and here we focus on the results of the 2019 event case study.
-
-For the 2019 event, we looked at prediction accuracy in two ways. 
+For the 2019 event, we looked at prediction accuracy in three ways. 
 The first approach was to assess how well we were able to reproduce downstream hydrographs. 
 This is a "channel-focused" method that looks at the amount of water in the river at various points in time and space.
-The second approach was a "floodplain-focused" method that compared the number of dry vs. wet cells between the observed and simulated inundation maps. 
-Both of these approaches are explained in more detail below.
+The second approach is a "floodplain-focused" method that compares the number of dry vs. wet cells between the observed and simulated inundation maps. 
+The third and final approach is an "impact-focused" method that compared the number of inundated buildings. 
+Each of these approaches is explained in more detail below.
 
 ## Validate river channel 
 
 ### Load observed downstream hydrograph data
 
-We first identify the gages that are downstream of the study area inlet and that have either stage or discharge data for the 2019 storm.
-The locations of these gages are shown in the figure below.
-Figure 7(a) in the paper uses this figure as the base, and ID labels for each gage were added with the image editing software Inkscape.
+We first identify the gages that are downstream of the study area inlet and that have available either stage or discharge data for the 2019 storm.
+The locations of these gages are shown in the Figure 7(a) below.
+ID labels for each gage were added with the image editing software Inkscape.
 We then load the 2019 event hydrographs at each of these gages to use as the observed case in our case study comparison.
 
 ```{r}
-## define parameters & statistics to request from USGS streamgage service
-param <- c('00060', '00065'); names(param) <- c('discharge_cfs', 'gageht_ft')
-statcode <- c('00001', '00002', '00003', '00008'); names(statcode) <- c('max', 'min', 'mean', 'median')
-
 ## identify gages of interest based on geography
 gages <- whatNWISsites(stateCd = '06', countyCd = '097') %>% 
   filter(grepl('RUSSIAN', station_nm)) %>% 
@@ -1077,14 +1099,14 @@ ggsave('_figures/fig07/fig07_map.png', width = 6, height = 8, units = 'cm')
 
 ### Load simulated downstream hydrograph data
 
-We used the observed streamflow hydrograph at USGS gage 11463500 as input to LISFLOOD to generate simulated hydrographs at each of the gages in interest.
+We used the observed streamflow hydrograph at USGS gage 11463500 as input to LISFLOOD to generate simulated hydrographs at each of the gages of interest.
 The LISFLOOD model was run using Sherlock, Stanford's high-performance computing cluster.
-Details about this process can be found in the $sherlock\_casestudy$ folder. 
 
 ```{r}
 ## load simulated stage data
 stage <-
-  read.table('_sensitivity/sherlock_casestudy/results/casestudy.stage', skip = 11) %>%
+  read.table(
+    '_scripts/5_INUN/fit_inundation/5c_run_2019event/results/casestudy.stage', skip = 11) %>%
   setNames(c('t', gages$site_no)) %>%
   pivot_longer(cols = -t, names_to = 'site_no', values_to = 'h') %>%
   mutate(dateTime = flow.obs$dateTime[1] + seconds(t)) %>%  # 
@@ -1097,11 +1119,11 @@ stage <-
 ### Plot observed vs. simulated hydrographs at gages of interest 
 
 We use the stage data output from LISFLOOD, then manually correct the vertical datums of the gages to be in NAVD88 (Geoid 12A), which is the vertical datum of the LISFLOOD elevation file. 
-We then plot observed vs. simulated stage height for the duration of the 2019 event, which is the figure below and Figure 7(b) in the paper.
+We then plot observed vs. simulated stage height for the duration of the 2019 event, which is Figure 7(b) in the paper.
 
 ```{r}
 ## calculate gage elevation from LISFLOOD DEM
-bed <- raster('_sensitivity/sherlock_casestudy/results/casestudy_SGC_bedZ.asc', 
+bed <- raster('_scripts/5_INUN/fit_inundation/5c_run_2019event/results/casestudy_SGC_bedZ.asc', 
               crs = projection(aoi))
 bed[][bed[]>1e9] <- NA
 gages.elev <- gages %>%
@@ -1163,30 +1185,32 @@ ggsave('_figures/fig07/fig07_timeseries.png', width = 6, height = 12, units = 'c
 ## Validate floodplain
 
 For the 2019 event, the "observed" data is not the exact inundation recorded due to this AR, but instead it is the closest-matching inundation map from a series of detailed inundation predictions released by the Sonoma County Permit and Resource Management Department (referred to as the Sonoma GIS map).
-The simulated data is the inundation map in the $sherlock\_casestudy$ folder.
+The simulated data is the inundation map in the `5c_run_2019event` folder.
 
 ### Load "observed" and simulated inundation maps
 
 ```{r}
+## load "observed" inundation map
+source('_data/flood_sonoma/flood_sonoma.R')
+flood.sonoma <- flood_sonoma(45)*0.64 + flood_sonoma(46)*0.36
+
 ## load simulated inundation map
-lisflood <- raster('_sensitivity/sherlock_casestudy/results/casestudy.max',
+lisflood <- raster('_scripts/5_INUN/fit_inundation/5c_run_2019event/results/casestudy.max',
                    crs = projection(aoi)) %>% 
   overlay(dem.hydro, fun = function(x,y) ifelse(y < 1, NA, x))
 lisflood.df <- lisflood %>% raster.df %>% filter(value > 0)
 
-## load "observed" inundation map
-source('_data/flood_sonoma/flood_sonoma.R')
-flood.sonoma <- flood_sonoma(45)*0.64 + flood_sonoma(46)*0.36
+## match raster extents
 flood.df <- flood.sonoma %>%
   projectRaster(lisflood) %>%
   raster.df %>% filter(value > 0)
 
 ```
 
-### Plot "observed" and simulated inundation maps
+### Plot "observed" vs. simulated inundation maps
 
-We compare these two maps on a binary basis and calculate how often our simulated map is able to correctly reproduce wet vs. dry cells compared to the Sonoma GIS map.
-Figure 7(c) below shows the spatial distribution of wet vs. dry accuracy within the extent of the Sonoma GIS model, indicated by the dotted line. 
+We compare these two maps on a binary basis and calculate how often our simulated map is able to correctly reproduce wet vs. dry cells compared to the Sonoma GIS "observed" map.
+Figure 7(c) below shows the spatial distribution of wet vs. dry accuracy within the extent of the Sonoma GIS model, which is indicated by the dotted line. 
 
 ```{r}
 ## define the spatial extent of the Laguna de Santa Rosa 
@@ -1247,7 +1271,8 @@ ggsave('_figures/fig07/fig07_floodmap.png', width = 6, height = 9, units = 'cm')
 ### Calculate accuracy of "observed" vs. simulated wet/dry prediction
 
 We chose three wet vs. dry metrics: hit rate (which penalizes false negatives), false alarm ratio (which penalizes false positives), and the critical success index (which balances over- vs. under-prediction). 
-These metrics were used by Wing et al. (2020) and First Street Foundation for fitting a nationwide flood inundation model.
+These metrics were used by Wing et al. (2017) and First Street Foundation for fitting a nationwide flood inundation model.
+More information can be found in the `5a_run_bestfit` folder.
 
 ```{r}
 ## calculate accuracy statistics based on confusion matrix
@@ -1285,14 +1310,15 @@ data.frame(
   
 ```
 
-### Validate number of inundated buildings
+## Validate number of inundated buildings
 
 The accuracy statistics presented above consider the entire map with equal importance. 
 However, because the density of residential housing is not constant over the study area, these inundation depths do not have equal impacts.
-Therefore we also considered the total number of inundated buildings as a final validation metric.
-We also have an additional data point to consider.
+Therefore we also consider the total number of inundated buildings as a final validation metric.
+
+Here we compare the number of inundated buildings in the "observed" vs. simulated case, but we also have one additional data point to consider.
 We described earlier how the "observed" (Sonoma GIS) inundation map is not directly tied to the flooding experienced during the 2019 event. 
-News articles following the 2019 event estimated that about 1,900 homes saw at least some level of nonzero inundation. 
+News articles following the 2019 event estimated that about 1,900 homes saw at least some level of nonzero inundation, which is information that is directly related to the case study event under consideration. 
 We compare that number to the estimated number of inundated buildings both in the "observed" map and in the simulated map, as seen in the table below.
 
 ```{r echo = FALSE}
@@ -1385,17 +1411,17 @@ c(simulated = Sum(terra::extract(rast(flood.map), buildings.coord) >= 0),
 
 # $f(DM|INUN)$
 
-The next component model in the framework is the estimation of building damage.
-We have implemented this component model by using depth damage curves. 
+The next component model in the framework is the estimation of building damage ($DM$) as a function of first floor water level.
+We have implemented this component model by using depth-damage curves. 
 Because of the significant uncertainty in predicting damage as a function of flood depth alone, we use two different depth-damage relationships: one from Hazus-MH and one from Wing et al. (2020).
-We refer the user to the paper for a discussion of the merits of each one.
 
 ## Select depth-damage relationships
 
 Hazus-MH uses deterministic, monotonic depth-damage relationships. 
 Curves are chosen based on (a) the number of stories and (b) whether or not there is a basement present. 
 On the other hand, the Wing et al. (2020) depth-damage relationships only consider depth, but are probabilistic functions represented by the beta distribution. 
-A visual comparison of the two curves at different flood heights is included in the figure below, which is Figure 8(a) in the paper. 
+A visual comparison of the two curves at different flood heights is included in Figure 8(a) in the paper. 
+We refer the user to the paper for a discussion of the merits of each one.
 
 ```{r}
 ## plot panel 8(a): comparison of HAZUS vs. Wing et al. (2020) distributions
@@ -1444,9 +1470,9 @@ if (!publish) g13
 ## Load "observed" damage data
 
 We were unable to identify any direct damage data for the 2019 event. 
-Instead, we are using safety tags from the Sonoma County Rapid Evaluation Safety Assessment (RESA) that were assigned to buildings immediately after the 2019 event. 
-The table below summarizes the 
+Instead we are using safety tags from the Sonoma County Rapid Evaluation Safety Assessment (RESA) that were assigned to buildings immediately after the 2019 event. 
 The paper discusses some of the implications and limitations of this proxy.
+The table below (Table 2 in the paper) summarizes the number of buildings with nonzero first floor water levels, broken out by the status of the RESA tag.
 
 ```{r}
 ## calculate aggregated tag/safety categories
@@ -1495,10 +1521,13 @@ buildings %>%
 
 ## Plot damages by safety category and by depth-damage relationship
 
-We generated 1,000 realizations of damage for the inundation heights reported in the Sonoma GIS map. 
+We generated 1,000 realizations of damage for the inundation heights reported by the Sonoma GIS map. 
 The results of this process are summarized in Figure 8(b) below. 
 
 ```{r results = 'hide'}
+## load depth-damage function(s)
+source('_scripts/6_DM/DM.R')
+
 ## format existing inundation info for f(DM|INUN) function
 wet.bldg <- which(buildings$inun > 0)
 inundation <- list(matrix(buildings$inun[wet.bldg]))
@@ -1522,9 +1551,6 @@ flemo <- flemo %>%
   summarize(damage_min = Min(damage_pct),
             damage_mean = Mean(damage_pct),
             damage_max = Max(damage_pct))
-
-## load depth-damage function(s)
-source('_scripts/6_DM/DM.R')
 
 ## calculate damage using the Wing et al. (2020) relationships
 cl <- parallel::makeCluster(num_cores)
@@ -1607,4 +1633,4 @@ ggsave('_figures/fig08_damage.png', width = 8.3, height = 10, units = 'cm')
 # $f(DV|DM)$
 
 The final component model in the PARRA framework is not directly validated as part of this case study, because we do not have building-level damage data to use as input and we do not have building-level loss data to validate our predictions against. 
-Please see the script $lossexceedance.Rmd$ for calculations related to the next portion of the paper. 
+Please see the script `results.Rmd` for calculations related to the next portion of the paper. 
