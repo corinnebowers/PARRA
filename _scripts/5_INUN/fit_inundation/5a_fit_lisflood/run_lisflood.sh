@@ -19,7 +19,7 @@ n=$(wc -l samples_lisflood.txt | cut -f1 -d ' ')
 let "n-=1"
 
 ## submit lisflood jobs within for loop
-for i in $(seq 394 $n)
+for i in $(seq 753 $n)
 do \
   plusone=$(expr $i + 1)
   line=$(tail -n+$plusone samples_lisflood.txt | head -n1)
@@ -67,7 +67,7 @@ do \
 
   ## wait for queue to clear a bit
   jobs=$(squeue -u cbowers -t PENDING | wc -l)
-  while [ $jobs -gt 10 ]
+  while [ $jobs -gt 50 ]
   do
     sleep 1m 
     jobs=$(squeue -u cbowers -t PENDING | wc -l)

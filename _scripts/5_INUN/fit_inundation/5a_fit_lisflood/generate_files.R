@@ -40,7 +40,7 @@ num_cores <- as.numeric(Sys.getenv("SLURM_CPUS_PER_TASK"))
 
 #### define user input parameters #################################################################
 
-n <- 500		        #number of LHS samples
+n <- 1000		        #number of LHS samples
 hydrolength <- 30*24*3600	#length of LISFLOOD hydrograph (s)
 spinup <- 30*24*3600  		#LISFLOOD simulation spin-up time (s)
 baseflow <- 3  			#baseflow @ USGS 11463500 (m3/s)

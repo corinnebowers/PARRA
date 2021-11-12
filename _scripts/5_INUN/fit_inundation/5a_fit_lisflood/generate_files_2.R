@@ -33,7 +33,7 @@ num_cores <- as.numeric(Sys.getenv("SLURM_CPUS_PER_TASK"))
 
 #### define user input parameters #################################################################
 
-n <- 500		        #number of LHS samples
+n <- 1000		        #number of LHS samples
 baseflow <- 3  			#baseflow @ USGS 11463500 (m3/s)
 Qp <- 112000 / (mft^3)  	#peak streamflow @ USGS 11463500 (m3/s)
 
@@ -47,7 +47,7 @@ print('identifying incomplete simulations...')
 
 ## remove simulations that errored out in Sherlock
 files <- list.files('results/max')
-zip <- which(files == 'maxes.zip')
+zip <- grep('fitrp', files, invert = TRUE)
 files <- files[-zip]
 sims <- files %>% str_remove('fitrp') %>% str_remove('.max') %>% toNumber
 bad1 <- (1:n)[!(1:n %in% sims)]

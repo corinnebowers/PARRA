@@ -1,0 +1,732 @@
+---
+title: "fit_lisflood"
+output:
+  html_document:
+    toc: true 
+    toc_float: true
+    #toc_depth: 3  
+    code_folding: hide
+    number_sections: true 
+    theme: spacelab   #https://www.datadreaming.org/post/r-markdown-theme-gallery/
+    highlight: tango  #https://www.garrickadenbuie.com/blog/pandoc-syntax-highlighting-examples/
+---
+
+```{r setup, include = FALSE}
+## setup
+knitr::opts_knit$set(root.dir = 'D:/1-PARRA/')
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+knitr::opts_chunk$set(fig.show = 'hold', fig.align = 'center')
+rm(list = ls())
+
+```
+
+```{r message = FALSE}
+## setup information
+source('_data/setup.R')
+source('_data/plots.R')
+
+## set random seed for reproducibility
+set.seed(2021)
+
+## set parallel backend
+num_cores <- 5
+
+## load location information
+load('_data/lisflood/dem.Rdata')
+load('_data/aoi/aoi.Rdata')
+
+## load NFHL "observed" data
+load('_data/NFHL/NFHL.Rdata')
+
+## load support functions for this markdown files
+source('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/fit_lisflood_functions.R')
+
+```
+
+```{r echo = FALSE}
+## should figures be saved out for the publication?
+publish <- FALSE
+
+if (!publish) {
+  theme_set(
+    theme_classic() + theme(
+      text = element_text(family = 'Segoe UI', size = 12),
+      axis.line = element_line(size = 0.5),
+      axis.ticks = element_line(size = 0.5, color = 'black'),
+      legend.key.size = unit(0.5, 'cm')))
+  }
+
+```
+
+
+# Determine accuracy metrics
+
+The next goal is to determine some measure of accuracy, i.e. how well the LISFLOOD simulations are able to recreate the "true" case. 
+In this case the data used as a source of truth is the Federal Emergency Management Program (FEMA) 100-year floodplain as downloaded from the National Flood Hazard Layer (NFHL). 
+This is a fairly standard practice for validating flood models, such as the one used by First Street Foundation (Wing et al., 2020).
+We estimated the peak inflow at USGS gage 11463500 to be $Q_p = 112,000 \; cfs = 3,171 \; m^3/s$ using the USGS StreamStats tool. 
+This value is fixed, and several other parameters are varied to find the best-fit LISFLOOD model. 
+We consider twenty different parameters that can be changed in the LISFLOOD model to modify the resulting inundation map.
+A table of these parameters and the values considered for each parameter is included below.
+
+We then compare these 1,000 simulated inundation maps to the FEMA NFHL using two different accuracy metrics: the critical success ratio (fstat) and the Hausdorff distance (hausdorff). 
+The critical success ratio is a the ratio of correctly predicted flood cells (i.e. true positives) over all flood cells (i.e. true positives + true negatives + false positives). 
+This produces a balanced measure of over- vs. under-prediction. 
+The Hausdorff distance is a spatial measure of how well the shape of the simulated floodplain matches the shape of the FEMA NFHL. 
+It is important to note that both of these accuracy metrics are meant to measure the goodness-of-fit of binary (i.e. wet/dry) outcomes. 
+While LISFLOOD outputs a flood depth at every location, the NFHL data does not provide this information, and therefore all validation was performed only on the quality of the fit between the "true" vs. simulated 100-year flood extents. 
+
+
+## Compute accuracy metrics (critical success ratio & Hausdorff distance) for each inundation map
+```{r accuracy}
+## load simulated data
+samples.rp100 <-
+  read.table('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/samples_lisflood.txt', header = TRUE)
+vars <- names(samples.rp100)
+N <- nrow(samples.rp100)
+id <- read.table('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/id.txt') %>%
+  unlist %>% unname
+sim.list <- (1:N)[!(1:N %in% id)]
+
+## compute accuracy metrics
+start <- Sys.time()
+# pb <- txtProgressBar(min = 0, max = N, style = 3)
+cl <- parallel::makeCluster(num_cores)
+registerDoSNOW(cl)
+accuracy <-
+  foreach(i = sim.list, .inorder = FALSE,
+    .combine = 'rbind', .export = c('confusion', 'binary'),
+    # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+    .packages = c('raster', 'dplyr', 'pracma')) %dorng% {
+
+      ## load LISFLOOD inundation map
+      sim <- paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', i, '.max') %>%
+        raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+
+      ## calculate confusion matrix
+      tb <- overlay(obs, sim, fun = confusion)[] %>% table
+
+      ## calculate Hausdorff distance
+      hd <- hausdorff_dist(binary(sim), as.matrix(obs))
+
+      ## save metrics as dataframe
+      c(id = i,
+        hitrate = unname(tb['0'] / (tb['-1'] + tb['0'])),
+        falsalarm = unname(tb['1'] / (tb['0'] + tb['1'])),
+        fstat = unname(tb['0'] / sum(tb)),
+        bias = unname(tb['1'] / tb['-1']),
+        hausdorff = hd)
+    }
+stopCluster(cl)
+Sys.time() - start
+
+## save checkpoint
+save(accuracy, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/accuracy.Rdata')
+# load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/accuracy.Rdata')
+
+## join to samples dataframe
+samples.rp100 <- samples.rp100 %>%
+  mutate(id = 1:nrow(.)) %>% 
+  left_join(data.frame(accuracy), by = 'id')
+
+```
+
+
+# Attempt model falsification 
+
+The third goal is to attempt model falsification. 
+This process helps us to understand whether or not the parameter ranges we have chosen are reasonable, and whether the LISFLOOD model with the chosen parameter ranges is even capable of reproducing the FEMA NFHL under best-case circumstances. 
+We do this with multi-dimensional scaling (MDS). 
+We create a matrix where the "distance" (inverse of accuracy) is measured between every pair of simulations, then we reduce the dimensionality of that matrix so that it can be displayed on a 2D plot. 
+If the point representing the FEMA NFHL map falls outside of the point cloud representing the suite of LISFLOOD simulations, then the parameter ranges and the model are such that it will never be able to perfectly reproduce the "true" case, and the model is falsified. 
+If the point representing the FEMA NFHL map falls within the simulation point cloud then the model is deemed acceptable. 
+
+As mentioned in the previous section, we have 1,000 LISFLOOD simulations. 
+There is substantial similarity between the inundation maps for these simulations, and creating a $1000 \times 1000$ distance matrix is computationally expensive. 
+Therefore we first use k-means clustering to identify 100 representative simulations and perform the MDS falsification process with that reduced set. 
+
+## Cluster LISFLOOD simulations to reduce computational demand
+```{r mds.clusters}
+## run k-means clustering algorithm
+n <- 50
+samples.k <- samples.rp100 %>%
+  filter(complete.cases(.)) %>%
+  mutate(bias.odds = bias / (1 + bias),
+         hausdorff = hausdorff/max(hausdorff)) %>%
+  select(hitrate, falsalarm, fstat, bias.odds, hausdorff) %>%
+  kmeans(centers = n, iter.max = 1e3, nstart = 100, trace = FALSE)
+samples.rp100$mds.cluster[complete.cases(samples.rp100)] <- samples.k$cluster
+
+## find the best-fitting simulation within each cluster
+cluster.id <- samples.rp100 %>%
+  mutate(test = hausdorff/Max(hausdorff) + (1-fstat)) %>%
+  group_by(mds.cluster) %>%
+  summarize(id = id[which.min(test)], .groups = 'drop') %>% pull(id)
+
+## save checkpoint
+save(samples.rp100, cluster.id,
+     file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/samples_cluster.Rdata')
+# load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/samples_cluster.Rdata')
+
+```
+
+## Create distance matrix based on critical success ratio
+```{r dist.fstat}
+## generate matrix
+start <- Sys.time()
+# pb <- txtProgressBar(min = 0, max = n, style = 3)
+cl <- parallel::makeCluster(num_cores)
+registerDoSNOW(cl)
+fstat <-
+  foreach(i = 1:n,
+    .combine = 'rbind', .export = 'confusion',
+    # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+    .packages = c('raster', 'dplyr', 'pracma', 'foreach')) %dorng% {
+      sim.i <-
+        paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', cluster.id[i], '.max') %>%
+        raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+      foreach(j = 1:n, .combine = 'c') %do% {
+        if (i >= j) 0 else {
+          sim.j <-
+            paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', cluster.id[j], '.max') %>%
+            raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+          tb <- overlay(sim.i, sim.j, fun = confusion)[] %>% table
+          1 - tb['0']/sum(tb)
+        }
+      }
+    }
+stopCluster(cl)
+Sys.time() - start
+
+## add "observed" NFHL point
+fstat <- fstat %>%
+  cbind(1-samples.rp100$fstat[cluster.id]) %>%
+  rbind(rep(0, n+1))
+
+## format matrix for MDS
+fstat <- fstat + t(fstat)
+
+## save checkpoint
+save(fstat, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/fstat.Rdata')
+# load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/fstat.Rdata')
+
+```
+
+## Create distance matrix based on Hausdorff distance
+```{r dist.hausdorff}
+## generate matrix
+start <- Sys.time()
+# pb <- txtProgressBar(min = 0, max = n, style = 3)
+cl <- parallel::makeCluster(num_cores)
+registerDoSNOW(cl)
+hausdorff <-
+  foreach(i = 1:n,
+    .combine = 'rbind', .export = 'binary',
+    # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+    .packages = c('raster', 'dplyr', 'pracma', 'foreach')) %dorng% {
+      sim.i <-
+        paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', cluster.id[i], '.max') %>%
+        raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+      foreach(j = 1:n, .combine = 'c') %do% {
+        if (i >= j) 0 else {
+          sim.j <-
+            paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', cluster.id[j], '.max') %>%
+            raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+          hausdorff_dist(binary(sim.i), binary(sim.j))
+        }
+      }
+    }
+stopCluster(cl)
+Sys.time() - start
+
+## add "observed" NFHL point
+hausdorff <- hausdorff %>%
+  cbind(samples.rp100$hausdorff[cluster.id]) %>%
+  rbind(rep(0, n+1))
+
+## format matrix for MDS
+hausdorff <- hausdorff + t(hausdorff)
+
+## save checkpoint
+save(hausdorff, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/hausdorff.Rdata')
+# load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/hausdorff.Rdata')
+
+```
+
+## Perform multi-dimensional scaling (MDS) on distance matrices
+```{r mds}
+## compute MDS values
+mds.fstat <- cmdscale(fstat, eig = TRUE, k = 0.8*n)
+mds.hd <- cmdscale(hausdorff, eig = TRUE, k = 0.8*n)
+
+## scale eigenvalues to represent % variance explained
+mds.fstat$var <- abs(mds.fstat$eig)/sum(abs(mds.fstat$eig))
+mds.hd$var <- abs(mds.hd$eig)/sum(abs(mds.hd$eig))
+
+## determine how many dimensions it requires to get to 90% of variance explained
+mds.fstat$dim90 <- min(which(cumsum(mds.fstat$var) > 0.9))
+mds.hd$dim90 <- min(which(cumsum(mds.hd$var) > 0.9))
+
+## plot first two MDS dimensions
+```
+
+```{r plot.mds, echo = FALSE, warning = FALSE}
+g1 <- ggplot(data.frame(mds.fstat$points[,1:2]) %>% 
+         setNames(c('x', 'y')) %>% 
+         mutate(num = 1:(n+1))) +
+  geom_point(aes(x=x, y=y, color = num==n+1, size = num==n+1), show.legend = FALSE) + 
+  scale_color_manual(values = c('black', 'red')) + 
+  scale_size_manual(values = c(1.5, 3)) + 
+  labs(x = paste0('Dimension 1 (', percent(mds.fstat$var[1], accuracy = 0.1), ')'),
+       y = paste0('Dimension 2 (', percent(mds.fstat$var[2], accuracy = 0.1), ')')) +
+  ggtitle('MDS Scatterplot (2D)', subtitle = 'Critical Success Index')
+g2 <- ggplot(data.frame(mds.hd$points[,1:2]) %>% 
+         setNames(c('x', 'y')) %>% 
+         mutate(num = 1:(n+1))) +
+  geom_point(aes(x=x, y=y, color = num==n+1, size = num==n+1), show.legend = FALSE) + 
+  scale_color_manual(values = c('black', 'red')) + 
+  scale_size_manual(values = c(1.5, 3)) + 
+  labs(x = paste0('Dimension 1 (', percent(mds.hd$var[1], accuracy = 0.1), ')'),
+       y = paste0('Dimension 2 (', percent(mds.hd$var[2], accuracy = 0.1), ')')) +
+  ggtitle('MDS Scatterplot (2D)', subtitle = 'Hausdorff Distance')
+ggarrange(g1, g2, ncol = 2)
+
+```
+
+```{r plot.mds.extra, include = FALSE}
+# ## plot first five MDS dimensions
+# xmin.fstat <- mds.fstat$points[,1:5] %>% apply(2, min) %>% min
+# g3 <- mds.fstat$points[,1:5] %>% 
+#   as.data.frame %>% 
+#   mutate(num = 1:(n+1)) %>%
+#   pivot_longer(cols = -num, names_to = 'dim') %>% 
+#   mutate(dim = toNumber(gsub('V', '', dim))) %>% 
+#   mutate(dim = factor(dim, levels = 5:1)) %>% 
+#   ggplot() + 
+#   geom_boxplot(aes(x = value, y = dim, group = dim)) + 
+#   geom_point(data = . %>% filter(num==n+1), aes(x = value, y = dim), 
+#              color = 'red', size = 3) + 
+#   geom_text(data = data.frame(dim = 5:1, var = cumsum(mds.fstat$var[1:5])) %>% 
+#                mutate(var = percent(var, accuracy = 0.1)), 
+#              aes(x = xmin.fstat*1.2, y = dim, label = var), family = 'Segoe UI', size = 3.5) + 
+#   coord_cartesian(xlim = c(xmin.fstat*1.21, NA)) + 
+#   # annotate('text', x = xmin.fstat*1.1, y = 3, label = 'Cumulative Variance \nExplained', 
+#   #          family = 'Segoe UI', angle = 90) + 
+#   theme(axis.line.y = element_blank(), axis.title = element_blank(),
+#         axis.text.y = element_text(face = 'bold', color = 'black')) + 
+#   ggtitle('MDS Distribution (5D)', subtitle = 'Critical Success Index')
+# xmin.hd <- mds.hd$points[,1:5] %>% apply(2, min) %>% min
+# g4 <- mds.hd$points[,1:5] %>% 
+#   as.data.frame %>% 
+#   mutate(num = 1:(n+1)) %>%
+#   pivot_longer(cols = -num, names_to = 'dim') %>% 
+#   mutate(dim = toNumber(gsub('V', '', dim))) %>% 
+#   mutate(dim = factor(dim, levels = 5:1)) %>% 
+#   ggplot() + 
+#   geom_boxplot(aes(x = value, y = dim, group = dim)) + 
+#   geom_point(data = . %>% filter(num==n+1), aes(x = value, y = dim), 
+#              color = 'red', size = 3) + 
+#   geom_text(data = data.frame(dim = 5:1, var = cumsum(mds.hd$var[1:5])) %>% 
+#                mutate(var = percent(var, accuracy = 0.1)), 
+#              aes(x = xmin.hd*1.2, y = dim, label = var), family = 'Segoe UI', size = 3.5) + 
+#   coord_cartesian(xlim = c(xmin.hd*1.21, NA)) + 
+#   # annotate('text', x = xmin.hd*1.1, y = 3, label = 'Cumulative Variance \nExplained', 
+#   #          family = 'Segoe UI', angle = 90) + 
+#   theme(axis.line.y = element_blank(), axis.title = element_blank(),
+#         axis.text.y = element_text(face = 'bold', color = 'black')) + 
+#   ggtitle('MDS Distribution (5D)', subtitle = 'Hausdorff Distance')
+# ggarrange(g3, g4, nrow = 2)
+
+## plot % variance explained
+# ggplot() +
+#   geom_step(data = data.frame(var = cumsum(mds.fstat$var)) %>%
+#               mutate(dim = 1:nrow(.)) %>% rbind(c(0,0), .),
+#              aes(x = dim, y = var, col = 'fstat'), size = 1) +
+#   geom_step(data = data.frame(var = cumsum(mds.hd$var)) %>%
+#               mutate(dim = 1:nrow(.)) %>% rbind(c(0,0), .),
+#              aes(x = dim, y = var, col = 'hausdorff'), size = 1) +
+#   geom_hline(yintercept = 0.9, linetype = 'dashed') +
+#   scale_x_origin('MDS Dimension', breaks = seq(0, n, 10)) +
+#   scale_y_origin('Cumulative Variance Explained') +
+#   theme(panel.grid.major.x = element_line(color = 'grey90')) +
+#   scale_color_manual('Accuracy \nMetric', values = c('black', 'grey70'))
+## not really sure how to interpret this --> leave it out
+
+```
+
+In the plots above, we see that the FEMA NFHL point falls within the range of and/or along the line of LISFLOOD simulations using both the critical success ratio and the Hausdorff distance as metrics. 
+Therefore we are unable to falsify the model and we assume that the parameter ranges we have chosen are reasonable. 
+
+
+# Examine parameter sensitivity
+
+The next task to determine which of the twenty parameters of interest actually have a significant effect on the resulting inundation maps using regional sensitivity analysis (RSA). 
+The RSA process is as follows: 
+
+* Use k-means clustering to divide the MDS sample space into a specified number of classes.
+* For each parameter, look at the frequency distributions of the full sample set vs. the individual classes.
+* Use a bootstrapped estimate to determine if the frequency distributions of the classes differ significantly $(\alpha = 0.05)$ from the frequency distribution of the full sample (i.e. measure the L1-norm between the two lines). If the value of the statistic $d$ is greater than 1 the parameter is assumed to be significant.
+
+We use the Hausdorff MDS distance matrix for this analysis, and we repeat the RSA process for a variety of $k$ values. 
+The results are shown in the plots below.
+
+## Run RSA for multiple values of k
+```{r run.RSA, echo = FALSE}
+d2 <- RSA(2, plot = 'rsa', data = TRUE)
+d3 <- RSA(3, plot = 'rsa', data = TRUE)
+d5 <- RSA(5, plot = 'rsa', data = TRUE)
+
+```
+
+## Test stability of RSA results
+```{r montecarlo}
+## run RSA for k = 2:10, 10 times each
+cv <- 10
+kmax <- 10
+start <- Sys.time()
+rsa.mc <- purrr::map(.x = 2:kmax,
+  .f = function(k) {
+    purrr::map(.x = 1:cv, .f = ~RSA(k, data = TRUE) %>%
+          filter(pass) %>% pull(var) %>% unique)})
+Sys.time() - start
+
+## save checkpoint
+save(rsa.mc, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/rsa_mc.Rdata')
+# load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/rsa_mc.Rdata')
+
+## plot results and look at stability of parameter significance
+```
+
+```{r plot.montecarlo, echo = FALSE}
+#### plot rsa.mc results ####
+rsa.mc <- rsa.mc %>% 
+  lapply(function(x) {
+    lapply(x, function(xx) (vars %in% xx)) %>% 
+      do.call(cbind, .) %>% rowMeans %>% cbind(vars, .) %>% as.data.frame}) %>% 
+  reduce(full_join, by = 'vars') %>% 
+  setNames(c('vars', 2:kmax)) %>% 
+  pivot_longer(cols = -vars, names_to = 'k', values_to = 'pass') %>% 
+  mutate(k = toNumber(k), pass = toNumber(pass))
+
+## look at the stability of results
+ggplot(rsa.mc) + 
+  geom_tile(aes(x = vars, y = k, fill = pass), color = 'grey60') +
+  ggtitle('RSA Results by Cluster Size') + 
+  scale_x_discrete('Parameter') + 
+  scale_y_continuous('Cluster Size (k)', breaks = 2:10) +
+  scale_fill_scico('Significance', palette = 'davos', direction = -1, labels = percent) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.2))
+
+```
+
+```{r plot.montecarlo.extra, include = FALSE}
+# ## look at my made-up importance ranking
+# rsa.mc %>%
+#   mutate(weight = pass/k) %>%
+#   group_by(vars) %>%
+#   summarize(importance = sum(weight)/sum(1/(2:10)), .groups = 'drop') %>%
+#   arrange(desc(importance)) %>%
+#   mutate(vars = factor(vars, levels = vars)) %>%
+#   ggplot() +
+#   geom_col(aes(x = vars, y = importance), color = 'black', fill = 'grey70') +
+#   scale_y_origin()
+
+```
+
+```{r}
+## define important variables
+important <- rsa.mc %>% filter(k <= 4 & pass >= 0.5) %>% pull(vars) %>% unique
+```
+
+The horizontal axis of this plot shows the twenty parameters under consideration.
+The vertical axis represents the cluster size $k$ for the RSA results, and the shading represents what percentage of runs found a certain variable to be significant at a given $k$ threshold. 
+Choosing a significance threshold is a bit of a qualitative assessment.
+We notice that more parameters are found significant with increasing $k$ values, which makes sense because we are splitting the LISFLOOD runs into smaller and smaller buckets.
+Therefore we assign more importance to the parameters found to be significant at lower values of $k$. 
+
+The parameters deemed significant for further analysis are the following:
+```{r echo = FALSE}
+print(important)
+```
+
+We can also consider interactions between these parameters using distance-based generalized sensitivity analysis (DGSA) (Fenwick et al., 2014).
+DGSA clusters every parameter into high/low bucket and asks the following question: if we only consider the subset simulations with high values of parameter $A$, are the results still sensitive to parameter $B$?
+For every pair of parameters we would consider four permutations: $B_{high}|A_{high}$, $B_{high}|A_{low}$, $B_{low}|A_{high}$, and $B_{low}|A_{low}$. 
+The maximum value of the $d$ statistic is taken from these four, and if $d_{max}>1$ then the interaction is assumed to be significant. 
+DGSA also allows for asymmetric parameter interactions, i.e. $A|B$ does not necessarily equal $B|A$. 
+The code to implement the DGSA algorithm and the resulting interactions plot are shown below.
+
+## Create distance-based generalized sensitivity analysis (DGSA) matrix
+```{r interactions}
+#### create DGSA interactions matrix ####
+
+## create 3 MDS clusters
+k <- 3
+df <- RSA(k, data = TRUE)
+
+## find parameter interactions within those clusters
+start <- Sys.time()
+# pb <- txtProgressBar(min = 0, max = length(vars)^2, style = 3)
+cl <- parallel::makeCluster(num_cores)
+registerDoSNOW(cl)
+interactions <-
+  foreach (i = 1:length(vars), .combine = 'rbind',
+    # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+    .export = 'L1_boot', .packages = c('pracma', 'tidyverse', 'foreach')) %:%
+  foreach (j = 1:length(vars), .combine = 'c') %dopar% {
+    if (i == j) {
+      ## fill in the main diagonal
+      df %>% filter(var == vars[i]) %>% pull(d.norm) %>% max
+
+    } else {
+      ## fill in the off-diagonals
+      foreach (cl = 1:k, .combine = 'max') %do% {
+        df.subset <- df.cluster %>% filter(rsa.cluster == cl)
+        df.subset$dgsa.cluster <-
+          kmeans(df.subset %>% pull(vars[j]),
+                 centers = 2, iter.max = 1000, nstart = 100)$cluster
+        d <- L1_boot(df.subset, 'dgsa.cluster', 1, vars[i], NA)
+        d95 <- L1_boot(df.subset, 'dgsa.cluster', 1, vars[i]) %>% quantile(0.95)
+        val.1 <- d/d95
+        d <- L1_boot(df.subset, 'dgsa.cluster', 2, vars[i], boot = NA)
+        d95 <- L1_boot(df.subset, 'dgsa.cluster', 2, vars[i]) %>% quantile(0.95)
+        val.2 <- d/d95
+        max(val.1, val.2)
+      }
+    }
+  }
+stopCluster(cl)
+Sys.time() - start
+
+## save checkpoint
+save(interactions,
+     file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/interactions.Rdata')
+# load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/interactions.Rdata')
+
+## plot interactions
+```
+
+```{r plot.interactions, echo = FALSE}
+## add interactions to list of important variables
+interactions.plot <- interactions %>% 
+  as.data.frame %>% 
+  setNames(vars) %>%
+  mutate(i = vars) %>%
+  pivot_longer(cols = -i, names_to = 'j')
+important <- interactions.plot %>% 
+  mutate(pass = value>1) %>% 
+  group_by(i) %>% summarize(pass.i = sum(pass)) %>% 
+  left_join(
+    interactions.plot %>% mutate(pass = value>1) %>% 
+      group_by(j) %>% summarize(pass.j = sum(pass)), by = c('i' = 'j')) %>% 
+  left_join(
+    interactions.plot %>% filter(i == j) %>% 
+      mutate(pass.both = as.numeric(value>1)) %>% select(i, pass.both), by = 'i') %>% 
+  mutate(interact.i = pass.i - pass.both, interact.j = pass.j - pass.both) %>% 
+  mutate(important.rsa = i %in% important) %>% 
+  mutate(important.dgsa = pass.both==1 | interact.i>2 | interact.j>2) %>%
+  mutate(important = important.rsa | important.dgsa) %>% 
+  filter(important) %>% pull(i) %>% paste
+
+## plot interactions
+interactions.plot %>% 
+  mutate(i = factor(i, levels = c(important, vars[!(vars %in% important)])),
+         j = factor(j, levels = rev(levels(i)))) %>% 
+  ggplot() + 
+  geom_tile(aes(x = i, y = j, fill = value), color = 'black') + 
+  scale_fill_stepsn(name = 'Coefficient', colours = scico(6, palette = 'lajolla'), 
+                    n.breaks = 6, nice.breaks = TRUE) + 
+  geom_tile(aes(x = i, y = j, alpha = value>1), 
+            fill = 'white', color = NA, show.legend = FALSE) + 
+  geom_vline(xintercept = 0.5+length(important), size = 1) + 
+  geom_hline(yintercept = 20.5-length(important), size = 1) + 
+  scale_alpha_manual(values = c(0.45, 0)) + 
+  scale_x_discrete(name = 'Conditioning (j)', expand = c(0,0)) + 
+  scale_y_discrete(name = 'Conditioned (i)', expand = c(0,0)) + 
+  theme(axis.line = element_blank(), 
+        axis.ticks = element_blank(),
+        # axis.text = element_text(color = 'black', size = 10),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.2),
+        plot.title = element_text(hjust = 0.5)) + 
+  ggtitle('Normalized Interactions Plot (i|j)') 
+
+```
+
+Based on the interactions plot, we have updated the list of significant parameters to include the following:
+```{r echo = FALSE}
+print(important)
+```
+
+These parameters are shown in the top left corner of the plot.
+
+
+# Choose best-fit parameter values
+
+The next step of this process is to determine the best-fit values for the significant (sensitive) parameters.
+All parameters classified as insignificant will be assigned their default values from the table at the top of this document. 
+
+All parameters were initially assumed to be uniformly distributed. 
+We now take the top 1-10\% of closest maps (by Hausdorff MDS) to the NFHL inundation map and look at how the distribution of sensitive parameters differs from the expected distribution.
+We assess the departure from uniform both visually and through the Kolmogorov-Smirnov (K-S) distribution test. 
+
+## Inspect the original vs. updated parameter distributions
+```{r ks}
+## figure out which points are closest in MDS space
+hd.dist <- map_dbl(.x = 1:n, 
+  .f = ~sqrt(sum((mds.hd$points[.x,1:mds.hd$dim90] - 
+                    mds.hd$points[n+1,1:mds.hd$dim90])^2)))
+
+## decide how many clusters to consider (get to 10% of data)
+n.clusters <-
+  foreach (cl = 1:n, .combine = 'rbind') %do% {
+    data.frame(mds.cluster = 1:n, dist = hd.dist) %>%
+      arrange(dist) %>% .[1:cl,] %>%
+      left_join(samples.rp100, by = 'mds.cluster') %>%
+      nrow %>% c(cl, .)
+    } %>%
+  as.data.frame %>% setNames(c('mds.cluster', 'n.pts')) %>%
+  filter(1:nrow(.) %in% 1:(which(n.pts > (0.1*N))[1])) %>%
+  pull(mds.cluster) %>% max
+
+## find which distributions depart significantly from uniform
+ks <- 
+  foreach (cl = 1:n, .combine = 'cbind') %do% {
+    samples.subset <- 
+      data.frame(mds.cluster = 1:n, dist = hd.dist) %>% 
+      arrange(dist) %>% .[1:cl,] %>% 
+      left_join(samples.rp100, by = 'mds.cluster')
+    d.crit <- 1.36 / sqrt(nrow(samples.subset))
+    foreach (var = important, .combine = 'c') %do% {
+      samples.subset %>% 
+        select(var) %>% arrange(get(var)) %>% 
+        mutate(p.var = punif(get(var), min = vars.df[which(var==vars), 'var.min'],
+                         max = vars.df[which(var==vars), 'var.max']),
+               p.unif = (1:nrow(samples.subset))/(nrow(samples.subset)+1)) %>% 
+        mutate(diff = abs(p.var - p.unif)) %>% 
+        mutate(ks = diff/d.crit) %>% arrange(desc(ks)) %>% pull(ks) %>% max
+    }
+  }
+ks <- ks %>% as.data.frame %>% 
+  mutate(vars = important) %>% 
+  pivot_longer(cols = -vars, names_to = 'cl', values_to = 'ks') %>% 
+  mutate(cl = gsub('result.', '', cl) %>% toNumber)
+
+## plot K-S test results
+```
+
+```{r ks.extra, include = FALSE}
+# var <- 'tp'
+# vmin <- vars.df[which(var==vars), 'var.min']
+# vmax <- vars.df[which(var==vars), 'var.max']
+# vmed <- vars.df[which(var==vars), 'default']
+# lab <- vars.df[which(vars.df$vars == gsub('X', '', var)), 'description']
+# for (cl in 1:n) {
+#   samples.subset <- 
+#     data.frame(mds.cluster = 1:n, dist = hd.dist) %>% 
+#     arrange(dist) %>% .[1:cl,] %>% 
+#     left_join(samples.rp100, by = 'mds.cluster')
+#   g <- ggplot() + 
+#     geom_rect(aes(xmin = vmin, xmax = vmax, ymin = 0, ymax = nrow(samples.subset)/8), 
+#               fill = 'black', alpha = 0.1) +
+#     geom_histogram(data = samples.subset, aes(x = get(var)),
+#                    color = 'black', fill = 'black', alpha = 0.2,
+#                    breaks = seq(vmin, vmax, length.out = 9)) + 
+#     geom_vline(xintercept = vmed, linetype = 'dotted', size = 1) + 
+#     scale_x_continuous(paste0(gsub('X', '', var), ': ', lab)) + 
+#     scale_y_origin() + 
+#     theme(axis.title.y = element_blank())
+#   print(g)
+# }
+
+```
+
+```{r plot.ks1, echo = FALSE}
+ggplot(ks) +
+  geom_line(aes(x = cl, y = ks, group = vars, color = vars), size = 1) +
+  geom_hline(yintercept = 1, linetype = 'dashed') +
+  scale_x_continuous('Number of MDS Clusters Considered') +
+  scale_y_origin('Kolmogorov-Smirnov Test Statistic')
+
+```
+
+```{r}
+## plot individual parameter distributions
+```
+
+```{r plot.ks2, echo = FALSE}
+important.ks <- ks %>% 
+  filter(cl <= n/2) %>% 
+  group_by(vars) %>% summarize(ks.max = max(ks)) %>% 
+  filter(ks.max > 1) %>% pull(vars)
+samples.subset <- 
+  data.frame(mds.cluster = 1:n, dist = hd.dist) %>% 
+  arrange(dist) %>% .[1:n.clusters,] %>% 
+  left_join(samples.rp100, by = 'mds.cluster')
+important.plot <- lapply(important, function(var) {
+  vmin <- vars.df[which(var==vars), 'var.min']
+  vmax <- vars.df[which(var==vars), 'var.max']
+  vmed <- vars.df[which(var==vars), 'default']
+  lab <- vars.df[which(vars.df$vars == gsub('X', '', var)), 'description']
+  ggplot() + 
+    geom_rect(aes(xmin = vmin, xmax = vmax, ymin = 0, ymax = nrow(samples.subset)/10), 
+              fill = 'black', alpha = 0.1) +
+    geom_histogram(data = samples.subset, aes(x = get(var)),
+                   color = 'black', fill = 'black',
+                   alpha = ifelse(var %in% important.ks, 0.5, 0.2),
+                   breaks = seq(vmin, vmax, length.out = 11)) + 
+    geom_vline(xintercept = vmed, linetype = 'dotted', size = 1) + 
+    scale_x_continuous(paste0(gsub('X', '', var), ': ', lab)) + 
+    scale_y_origin() + 
+    theme(axis.title.y = element_blank())}) 
+do.call(ggarrange, c(important.plot, list(nrow = 2, ncol = 2)))
+
+```
+
+The histograms show the values of significant parameters for the closest `r percent(nrow(samples.subset)/1000, accuracy = 0.1)` of simulations.
+The shaded gray rectangles show the expected histogram if the distributions were uniform, and the dotted lines show the default values from the table at the top of the document. 
+Only a handful of parameters (those with darker histograms) met the K-S criteria to be significantly different than the uniform distribution. 
+We updated the best-fit values for these parameters to match the mode of the histogram. 
+All other parameters were left with their default values, as shown in the table below.
+
+```{r newvals}
+## update parameter table to list best-fit values
+ks.temp <- ks %>% 
+  filter(cl <= n/2) %>% 
+  group_by(vars) %>% summarize(ks.max = max(ks)) %>% 
+  full_join(data.frame(vars), by = 'vars') %>% 
+  mutate(vars = gsub('X', '', vars))
+vars.df$newval <-
+  foreach(var = vars, .combine = 'c') %do% {
+    value <- ks.temp %>% filter(vars == gsub('X', '', var)) %>% pull(ks.max)
+    if (is.na(value) | value < 1) NA else {
+      vmin <- vars.df %>% filter(vars == gsub('X', '', var)) %>% pull(var.min)
+      vmax <- vars.df %>% filter(vars == gsub('X', '', var)) %>% pull(var.max)
+      temp <- hist(samples.subset %>% pull(var), 
+                   breaks = seq(vmin, vmax, length.out = 11), plot = FALSE)
+      temp$mids[temp$density %in% max(temp$density)] %>% mean
+    } 
+  }
+
+## show formatted table
+```
+
+```{r newvals.show, echo = FALSE}
+vars.df %>%
+  filter(vars %in% gsub('X', '', important)) %>% 
+  select(-var.min, -var.max) %>% 
+  gt(groupname_col = 'group') %>% 
+  tab_spanner(label = 'Senstitivity Parameters', columns = c('vars', 'description')) %>% 
+  tab_spanner(label = 'Values', columns = c('default', 'newval')) %>% 
+  fmt_number(columns = c(default, newval), n_sigfig = 2) %>% 
+  fmt_missing(columns = newval, missing_text = '-') %>% 
+  cols_label(vars = 'Name', description = 'Description', 
+             default = 'Default', newval = 'New Value') %>% 
+  tab_header(title = 'Calibration of Significant Parameters') %>% 
+  tab_options(row_group.background.color = '#f2f2f2', 
+              heading.background.color = '#d9d9d9', 
+              column_labels.background.color = '#e5e5e5') %>% 
+  as_raw_html()
+save(vars.df, important, 
+     file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/varsdf.Rdata')
+
+```
