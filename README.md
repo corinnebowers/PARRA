@@ -12,10 +12,10 @@ It contains the code to implement the Performance-Based Atmospheric River Risk A
 </p>
 
 The code provided here was used to implement the PARRA framework for a case study application along the lower Russian River in Sonoma County, California. 
-The `\_data` folder contains tables and dataframes that support calculations throughout the modeling process.
-The `\_scripts` folder contains scripts to (a) fit component model implementations for each of the pinch point variables and (b) generate new realizations of pinch point variables. 
+The `_data` folder contains tables and dataframes that support calculations throughout the modeling process.
+The `_scripts` folder contains scripts to (a) fit component model implementations for each of the pinch point variables and (b) generate new realizations of pinch point variables. 
 Each of the subfolders represents one of the pinch point variables, or the arrows in Figure 1 above.
-The `\_results` folder contains raw code for markdown files that reproduce key results from the paper. The markdown files are also available as interactive HTML documents through the links below.
+The `_results` folder contains raw code for markdown files that reproduce key results from the paper. The markdown files are also available as interactive HTML documents through the links below.
 
 * [demonstration.Rmd](https://corinnebowers.github.io/demonstration.html) walks through most of the case study demonstration presented in Section 3 of the paper, which compares observed vs. simulated values for each component model and presents results from recreating a severe 2019 atmospheric river event. This file reproduces Figures 2 through 8 from the paper.
 * [results.Rmd](https://corinnebowers.github.io/results.html) presents results from running the entire framework in sequence and reproduces Figures 9 and 10 from the paper. 
