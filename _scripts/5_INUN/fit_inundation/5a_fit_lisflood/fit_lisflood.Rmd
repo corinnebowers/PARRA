@@ -59,6 +59,55 @@ if (!publish) {
 ```
 
 
+# Define parameters of interest
+
+We consider twenty parameters when fitting the LISFLOOD model. 
+Fifteen of the parameters are related to Manning's n values (roughness coefficient) of different land cover types within the floodplain. 
+Three of the parameters are related to the Manning's roughness and depth of the river channel, and two of the parameters are related to the shape of the forcing hydrograph at the inlet to the study area.
+All of these parameters and the range of values considered for each one are summarized below. 
+For the random simulation process, the distribution of parameters values is assumed to be uniform between the minimum and maximum.
+
+```{r vars}
+## load variables/parameters of interest
+vars <- c('X95','X90','X82','X81','X71','X52','X43','X42','X41','X31', 
+          'X24','X23','X22','X21','X11','SGCn','tp','SGCp','SGCr','m')
+vars.df <- read.table('_data/lulc/manning_values.txt', header = TRUE) %>% 
+  transmute(vars = code, description = name, var.min = n.min, var.max = n.max, default) %>% 
+  rbind(data.frame(vars = vars[16], description = 'Channel Roughness Parameter', 
+          var.min = 0.015, var.max = 0.075, default = 0.035)) %>% 
+  rbind(data.frame(vars = vars[17], description = 'Time to Peak Flow (hrs)', 
+          var.min = 1, var.max = 80, default = 24)) %>% 
+  rbind(data.frame(vars = vars[18], description = 'Channel Depth Parameter', 
+          var.min = 0.69, var.max = 0.82, default = 0.76)) %>% 
+  rbind(data.frame(vars = vars[19], description = 'Channel Depth Parameter', 
+          var.min = 0.05, var.max = 0.5, default = 0.3)) %>% 
+  rbind(data.frame(vars = vars[20], description = 'Hydrograph Shape Parameter',
+          var.min = 0, var.max = 10, default = 4)) %>% 
+  cbind(group = c(rep('Floodplain Roughness Parameters', 15), 'Channel Parameters',
+        'Hydrograph Parameters', rep('Channel Parameters', 2), 'Hydrograph Parameters'))
+
+## show formatted table
+```
+
+```{r vars.df, echo = FALSE}
+vars.df %>%
+  gt(groupname_col = 'group') %>%
+  tab_header(title = 'LISFLOOD Sensitivity Testing') %>%
+  tab_spanner(label = 'Parameters', columns = c('vars', 'description')) %>%
+  tab_spanner(label = 'Values', columns = c('var.min', 'var.max', 'default')) %>%
+  # tab_footnote(footnote = 'All parameters are assumed to be uniformly distributed between min and max.',
+  #   locations = cells_column_spanners('Values')) %>%
+  fmt_number(columns = c(var.min, var.max, default), n_sigfig = 2) %>%
+  cols_label(vars = 'Name', description = 'Description',
+             var.min = 'Min', var.max = 'Max', default = 'Default') %>%
+  tab_options(row_group.background.color = '#f2f2f2',
+              heading.background.color = '#d9d9d9',
+              column_labels.background.color = '#e5e5e5') %>% 
+  as_raw_html()
+
+```
+
+
 # Determine accuracy metrics
 
 The next goal is to determine some measure of accuracy, i.e. how well the LISFLOOD simulations are able to recreate the "true" case. 
@@ -76,8 +125,8 @@ The Hausdorff distance is a spatial measure of how well the shape of the simulat
 It is important to note that both of these accuracy metrics are meant to measure the goodness-of-fit of binary (i.e. wet/dry) outcomes. 
 While LISFLOOD outputs a flood depth at every location, the NFHL data does not provide this information, and therefore all validation was performed only on the quality of the fit between the "true" vs. simulated 100-year flood extents. 
 
-
 ## Compute accuracy metrics (critical success ratio & Hausdorff distance) for each inundation map
+
 ```{r accuracy}
 ## load simulated data
 samples.rp100 <-
@@ -88,41 +137,41 @@ id <- read.table('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/id.txt') %>%
   unlist %>% unname
 sim.list <- (1:N)[!(1:N %in% id)]
 
-## compute accuracy metrics
-start <- Sys.time()
-# pb <- txtProgressBar(min = 0, max = N, style = 3)
-cl <- parallel::makeCluster(num_cores)
-registerDoSNOW(cl)
-accuracy <-
-  foreach(i = sim.list, .inorder = FALSE,
-    .combine = 'rbind', .export = c('confusion', 'binary'),
-    # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
-    .packages = c('raster', 'dplyr', 'pracma')) %dorng% {
-
-      ## load LISFLOOD inundation map
-      sim <- paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', i, '.max') %>%
-        raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
-
-      ## calculate confusion matrix
-      tb <- overlay(obs, sim, fun = confusion)[] %>% table
-
-      ## calculate Hausdorff distance
-      hd <- hausdorff_dist(binary(sim), as.matrix(obs))
-
-      ## save metrics as dataframe
-      c(id = i,
-        hitrate = unname(tb['0'] / (tb['-1'] + tb['0'])),
-        falsalarm = unname(tb['1'] / (tb['0'] + tb['1'])),
-        fstat = unname(tb['0'] / sum(tb)),
-        bias = unname(tb['1'] / tb['-1']),
-        hausdorff = hd)
-    }
-stopCluster(cl)
-Sys.time() - start
-
-## save checkpoint
-save(accuracy, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/accuracy.Rdata')
-# load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/accuracy.Rdata')
+# ## compute accuracy metrics
+# start <- Sys.time()
+# # pb <- txtProgressBar(min = 0, max = N, style = 3)
+# cl <- parallel::makeCluster(num_cores)
+# registerDoSNOW(cl)
+# accuracy <-
+#   foreach(i = sim.list, .inorder = FALSE,
+#     .combine = 'rbind', .export = c('confusion', 'binary'),
+#     # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+#     .packages = c('raster', 'dplyr', 'pracma')) %dorng% {
+# 
+#       ## load LISFLOOD inundation map
+#       sim <- paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', i, '.max') %>%
+#         raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+# 
+#       ## calculate confusion matrix
+#       tb <- overlay(obs, sim, fun = confusion)[] %>% table
+# 
+#       ## calculate Hausdorff distance
+#       hd <- hausdorff_dist(binary(sim), as.matrix(obs))
+# 
+#       ## save metrics as dataframe
+#       c(id = i,
+#         hitrate = unname(tb['0'] / (tb['-1'] + tb['0'])),
+#         falsalarm = unname(tb['1'] / (tb['0'] + tb['1'])),
+#         fstat = unname(tb['0'] / sum(tb)),
+#         bias = unname(tb['1'] / tb['-1']),
+#         hausdorff = hd)
+#     }
+# stopCluster(cl)
+# Sys.time() - start
+# 
+# ## save checkpoint
+# save(accuracy, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/accuracy.Rdata')
+load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/accuracy.Rdata')
 
 ## join to samples dataframe
 samples.rp100 <- samples.rp100 %>%
@@ -146,114 +195,118 @@ There is substantial similarity between the inundation maps for these simulation
 Therefore we first use k-means clustering to identify 100 representative simulations and perform the MDS falsification process with that reduced set. 
 
 ## Cluster LISFLOOD simulations to reduce computational demand
+
 ```{r mds.clusters}
 ## run k-means clustering algorithm
-n <- 50
-samples.k <- samples.rp100 %>%
-  filter(complete.cases(.)) %>%
-  mutate(bias.odds = bias / (1 + bias),
-         hausdorff = hausdorff/max(hausdorff)) %>%
-  select(hitrate, falsalarm, fstat, bias.odds, hausdorff) %>%
-  kmeans(centers = n, iter.max = 1e3, nstart = 100, trace = FALSE)
-samples.rp100$mds.cluster[complete.cases(samples.rp100)] <- samples.k$cluster
-
-## find the best-fitting simulation within each cluster
-cluster.id <- samples.rp100 %>%
-  mutate(test = hausdorff/Max(hausdorff) + (1-fstat)) %>%
-  group_by(mds.cluster) %>%
-  summarize(id = id[which.min(test)], .groups = 'drop') %>% pull(id)
-
-## save checkpoint
-save(samples.rp100, cluster.id,
-     file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/samples_cluster.Rdata')
-# load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/samples_cluster.Rdata')
+n <- 40
+# samples.k <- samples.rp100 %>%
+#   filter(complete.cases(.)) %>%
+#   mutate(bias.odds = bias / (1 + bias),
+#          hausdorff = hausdorff/max(hausdorff)) %>%
+#   select(hitrate, falsalarm, fstat, bias.odds, hausdorff) %>%
+#   kmeans(centers = n, iter.max = 1e3, nstart = 100, trace = FALSE)
+# samples.rp100$mds.cluster[complete.cases(samples.rp100)] <- samples.k$cluster
+# 
+# ## find the best-fitting simulation within each cluster
+# cluster.id <- samples.rp100 %>%
+#   mutate(test = hausdorff/Max(hausdorff) + (1-fstat)) %>%
+#   group_by(mds.cluster) %>%
+#   summarize(id = id[which.min(test)], .groups = 'drop') %>% pull(id)
+# 
+# ## save checkpoint
+# save(samples.rp100, cluster.id,
+#      file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/samples_cluster.Rdata')
+load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/samples_cluster.Rdata')
 
 ```
 
 ## Create distance matrix based on critical success ratio
+
 ```{r dist.fstat}
-## generate matrix
-start <- Sys.time()
-# pb <- txtProgressBar(min = 0, max = n, style = 3)
-cl <- parallel::makeCluster(num_cores)
-registerDoSNOW(cl)
-fstat <-
-  foreach(i = 1:n,
-    .combine = 'rbind', .export = 'confusion',
-    # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
-    .packages = c('raster', 'dplyr', 'pracma', 'foreach')) %dorng% {
-      sim.i <-
-        paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', cluster.id[i], '.max') %>%
-        raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
-      foreach(j = 1:n, .combine = 'c') %do% {
-        if (i >= j) 0 else {
-          sim.j <-
-            paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', cluster.id[j], '.max') %>%
-            raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
-          tb <- overlay(sim.i, sim.j, fun = confusion)[] %>% table
-          1 - tb['0']/sum(tb)
-        }
-      }
-    }
-stopCluster(cl)
-Sys.time() - start
-
-## add "observed" NFHL point
-fstat <- fstat %>%
-  cbind(1-samples.rp100$fstat[cluster.id]) %>%
-  rbind(rep(0, n+1))
-
-## format matrix for MDS
-fstat <- fstat + t(fstat)
-
-## save checkpoint
-save(fstat, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/fstat.Rdata')
-# load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/fstat.Rdata')
+# ## generate matrix
+# start <- Sys.time()
+# # pb <- txtProgressBar(min = 0, max = n, style = 3)
+# cl <- parallel::makeCluster(num_cores)
+# registerDoSNOW(cl)
+# fstat <-
+#   foreach(i = 1:n,
+#     .combine = 'rbind', .export = 'confusion',
+#     # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+#     .packages = c('raster', 'dplyr', 'pracma', 'foreach')) %dorng% {
+#       sim.i <-
+#         paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', cluster.id[i], '.max') %>%
+#         raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+#       foreach(j = 1:n, .combine = 'c') %do% {
+#         if (i >= j) 0 else {
+#           sim.j <-
+#             paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', cluster.id[j], '.max') %>%
+#             raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+#           tb <- overlay(sim.i, sim.j, fun = confusion)[] %>% table
+#           1 - tb['0']/sum(tb)
+#         }
+#       }
+#     }
+# stopCluster(cl)
+# Sys.time() - start
+# 
+# ## add "observed" NFHL point
+# fstat <- fstat %>%
+#   cbind(1-samples.rp100$fstat[cluster.id]) %>%
+#   rbind(rep(0, n+1))
+# 
+# ## format matrix for MDS
+# fstat <- fstat + t(fstat)
+# 
+# ## save checkpoint
+# save(fstat, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/fstat.Rdata')
+load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/fstat.Rdata')
 
 ```
 
 ## Create distance matrix based on Hausdorff distance
+
 ```{r dist.hausdorff}
-## generate matrix
-start <- Sys.time()
-# pb <- txtProgressBar(min = 0, max = n, style = 3)
-cl <- parallel::makeCluster(num_cores)
-registerDoSNOW(cl)
-hausdorff <-
-  foreach(i = 1:n,
-    .combine = 'rbind', .export = 'binary',
-    # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
-    .packages = c('raster', 'dplyr', 'pracma', 'foreach')) %dorng% {
-      sim.i <-
-        paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', cluster.id[i], '.max') %>%
-        raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
-      foreach(j = 1:n, .combine = 'c') %do% {
-        if (i >= j) 0 else {
-          sim.j <-
-            paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', cluster.id[j], '.max') %>%
-            raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
-          hausdorff_dist(binary(sim.i), binary(sim.j))
-        }
-      }
-    }
-stopCluster(cl)
-Sys.time() - start
-
-## add "observed" NFHL point
-hausdorff <- hausdorff %>%
-  cbind(samples.rp100$hausdorff[cluster.id]) %>%
-  rbind(rep(0, n+1))
-
-## format matrix for MDS
-hausdorff <- hausdorff + t(hausdorff)
-
-## save checkpoint
-save(hausdorff, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/hausdorff.Rdata')
-# load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/hausdorff.Rdata')
+# ## generate matrix
+# start <- Sys.time()
+# # pb <- txtProgressBar(min = 0, max = n, style = 3)
+# cl <- parallel::makeCluster(num_cores)
+# registerDoSNOW(cl)
+# hausdorff <-
+#   foreach(i = 1:n,
+#     .combine = 'rbind', .export = 'binary',
+#     # .options.snow = list(progress = function(n) setTxtProgressBar(pb, n)),
+#     .packages = c('raster', 'dplyr', 'pracma', 'foreach')) %dorng% {
+#       sim.i <-
+#         paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', cluster.id[i], '.max') %>%
+#         raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+#       foreach(j = 1:n, .combine = 'c') %do% {
+#         if (i >= j) 0 else {
+#           sim.j <-
+#             paste0('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/results/fitrp', cluster.id[j], '.max') %>%
+#             raster %>% overlay(dem.hydro, fun = function(x,y) ifelse(is.na(y), NA, x))
+#           hausdorff_dist(binary(sim.i), binary(sim.j))
+#         }
+#       }
+#     }
+# stopCluster(cl)
+# Sys.time() - start
+# 
+# ## add "observed" NFHL point
+# hausdorff <- hausdorff %>%
+#   cbind(samples.rp100$hausdorff[cluster.id]) %>%
+#   rbind(rep(0, n+1))
+# 
+# ## format matrix for MDS
+# hausdorff <- hausdorff + t(hausdorff)
+# 
+# ## save checkpoint
+# save(hausdorff, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/hausdorff.Rdata')
+load('_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/hausdorff.Rdata')
 
 ```
 
 ## Perform multi-dimensional scaling (MDS) on distance matrices
+
 ```{r mds}
 ## compute MDS values
 mds.fstat <- cmdscale(fstat, eig = TRUE, k = 0.8*n)
@@ -371,6 +424,7 @@ We use the Hausdorff MDS distance matrix for this analysis, and we repeat the RS
 The results are shown in the plots below.
 
 ## Run RSA for multiple values of k
+
 ```{r run.RSA, echo = FALSE}
 d2 <- RSA(2, plot = 'rsa', data = TRUE)
 d3 <- RSA(3, plot = 'rsa', data = TRUE)
@@ -379,7 +433,8 @@ d5 <- RSA(5, plot = 'rsa', data = TRUE)
 ```
 
 ## Test stability of RSA results
-```{r montecarlo}
+
+```{r mc}
 ## run RSA for k = 2:10, 10 times each
 cv <- 10
 kmax <- 10
@@ -397,7 +452,7 @@ save(rsa.mc, file = '_scripts/5_INUN/fit_inundation/5a_fit_lisflood/checkpoints/
 ## plot results and look at stability of parameter significance
 ```
 
-```{r plot.montecarlo, echo = FALSE}
+```{r plot.mc, echo = FALSE}
 #### plot rsa.mc results ####
 rsa.mc <- rsa.mc %>% 
   lapply(function(x) {
@@ -419,7 +474,7 @@ ggplot(rsa.mc) +
 
 ```
 
-```{r plot.montecarlo.extra, include = FALSE}
+```{r plot.mc.extra, include = FALSE}
 # ## look at my made-up importance ranking
 # rsa.mc %>%
 #   mutate(weight = pass/k) %>%
@@ -457,6 +512,7 @@ DGSA also allows for asymmetric parameter interactions, i.e. $A|B$ does not nece
 The code to implement the DGSA algorithm and the resulting interactions plot are shown below.
 
 ## Create distance-based generalized sensitivity analysis (DGSA) matrix
+
 ```{r interactions}
 #### create DGSA interactions matrix ####
 
@@ -567,9 +623,10 @@ All parameters classified as insignificant will be assigned their default values
 
 All parameters were initially assumed to be uniformly distributed. 
 We now take the top 1-10\% of closest maps (by Hausdorff MDS) to the NFHL inundation map and look at how the distribution of sensitive parameters differs from the expected distribution.
-We assess the departure from uniform both visually and through the Kolmogorov-Smirnov (K-S) distribution test. 
+We assess the departure from uniform both visually and through the Kolmogorov-Smirnov (K-S) distribution test at a significance level of 1%. 
 
 ## Inspect the original vs. updated parameter distributions
+
 ```{r ks}
 ## figure out which points are closest in MDS space
 hd.dist <- map_dbl(.x = 1:n, 
@@ -595,7 +652,7 @@ ks <-
       data.frame(mds.cluster = 1:n, dist = hd.dist) %>% 
       arrange(dist) %>% .[1:cl,] %>% 
       left_join(samples.rp100, by = 'mds.cluster')
-    d.crit <- 1.36 / sqrt(nrow(samples.subset))
+    d.crit <- 1.628 / sqrt(nrow(samples.subset))
     foreach (var = important, .combine = 'c') %do% {
       samples.subset %>% 
         select(var) %>% arrange(get(var)) %>% 
@@ -610,42 +667,14 @@ ks <- ks %>% as.data.frame %>%
   mutate(vars = important) %>% 
   pivot_longer(cols = -vars, names_to = 'cl', values_to = 'ks') %>% 
   mutate(cl = gsub('result.', '', cl) %>% toNumber)
-
-## plot K-S test results
-```
-
-```{r ks.extra, include = FALSE}
-# var <- 'tp'
-# vmin <- vars.df[which(var==vars), 'var.min']
-# vmax <- vars.df[which(var==vars), 'var.max']
-# vmed <- vars.df[which(var==vars), 'default']
-# lab <- vars.df[which(vars.df$vars == gsub('X', '', var)), 'description']
-# for (cl in 1:n) {
-#   samples.subset <- 
-#     data.frame(mds.cluster = 1:n, dist = hd.dist) %>% 
-#     arrange(dist) %>% .[1:cl,] %>% 
-#     left_join(samples.rp100, by = 'mds.cluster')
-#   g <- ggplot() + 
-#     geom_rect(aes(xmin = vmin, xmax = vmax, ymin = 0, ymax = nrow(samples.subset)/8), 
-#               fill = 'black', alpha = 0.1) +
-#     geom_histogram(data = samples.subset, aes(x = get(var)),
-#                    color = 'black', fill = 'black', alpha = 0.2,
-#                    breaks = seq(vmin, vmax, length.out = 9)) + 
-#     geom_vline(xintercept = vmed, linetype = 'dotted', size = 1) + 
-#     scale_x_continuous(paste0(gsub('X', '', var), ': ', lab)) + 
-#     scale_y_origin() + 
-#     theme(axis.title.y = element_blank())
-#   print(g)
-# }
-
 ```
 
 ```{r plot.ks1, echo = FALSE}
-ggplot(ks) +
-  geom_line(aes(x = cl, y = ks, group = vars, color = vars), size = 1) +
-  geom_hline(yintercept = 1, linetype = 'dashed') +
-  scale_x_continuous('Number of MDS Clusters Considered') +
-  scale_y_origin('Kolmogorov-Smirnov Test Statistic')
+# ggplot(ks) +
+#   geom_line(aes(x = cl, y = ks, group = vars, color = vars), size = 1) +
+#   geom_hline(yintercept = 1, linetype = 'dashed') +
+#   scale_x_continuous('Number of MDS Clusters Considered') +
+#   scale_y_origin('Kolmogorov-Smirnov Test Statistic')
 
 ```
 
@@ -684,7 +713,7 @@ do.call(ggarrange, c(important.plot, list(nrow = 2, ncol = 2)))
 
 The histograms show the values of significant parameters for the closest `r percent(nrow(samples.subset)/1000, accuracy = 0.1)` of simulations.
 The shaded gray rectangles show the expected histogram if the distributions were uniform, and the dotted lines show the default values from the table at the top of the document. 
-Only a handful of parameters (those with darker histograms) met the K-S criteria to be significantly different than the uniform distribution. 
+Only a handful of parameters (those with darker histograms) met the K-S criteria to be significantly different than the uniform distribution with 95% confidence. 
 We updated the best-fit values for these parameters to match the mode of the histogram. 
 All other parameters were left with their default values, as shown in the table below.
 
@@ -715,7 +744,7 @@ vars.df %>%
   filter(vars %in% gsub('X', '', important)) %>% 
   select(-var.min, -var.max) %>% 
   gt(groupname_col = 'group') %>% 
-  tab_spanner(label = 'Senstitivity Parameters', columns = c('vars', 'description')) %>% 
+  tab_spanner(label = 'Sensitivity Parameters', columns = c('vars', 'description')) %>% 
   tab_spanner(label = 'Values', columns = c('default', 'newval')) %>% 
   fmt_number(columns = c(default, newval), n_sigfig = 2) %>% 
   fmt_missing(columns = newval, missing_text = '-') %>% 

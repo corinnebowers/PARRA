@@ -1,7 +1,7 @@
 ---
-title: "results"
+title: "Sonoma County AR Flood Loss Analysis"
 author: "Corinne"
-date: "4/14/2021"
+date: "11/12/2021"
 output:
   html_document:
     toc: true 
@@ -13,7 +13,7 @@ output:
     highlight: tango  #https://www.garrickadenbuie.com/blog/pandoc-syntax-highlighting-examples/
 ---
 
-The purpose of this script is to reproduce figures and numeric results for the paper "A Performance-Based Approach to Quantify Atmospheric River Flood Risk" (doi:XX).
+The purpose of this script is to reproduce figures and numeric results for the paper "A Performance-Based Approach to Quantify Atmospheric River Flood Risk" (https://doi.org/10.5194/nhess-2021-337).
 This file focuses on probabilistic results from running the entire PARRA framework in sequence for the lower Russian River in Sonoma County, California.
 
 Please note: all figures are formatted for publication, therefore certain features may not display correctly in this markdown file. 
@@ -112,7 +112,7 @@ Figure 9(a) compares the distribution of these probabilistic loss realizations t
 loss.est <- 91.6e6
 
 ## load simulated loss from PARRA framework 
-load('_results/final/_results/event2019/DV.Rdata')
+load('_results/event/results/DV.Rdata')
 
 ## plot figure 9(a): observed vs. simulated loss
 ```
@@ -137,12 +137,12 @@ ggsave('_figures/fig09/fig09_lossdist.png', width = 8.3, height = 5, units = 'cm
 We can compare the simulated distribution to the observed value numerically as well as visually. 
 
 ```{r}
-## percentile
-1 - (sum(loss.sim$loss > loss.est) / 1e4)
-
-## maximum event
-max(loss.sim$loss)/1e6
-max(loss.sim$loss) / loss.est
+## calculate values of interest
+data.frame(
+  event = 1 - (sum(loss.sim$loss > loss.est) / 1e4),
+  maxloss = max(loss.sim$loss)/1e6,
+  scalefactor = max(loss.sim$loss) / loss.est) %>% 
+  gt
 
 ```
 
@@ -204,7 +204,7 @@ The resulting number is reported in 2019 dollars.
 
 ```{r}
 ## find the average annual insured losses from claims data
-inflation <- read.csv('C:/Users/cbowers/Desktop/inflation2019.csv', header = FALSE) %>% 
+inflation <- read.csv('_data/NFIP/inflation2019.csv', header = FALSE) %>% 
   setNames(c('year', 'rate'))
 aal.claims <- claims %>%
   mutate(year = year(dateofloss)) %>% 
@@ -253,7 +253,7 @@ housingunits <-
 penetration <- insurancepolicies/housingunits
 
 ## find the average annual loss
-aal.claims/penetration / 1e6
+AAL <- c('NFIP' = aal.claims/penetration)
 
 ```
 
@@ -265,11 +265,11 @@ A table comparing the two AAL values is included below.
 
 ```{r}
 ## load loss realizations for stochastic record 
-load('_results/final/_results/stochastic/DV.Rdata')
+load('_results/stochastic/results/DV.Rdata')
 loss.stochastic <- loss.sim
 
 ## calculate AAL
-AAL <- sum(loss.stochastic$loss)/3200
+AAL <- c(AAL, 'PARRA' = sum(loss.stochastic$loss)/3200)
 
 ## display formatted table
 ```

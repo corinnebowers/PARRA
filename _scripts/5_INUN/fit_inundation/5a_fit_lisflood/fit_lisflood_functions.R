@@ -122,7 +122,7 @@ RSA <- function(k, plot = FALSE, data = FALSE) {
     foreach(cl = 1:k, 
       .combine = 'rbind', 
       .export = 'L1_boot', 
-      .packages = c('dplyr', 'pracma', 'foreach'), 
+      .packages = c('dplyr', 'pracma', 'foreach', 'scico'), 
       .inorder = FALSE) %:%
     foreach(var = vars, .combine = 'rbind', .inorder = FALSE) %dopar% {
       data.frame(

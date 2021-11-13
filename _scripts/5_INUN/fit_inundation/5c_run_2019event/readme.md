@@ -10,8 +10,8 @@ component model and is included as Figure 7 in the paper.
 This process was completed using Sherlock, Stanford’s high-performance
 computing cluster. An outline of this process is enumerated below.
 
-1.  Input best-fit parameters from **5a\_fit\_lisflood** in the
-    appropriate sections in `run_lisflood.sh` (SGCn, SGCr, SGCp).
+1.  Input best-fit parameters from step (a) in the appropriate sections
+    in `run_lisflood.sh` (SGCn, SGCr, SGCp).
 2.  Run `generate_files.sbatch` to create .bci, .bdy, .gauge, and .stage
     files based on the hydrograph timeseries recorded at USGS 11463500.
 3.  Run `run_lisflood.sh` to generate the .par file and calculate

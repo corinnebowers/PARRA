@@ -34,16 +34,16 @@ setwd('./_scripts/5_INUN/fit_inundation/5b_run_bestfit/')
 
 #### define best-fit parameters from rp100.Rmd ####################################################
 
-hydrolength <- 20*24*3600	#length of LISFLOOD hydrograph (s)
-spinup <- 12*3600	#30*24*3600  		#LISFLOOD simulation spin-up time (s)
+hydrolength <- 30*24*3600	#length of LISFLOOD hydrograph (s)
+spinup <- 30*24*3600  		#LISFLOOD simulation spin-up time (s)
 baseflow <- 3  			#baseflow @ USGS 11463500 (m3/s)
 Qp <- 112000 / (mft^3)  	#peak streamflow @ USGS 11463500 (m3/s)
 
-tp <- 44 * 3600			#time to peak streamflow (sec)
-m <- 4.5			#hydrograph shape parameter
+tp <- 21 * 3600			#time to peak streamflow (sec)
+m <- 4				#hydrograph shape parameter
 
-manning[toNumber(manning$code) == 82, 'default'] <- 0.034
-manning[toNumber(manning$code) == 71, 'default'] <- 0.32
+#manning[toNumber(manning$code) == 82, 'default'] <- 0.034
+#manning[toNumber(manning$code) == 71, 'default'] <- 0.32
 
 
 #### generate .bci & .bdy files ###################################################################

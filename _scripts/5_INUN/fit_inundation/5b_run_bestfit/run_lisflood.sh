@@ -21,8 +21,8 @@ bash makepar.sh \
 "1" 				`#simulation timestep (seconds)` \
 "files/russian.dem.asc" 	`#DEM raster file` \
 "files/russian.width.asc"	`#channel width raster file` \
-"0.0300" 			`#channel roughness coefficient` \
-""		 		`#channel depth parameter, r` \
+"0.018" 			`#channel roughness coefficient` \
+"0.430"		 		`#channel depth parameter, r` \
 ""				`#channel depth parameter, p` \
 "files/bestfit.bci"		`#.bci file` \
 "files/bestfit.bdy"	 	`#.bdy file` \

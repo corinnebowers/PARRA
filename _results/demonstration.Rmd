@@ -1,5 +1,5 @@
 ---
-title: "Sonoma 2019 AR Case Study Demonstration"
+title: "Sonoma County 2019 AR Case Study Demonstration"
 output:
   html_document:
     toc: true 
@@ -11,7 +11,7 @@ output:
     highlight: tango  #https://www.garrickadenbuie.com/blog/pandoc-syntax-highlighting-examples/
 ---
 
-The purpose of this script is to reproduce figures and numeric results for the paper "A Performance-Based Approach to Quantify Atmospheric River Flood Risk" (doi:XX). 
+The purpose of this script is to reproduce figures and numeric results for the paper "A Performance-Based Approach to Quantify Atmospheric River Flood Risk" (https://doi.org/10.5194/nhess-2021-337). 
 We implement a model-by-model comparison of the PARRA simulations at each pinch point vs. the observed values from a severe 2019 atmospheric river (AR) event in Sonoma County, California. 
 
 Please note: all figures are formatted for publication, therefore certain features may not display correctly in this markdown file. 
@@ -460,12 +460,12 @@ $$ \mathrm{P} \left(d > 1.731\sqrt{\frac{2}{N}} \right) \approx 0.05
 \to d_{crit} = 1.731\sqrt{\frac{2}{N}} $$
 where $N$ = the number of events in the historic catalog.
 
-We define the distance between the observed and simulated precipitation CDFs as $d_{PRCP}$ and perform a hypothesis test to determine whether $\frac{d_{PRCP}}{d_{crit}} \leq 1$ with 95\% confidence. 
+We define the distance between the observed and simulated precipitation CDFs as $d_{PRCP}$ and perform a hypothesis test to determine whether $\frac{d_{PRCP}}{d_{crit}} \leq 1$ at a significance level of 1%. 
 We repeat this process 100 times to account for the probabilistic nature of the simulation process and report the mean test statistic below.
 
 ```{r}
 ## determine d.crit, the value of the 95% confidence threshold
-d.crit <- 1.731 * sqrt(2/nrow(catalog))
+d.crit <- 1.628 * sqrt(2/nrow(catalog))
 
 ## calculate the K-S statistic for 100 simulations
 n <- 100
@@ -739,7 +739,7 @@ if (!publish) g7
 
 ```{r}
 ## determine d.crit, the value of the 95% confidence threshold
-d.crit <- 1.731 * sqrt(2/nrow(catalog))
+d.crit <- 1.628 * sqrt(2/nrow(catalog))
 
 ## calculate the K-S statistic for 100 simulations
 n <- 100
