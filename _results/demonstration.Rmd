@@ -1123,8 +1123,9 @@ We then plot observed vs. simulated stage height for the duration of the 2019 ev
 
 ```{r}
 ## calculate gage elevation from LISFLOOD DEM
-bed <- raster('_scripts/5_INUN/fit_inundation/5c_run_2019event/results/casestudy_SGC_bedZ.asc', 
-              crs = projection(aoi))
+bed <- 
+  raster('_scripts/5_INUN/fit_inundation/5c_run_2019event/results/casestudy_SGC_bedZ.asc',
+         crs = projection(aoi))
 bed[][bed[]>1e9] <- NA
 gages.elev <- gages %>%
   st_as_sf(coords = c('dec_long_va', 'dec_lat_va'), crs = 4269) %>%
@@ -1195,8 +1196,9 @@ source('_data/flood_sonoma/flood_sonoma.R')
 flood.sonoma <- flood_sonoma(45)*0.64 + flood_sonoma(46)*0.36
 
 ## load simulated inundation map
-lisflood <- raster('_scripts/5_INUN/fit_inundation/5c_run_2019event/results/casestudy.max',
-                   crs = projection(aoi)) %>% 
+lisflood <- 
+  raster('_scripts/5_INUN/fit_inundation/5c_run_2019event/results/casestudy.max',
+         crs = projection(aoi)) %>% 
   overlay(dem.hydro, fun = function(x,y) ifelse(y < 1, NA, x))
 lisflood.df <- lisflood %>% raster.df %>% filter(value > 0)
 
@@ -1272,7 +1274,7 @@ ggsave('_figures/fig07/fig07_floodmap.png', width = 6, height = 9, units = 'cm')
 
 We chose three wet vs. dry metrics: hit rate (which penalizes false negatives), false alarm ratio (which penalizes false positives), and the critical success index (which balances over- vs. under-prediction). 
 These metrics were used by Wing et al. (2017) and First Street Foundation for fitting a nationwide flood inundation model.
-More information can be found in the `5a_run_bestfit` folder.
+More information on the metrics can be found in the `5a_run_bestfit` folder.
 
 ```{r}
 ## calculate accuracy statistics based on confusion matrix

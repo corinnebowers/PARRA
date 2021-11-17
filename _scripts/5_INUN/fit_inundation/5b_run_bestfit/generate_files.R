@@ -11,16 +11,10 @@
 #### setup information ############################################################################
 print('loading necessary packages and files...')
 
-## set seed for reproducibility
-set.seed(2021)
-
 ## setup information
 setwd('/home/groups/bakerjw/cbowers/PARRA/')
 #setwd('D:/1-PARRA/')
 source('_data/setup.R')
-
-## load required packages
-require(lhs)
 
 ## load necessary information
 load('_data/aoi/aoi.Rdata')
@@ -38,12 +32,12 @@ hydrolength <- 30*24*3600	#length of LISFLOOD hydrograph (s)
 spinup <- 30*24*3600  		#LISFLOOD simulation spin-up time (s)
 baseflow <- 3  			#baseflow @ USGS 11463500 (m3/s)
 Qp <- 112000 / (mft^3)  	#peak streamflow @ USGS 11463500 (m3/s)
-
-tp <- 21 * 3600			#time to peak streamflow (sec)
+tp <- 40 * 3600			#time to peak streamflow (sec)
 m <- 4				#hydrograph shape parameter
 
-#manning[toNumber(manning$code) == 82, 'default'] <- 0.034
-#manning[toNumber(manning$code) == 71, 'default'] <- 0.32
+manning[toNumber(manning$code) == 21, 'default'] <- 0.08
+manning[toNumber(manning$code) == 22, 'default'] <- 0.12
+manning[toNumber(manning$code) == 81, 'default'] <- 0.3
 
 
 #### generate .bci & .bdy files ###################################################################

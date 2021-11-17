@@ -6,9 +6,8 @@ cd /home/groups/bakerjw/cbowers/PARRA
 ## create local copies of LISFLOOD input files
 cp _data/lisflood/*.asc _scripts/5_INUN/fit_inundation/5b_run_bestfit/files
 
-## create necessary folders
+## move to working folder
 cd _scripts/5_INUN/fit_inundation/5b_run_bestfit
-mkdir -p results
 
 ## load simulation length constant
 simlength=$(cat files/simlength.txt)
@@ -21,9 +20,9 @@ bash makepar.sh \
 "1" 				`#simulation timestep (seconds)` \
 "files/russian.dem.asc" 	`#DEM raster file` \
 "files/russian.width.asc"	`#channel width raster file` \
-"0.018" 			`#channel roughness coefficient` \
-"0.430"		 		`#channel depth parameter, r` \
-""				`#channel depth parameter, p` \
+"0.03" 				`#channel roughness coefficient` \
+""		 		`#channel depth parameter, r` \
+"0.71"				`#channel depth parameter, p` \
 "files/bestfit.bci"		`#.bci file` \
 "files/bestfit.bdy"	 	`#.bdy file` \
 "" 				`#starting .wd file` \

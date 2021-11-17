@@ -11,9 +11,6 @@
 #### setup information ############################################################################
 print('loading necessary packages and files...')
 
-## set seed for reproducibility
-set.seed(2021)
-
 ## setup information
 setwd('/home/groups/bakerjw/cbowers/PARRA/')
 #setwd('D:/1-PARRA/')
@@ -26,6 +23,7 @@ require(dataRetrieval)
 load('_data/aoi/aoi.Rdata')
 load('_data/catalog/catalog.Rdata')
 load('_data/lisflood/edges.Rdata')
+width <- raster('_data/lisflood/russian.width.asc', crs = projection(aoi))
 
 ## move to working folder
 setwd('./_scripts/5_INUN/fit_inundation/5c_run_2019event/')
@@ -37,7 +35,7 @@ casestudy <- catalog %>% filter(start_day == ymd('2019-02-25'))
 #### generate .bci & .bdy files ###################################################################
 print('generating .bci & .bdy files...')
 
-## load USGS data (hydrograph timeseries) for gage 11463500
+## load USGS data for gage 11463500
 param <- c('00060', '00065'); names(param) <- c('discharge_cfs', 'gageht_ft')
 statcode <- c('00001', '00002', '00003', '00008'); names(statcode) <- c('max', 'min', 'mean', 'median')
 flow <- readNWISdata(
@@ -47,13 +45,13 @@ flow <- readNWISdata(
   service = 'iv', tz = 'America/Los_Angeles') %>% 
   renameNWISColumns
 
-## convert to m2/s
+## transform to correct units
 edgewidth <- diff(edge.in$x)/2  #m
 flow <- flow %>% 
   transmute(t = toNumber(dateTime - dateTime[1]),  #seconds
-            q = Flow_Inst / mft^3 / edgewidth)  #m2/s
+            q = Flow_Inst / mft^3 / (edgewidth/2))  #m2/s
 
-## write out .bdy file
+## write out files
 bdy <- matrix(
   c('LISFLOOD', NA, 'casestudy', NA, length(flow$t), 'seconds'), 
   byrow = TRUE, ncol = 2) %>% rbind(cbind(flow$q, flow$t))
@@ -61,13 +59,12 @@ write.table(bdy,
   file = 'files/casestudy.bdy', 
   row.names = FALSE, col.names = FALSE, quote = FALSE, sep = '\t', na = '')
 
-## write out .bci file
 bci <- data.frame(matrix(
   c('N', round(min(edge.in$x)), round(max(edge.in$x)), 'QVAR', 'casestudy',
     'W', round(min(edge.out$y)), round(max(edge.out$y)), 'FREE', NA),
   nrow = 2, byrow = TRUE))
 write.table(bci, 
-  file = 'files/casestudy.bci',
+  file = 'files/casestudy.bci', 
   row.names = FALSE, col.names = FALSE, quote = FALSE, sep = '\t', na = '')
 
 
@@ -97,9 +94,6 @@ gages <- gages %>%
   filter(site_no != 11463500) %>% 
   arrange(site_no)
 
-## load width raster
-width <- raster('../5b_run_bestfit/files/russian.width.asc', crs = projection(aoi))
-
 ## generate .gauge and .stage files
 gages.write <- gages %>%
   st_as_sf(coords = c('dec_long_va', 'dec_lat_va'), crs = 4269) %>%
@@ -113,11 +107,11 @@ gages.write <- gages %>%
   select(x, y, direction, value) %>%
   as.matrix %>%
   rbind(c(nrow(.), NA, NA, NA), .)
-write.table(gages.write[,1:2],
-  file = 'files/russian.stage', na = '',
-  sep = '\t', row.names = FALSE, col.names = FALSE, quote = FALSE)
 write.table(gages.write,
   file = 'files/russian.gauge', na = '',
+  sep = '\t', row.names = FALSE, col.names = FALSE, quote = FALSE)
+write.table(gages.write[,1:2],
+  file = 'files/russian.stage', na = '',
   sep = '\t', row.names = FALSE, col.names = FALSE, quote = FALSE)
 
 
