@@ -15,7 +15,7 @@ output:
 ## setup
 knitr::opts_knit$set(root.dir = 'D:/1-PARRA/')
 knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
-knitr::opts_chunk$set(fig.show = 'hold', fig.align = 'center')
+knitr::opts_chunk$set(results = 'hold', fig.show = 'hold', fig.align = 'center')
 rm(list = ls())
 
 ```
@@ -27,6 +27,7 @@ source('_data/plots.R')
 
 ## load required packages
 require(plotly)
+require(GGally)
 
 ## load location information
 load('_data/lisflood/dem.Rdata')
@@ -122,7 +123,7 @@ Overall this gives us four error metrics to consider.
 However, these metrics are just to move from a full map to a single summary number. 
 The results of the Sherlock computing give us 1,000 values for each combination of $n$, $p$, and $\alpha$, one for every pre-computed map. 
 This is shown in the histogram below for a single hyperparameter combination. 
-Therefore we aggregate our error metrics even further.
+Therefore we aggregate our error metrics even further, as described in the next section.
 
 ```{r}
 ## load error data
@@ -131,10 +132,10 @@ error <- foreach(file = files) %do% {
   read_csv(file)} %>%
   do.call(rbind, .)
 
-const01 <- (error$SRSS01/error$RMSE01)[1]
-const50 <- (error$SRSS50/error$RMSE50)[1]
-error <- error %>% 
-  mutate(MAE01 = MAE01/const01^2, MAE50 = MAE50/const50^2)
+# const01 <- (error$SRSS01/error$RMSE01)[1]
+# const50 <- (error$SRSS50/error$RMSE50)[1]
+# error <- error %>% 
+#   mutate(MAE01 = MAE01/const01^2, MAE50 = MAE50/const50^2)
 
 ```
 
@@ -143,7 +144,6 @@ error <- error %>%
 error %>% 
   filter(n == 5 & p == 1 & alpha == 0.6) %>% 
   arrange(desc(RMSE50)) %>% 
-  # .[-(1:100),] %>% 
   ggplot() + 
   geom_density(aes(x = MAE01, color = 'MAE01'), size = 1) + 
   geom_density(aes(x = RMSE01, color = 'RMSE01'), size = 1) + 
@@ -158,36 +158,16 @@ error %>%
 
 # Calculate best-fit IDW parameter values
 
-Rather than the rigorous parameter fit process we conducted for the LISFLOOD environmental parameters in **5a_fit_lisflood**, this is more of a qualitative assessment. 
-Using the interactive plotly tool in R, we iteratively removed values of $n$, $p$, and $\alpha$ that led to unfavorable error outcomes. 
-A few iterations are shown below for demonstration purposes.
+For each MAE metric we calculate the mean, 5th percentile, and 95th percentile values.
+For each RMSE metric we calculate the square root of mean of squares (rms), 5th percentile, and 95th percentile values.
+Rather than the rigorous parameter fit process we conducted for the LISFLOOD environmental parameters in '5a_fit_lisflood', this is more of a qualitative assessment. 
+
+## Identify candidate metric pairs
+
+We first start by identifying pairs of metrics that have low correlation, i.e. contain less overlapping and more distinct information. 
 
 ```{r}
-g1 <- ggplot(error) + 
-  geom_point(aes(x = MAE01, y = MAE50), color = 'grey40', alpha = 0.01) + 
-  scale_x_origin() + scale_y_origin() + 
-  geom_parity() + coord_fixed()
-g2 <- ggplot(error) + 
-  geom_point(aes(x = RMSE01, y = RMSE50), color = 'grey40', alpha = 0.01) + 
-  scale_x_origin() + scale_y_origin() + 
-  geom_parity() + coord_fixed()
-plot_grid(g1, g2, nrow = 1)
-ggsave('C:/Users/cbowers/Desktop/error1.png')
-
-g3 <- ggplot(error) + 
-  geom_point(aes(x = MAE01, y = RMSE01), color = 'grey40', alpha = 0.01) + 
-  scale_x_origin() + scale_y_origin() + 
-  geom_parity() + coord_fixed()
-g4 <- ggplot(error) + 
-  geom_point(aes(x = MAE50, y = RMSE50), color = 'grey40', alpha = 0.01) + 
-  scale_x_origin() + scale_y_origin() + 
-  geom_parity() + coord_fixed()
-plot_grid(g3, g4, nrow = 1)
-ggsave('C:/Users/cbowers/Desktop/error2.png')
-
-```
-
-```{r}
+## summarize metric values by parameters
 error.npalpha <- error %>% 
   group_by(n, p, alpha) %>% 
   summarize(
@@ -195,47 +175,26 @@ error.npalpha <- error %>%
     MAE01.05 = quantile(MAE01, 0.05), MAE01.95 = quantile(MAE01, 0.95),
     MAE50.05 = quantile(MAE50, 0.05), MAE50.95 = quantile(MAE50, 0.95),
     RMSE01.rms = sqrt(mean(RMSE01^2)), RMSE50.rms = sqrt(mean(RMSE50^2)),
-    # RMSE01.mean = mean(RMSE01), RMSE50.mean = mean(RMSE50),
     RMSE01.05 = quantile(RMSE01, 0.05), RMSE01.95 = quantile(RMSE01, 0.95),
     RMSE50.05 = quantile(RMSE50, 0.05), RMSE50.95 = quantile(RMSE50, 0.95)) %>% 
   ungroup
 
-require(GGally)
-error.npalpha %>% 
-  select(starts_with('MAE')) %>% 
-  ggpairs
-error.npalpha %>% 
-  select(starts_with('RMSE')) %>% 
-  # select(-ends_with('mean')) %>% 
-  ggpairs
-
-error.npalpha %>% 
-  select(contains('01')) %>% 
-  ggpairs
-error.npalpha %>% 
-  select(contains('50')) %>% 
-  ggpairs
-
-error.npalpha %>% 
-  select(starts_with('RMSE')) %>% 
-  select(ends_with('rms'), ends_with('05'), ends_with('95')) %>% 
-  ggpairs
-error.npalpha %>% 
-  select(starts_with('RMSE')) %>% 
-  select(ends_with('05'), ends_with('95'), ends_with('rms')) %>% 
-  ggpairs
-error.npalpha %>% 
-  select(starts_with('RMSE')) %>% 
-  select(ends_with('95'), ends_with('rms'), ends_with('05')) %>% 
-  ggpairs
-
-error.npalpha %>% 
-  select('RMSE50.rms', 'RMSE01.05', 'RMSE01.95') %>% 
-  ggpairs
+## plot cross-correlation between metrics
+error.npalpha %>% select(starts_with('MAE')) %>% ggpairs
+error.npalpha %>% select(starts_with('RMSE')) %>% ggpairs
+error.npalpha %>% select(contains('01')) %>% ggpairs
+error.npalpha %>% select(contains('50')) %>% ggpairs
 
 ```
 
+## Find best-fit parameters for different metric pairs
+
+Using the interactive plotly tool in R, we iteratively removed values of $n$, $p$, and $\alpha$ that led to unfavorable error outcomes. 
+When the size of the best-fit subset reached 1-2\% or less of the total number of parameter combinations, we saved the best-fit $n$, $p$ and $\alpha$ values in a vector.
+We repeated this process for a few different combinations of metrics and compared the best-fit parameter values found by each combination.
+
 ```{r}
+## initialize empty vectors to store best-fit values across all simulations
 n.best <- c()
 p.best <- c()
 alpha.best <- c()
@@ -244,6 +203,7 @@ alpha.best <- c()
 
 ```{r}
 ## balance MAE01.mean & RMSE50.rms
+## (note: filter commands were added one-by-one to achieve the final results)
 
 error.subset <- error.npalpha %>% 
   filter(alpha > 0.25 & alpha < 0.85) %>% 
@@ -255,18 +215,18 @@ error.subset <- error.npalpha %>%
   filter(n > 4 & alpha > 0.45)
 nrow(error.subset)/nrow(error.npalpha)
 
-plot_ly(
-  data = error.subset,
-  x = ~MAE01.mean, y = ~RMSE50.rms, color = ~factor(n),
-  colors = scico(n = length(unique(error.subset$n)), palette = 'roma'))
-plot_ly(
-  data = error.subset,
-  x = ~MAE01.mean, y = ~RMSE50.rms, color = ~factor(p),
-  colors = scico(n = length(unique(error.subset$p)), palette = 'roma'))
-plot_ly(
-  data = error.subset,
-  x = ~MAE01.mean, y = ~RMSE50.rms, color = ~factor(alpha),
-  colors = scico(n = length(unique(error.subset$alpha)), palette = 'roma'))
+# plot_ly(
+#   data = error.subset,
+#   x = ~MAE01.mean, y = ~RMSE50.rms, color = ~factor(n),
+#   colors = scico(n = length(unique(error.subset$n)), palette = 'roma'))
+# plot_ly(
+#   data = error.subset,
+#   x = ~MAE01.mean, y = ~RMSE50.rms, color = ~factor(p),
+#   colors = scico(n = length(unique(error.subset$p)), palette = 'roma'))
+# plot_ly(
+#   data = error.subset,
+#   x = ~MAE01.mean, y = ~RMSE50.rms, color = ~factor(alpha),
+#   colors = scico(n = length(unique(error.subset$alpha)), palette = 'roma'))
   
 n.best <- c(n.best, unique(error.subset$n))
 p.best <- c(p.best, unique(error.subset$p))
@@ -286,18 +246,18 @@ error.subset <- error.npalpha %>%
   filter(p > 1.5 & alpha > 0.5)
 nrow(error.subset)/nrow(error.npalpha)
 
-plot_ly(
-  data = error.subset,
-  x = ~MAE50.mean, y = ~RMSE01.rms, color = ~factor(n),
-  colors = scico(n = length(unique(error.subset$n)), palette = 'roma'))
-plot_ly(
-  data = error.subset,
-  x = ~MAE50.mean, y = ~RMSE01.rms, color = ~factor(p),
-  colors = scico(n = length(unique(error.subset$p)), palette = 'roma'))
-plot_ly(
-  data = error.subset,
-  x = ~MAE50.mean, y = ~RMSE01.rms, color = ~factor(alpha),
-  colors = scico(n = length(unique(error.subset$alpha)), palette = 'roma'))
+# plot_ly(
+#   data = error.subset,
+#   x = ~MAE50.mean, y = ~RMSE01.rms, color = ~factor(n),
+#   colors = scico(n = length(unique(error.subset$n)), palette = 'roma'))
+# plot_ly(
+#   data = error.subset,
+#   x = ~MAE50.mean, y = ~RMSE01.rms, color = ~factor(p),
+#   colors = scico(n = length(unique(error.subset$p)), palette = 'roma'))
+# plot_ly(
+#   data = error.subset,
+#   x = ~MAE50.mean, y = ~RMSE01.rms, color = ~factor(alpha),
+#   colors = scico(n = length(unique(error.subset$alpha)), palette = 'roma'))
 
 n.best <- c(n.best, unique(error.subset$n))
 p.best <- c(p.best, unique(error.subset$p))
@@ -320,18 +280,18 @@ error.subset <- error.npalpha %>%
   filter(alpha > 0.5)
 nrow(error.subset)/nrow(error.npalpha)
 
-plot_ly(
-  data = error.subset,
-  x = ~RMSE01.95, y = ~RMSE50.05, color = ~factor(n),
-  colors = scico(n = length(unique(error.subset$n)), palette = 'roma'))
-plot_ly(
-  data = error.subset,
-  x = ~RMSE01.95, y = ~RMSE50.05, color = ~factor(p),
-  colors = scico(n = length(unique(error.subset$p)), palette = 'roma'))
-plot_ly(
-  data = error.subset,
-  x = ~RMSE01.95, y = ~RMSE50.05, color = ~factor(alpha),
-  colors = scico(n = length(unique(error.subset$alpha)), palette = 'roma'))
+# plot_ly(
+#   data = error.subset,
+#   x = ~RMSE01.95, y = ~RMSE50.05, color = ~factor(n),
+#   colors = scico(n = length(unique(error.subset$n)), palette = 'roma'))
+# plot_ly(
+#   data = error.subset,
+#   x = ~RMSE01.95, y = ~RMSE50.05, color = ~factor(p),
+#   colors = scico(n = length(unique(error.subset$p)), palette = 'roma'))
+# plot_ly(
+#   data = error.subset,
+#   x = ~RMSE01.95, y = ~RMSE50.05, color = ~factor(alpha),
+#   colors = scico(n = length(unique(error.subset$alpha)), palette = 'roma'))
 
 n.best <- c(n.best, unique(error.subset$n))
 p.best <- c(p.best, unique(error.subset$p))
@@ -353,18 +313,18 @@ error.subset <- error.npalpha %>%
   filter(p < 3)
 nrow(error.subset)/nrow(error.npalpha)
 
-plot_ly(
-  data = error.subset,
-  x = ~MAE01.95, y = ~MAE50.05, color = ~factor(n),
-  colors = scico(n = length(unique(error.subset$n)), palette = 'roma'))
-plot_ly(
-  data = error.subset,
-  x = ~MAE01.95, y = ~MAE50.05, color = ~factor(p),
-  colors = scico(n = length(unique(error.subset$p)), palette = 'roma'))
-plot_ly(
-  data = error.subset,
-  x = ~MAE01.95, y = ~MAE50.05, color = ~factor(alpha),
-  colors = scico(n = length(unique(error.subset$alpha)), palette = 'roma'))
+# plot_ly(
+#   data = error.subset,
+#   x = ~MAE01.95, y = ~MAE50.05, color = ~factor(n),
+#   colors = scico(n = length(unique(error.subset$n)), palette = 'roma'))
+# plot_ly(
+#   data = error.subset,
+#   x = ~MAE01.95, y = ~MAE50.05, color = ~factor(p),
+#   colors = scico(n = length(unique(error.subset$p)), palette = 'roma'))
+# plot_ly(
+#   data = error.subset,
+#   x = ~MAE01.95, y = ~MAE50.05, color = ~factor(alpha),
+#   colors = scico(n = length(unique(error.subset$alpha)), palette = 'roma'))
 
 n.best <- c(n.best, unique(error.subset$n))
 p.best <- c(p.best, unique(error.subset$p))
@@ -372,34 +332,111 @@ alpha.best <- c(alpha.best, unique(error.subset$alpha))
 
 ```
 
-```{r}
+## Consolidate & summarize results 
+
+Here are the values that consistently emerged as best-fit values for the three parameters under consideration:
+
+```{r echo = FALSE}
 n.best <- sort(unique(n.best))
 p.best <- sort(unique(p.best))
 alpha.best <- sort(unique(alpha.best))
 
+cat('n.best:\n'); print(n.best)
+cat('\np.best:\n'); print(p.best)
+cat('\nalpha.best:\n'); print(alpha.best)
+
 error.best <- error.npalpha %>% 
   filter(n %in% n.best & p %in% p.best & alpha %in% alpha.best)
 
-error.best %>% 
-  select(-n, -p, -alpha) %>% 
-  apply(2, function(x) x/max(x)) %>% 
-  apply(1, sum) %>% 
-  cbind(error.best %>% select(n, p, alpha), error.total = .) %>% 
-  arrange(error.total)
+```
 
-error.best %>% 
-  select(-n, -p, -alpha) %>% 
-  apply(2, function(x) x/max(x)) %>% 
-  as.data.frame %>% 
-  mutate(central = select(., ends_with('mean'), ends_with('rms')) %>% apply(1, sum),
-         extreme = select(., ends_with('05'), ends_with('95')) %>% apply(1, sum)) %>% 
-  transmute(error.weighted = central*2/3 + extreme/3) %>% 
-  cbind(error.best %>% select(n, p, alpha), .) %>% 
-  arrange(error.weighted)
+These represent `r nrow(error.best)` parameter combinations, or `r scales::percent(nrow(error.best)/nrow(error.npalpha), accuracy = 0.1)` of all parameter combinations considered. 
+At this point, the user could choose to use all of these as uniformly weighted options in the surrogate model to represent parameter uncertainty.
+However, we move one step further and define single point values as the defaults for the *generate_inundation* function in the file `INUN.R`. 
+After a holistic evaluation of the multiple error metrics, we chose the following values.
 
-n = 6
-p = 2.5
-alpha = 0.6
+```{r include = FALSE}
+# error.best %>% 
+#   select(-n, -p, -alpha) %>% 
+#   apply(2, function(x) x/max(x)) %>% 
+#   apply(1, sum) %>% 
+#   cbind(error.best %>% select(n, p, alpha), error.total = .) %>% 
+#   arrange(error.total)
+# error.best %>% 
+#   select(-n, -p, -alpha) %>% 
+#   apply(2, function(x) x/max(x)) %>% 
+#   as.data.frame %>% 
+#   mutate(central = select(., ends_with('mean'), ends_with('rms')) %>% apply(1, sum),
+#          extreme = select(., ends_with('05'), ends_with('95')) %>% apply(1, sum)) %>% 
+#   transmute(error.weighted = central*2/3 + extreme/3) %>% 
+#   cbind(error.best %>% select(n, p, alpha), .) %>% 
+#   arrange(error.weighted)
 
 ```
+
+```{r echo = FALSE}
+data.frame(
+  param = c('n', 'p', 'alpha'),
+  value = c(6, 2, 0.7)) %>% 
+  gt %>% 
+  fmt_markdown('param') %>% 
+  fmt_number('value') %>%
+  cols_label(param = 'Parameter', value = 'Best-Fit Value') %>% 
+  tab_header('Surrogate Model Parameter Values') %>% 
+  tab_options(heading.background.color = '#d9d9d9', 
+              column_labels.background.color = '#f2f2f2')
+
+```
+
+# Calculate surrogate model error
+
+We pull the 1,000 simulations that were run with the best-fit parameters and assess the error. 
+The average values of our error metrics of interest are shown in the table below. 
+Additionally, we take the metric with the largest average (RMSE50) and the smallest average (MAE01) and plot the full error distributions as histograms. 
+
+```{r}
+## find all simulations run with best-fit parameters
+error.final <- error %>% filter(n == 6 & p == 2 & alpha == 0.7)
+
+## show average error metrics as a table
+error.final %>% 
+  summarize(RMSE01 = sqrt(mean(RMSE01^2)), RMSE50 = sqrt(mean(RMSE50^2)),
+            MAE01 = mean(abs(MAE01)), MAE50 = mean(abs(MAE50))) %>% 
+  t %>% 
+  data.frame(val = .) %>% 
+  rownames_to_column(var = 'name') %>%
+  mutate(val = val*100) %>% 
+  gt %>% 
+  fmt_markdown('name') %>% 
+  fmt_number('val') %>% 
+  cols_label(name = 'Error Metric', val = 'Value (cm)') %>% 
+  tab_header('Surrogate Model Average Error') %>% 
+  tab_options(heading.background.color = '#d9d9d9', 
+              column_labels.background.color = '#f2f2f2')
+  
+## plot MAE01 and RMSE50
+```
+
+```{r echo = FALSE}
+ggplot(error.final) + 
+  geom_histogram(aes(MAE01), color = 'black', fill = 'grey90', 
+                 bins = sqrt(nrow(error.final)), boundary = 0) + 
+  ggtitle('Surrogate Model Error (MAE)', 
+          subtitle = 'calculated for cells that flood at least 1% of simulations') + 
+  scale_x_origin('Mean Absolute Error') + 
+  scale_y_origin('Number of Occurrences')
+
+ggplot(error.final) + 
+  geom_histogram(aes(RMSE50), color = 'black', fill = 'grey90', 
+                 bins = sqrt(nrow(error.final)), boundary = 0) + 
+  ggtitle('Surrogate Model Error (RMSE)', 
+          subtitle = 'calculated for cells that flood at least 50% of simulations') + 
+  scale_x_origin('Root Mean Squared Error') + 
+  scale_y_origin('Number of Occurrences')
+
+```
+
+Almost all simulations have an MAE01 of 10cm or less and a RMSE50 of 50cm or less, and all of the averages are well within the vertical tolerance of the DEM we are using to generate inundation maps. 
+Therefore we are very satisfied with the accuracy of the surrogate model.
+
 

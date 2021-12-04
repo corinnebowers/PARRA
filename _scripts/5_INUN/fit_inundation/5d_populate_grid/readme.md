@@ -31,13 +31,13 @@ computing cluster. An outline of that process is enumerated below.
     inundation maps for each sample index.
 4.  Update user-defined information at the top of `generate_zero.R` and
     `generate_files_2.R` to match `generate_files.R`.
-5.  Run `generate_zero.sh` to create a “lower-bound” LISFLOOD map for
-    the sample space. This prevents numerical errors when interpolating
+5.  Run `run_zero.sh` to create a “lower-bound” LISFLOOD map for the
+    sample space. This prevents numerical errors when interpolating
     values for new combinations of *Q*<sub>*p*</sub> and
     *t*<sub>*p*</sub>.
-6.  Once all simulations have finished running, run
-    `cleanup_lisflood.sh` to organize LISFLOOD output files. *Please
-    note that this could be several hours or days.*
+6.  *Once all simulations have finished,* run `cleanup_lisflood.sh` to
+    organize LISFLOOD output files. Please note that this could take
+    several hours or days.
 7.  Run `generate_files_2.sbatch` to identify failed LISFLOOD model runs
     (either did not finish or did not reach the ocean) and recalculate
     .bci and .bdy files for these indices.
