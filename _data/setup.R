@@ -36,6 +36,8 @@ suppressPackageStartupMessages({
 mft <- 3.28084
 
 toNumber <- function(x) as.numeric(paste(x))
+strip <- function(x) unname(unlist(x))
+
 Mean <- function(x) mean(x, na.rm = TRUE)
 Sum <- function(x) sum(x, na.rm = TRUE)
 Max <- function(x) max(x, na.rm = TRUE)

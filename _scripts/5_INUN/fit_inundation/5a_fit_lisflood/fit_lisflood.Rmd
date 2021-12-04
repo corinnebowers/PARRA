@@ -202,7 +202,7 @@ Therefore we first use k-means clustering to identify 100 representative simulat
 
 ```{r mds.clusters}
 ## run k-means clustering algorithm
-n <- 25
+n <- 50
 samples.k <- samples.rp100 %>%
   filter(complete.cases(.)) %>%
   mutate(bias.odds = bias / (1 + bias),
@@ -660,8 +660,8 @@ ks <-
     foreach (var = important, .combine = 'c') %do% {
       samples.subset %>% 
         select(var) %>% arrange(get(var)) %>% 
-        mutate(p.var = punif(get(var), min = vars.df[which(var==vars), 'var.min'],
-                         max = vars.df[which(var==vars), 'var.max']),
+        mutate(p.var = punif(get(var), min = vars.df[which(var==vars),]$var.min,
+                         max = vars.df[which(var==vars),]$var.max),
                p.unif = (1:nrow(samples.subset))/(nrow(samples.subset)+1)) %>% 
         mutate(diff = abs(p.var - p.unif)) %>% 
         mutate(ks = diff/d.crit) %>% arrange(desc(ks)) %>% pull(ks) %>% max
@@ -696,10 +696,10 @@ samples.subset <-
   arrange(dist) %>% .[1:n.clusters,] %>% 
   left_join(samples.rp100, by = 'mds.cluster')
 important.plot <- lapply(important, function(var) {
-  vmin <- vars.df[which(var==vars), 'var.min']
-  vmax <- vars.df[which(var==vars), 'var.max']
-  vmed <- vars.df[which(var==vars), 'default']
-  lab <- vars.df[which(vars.df$vars == gsub('X', '', var)), 'description']
+  vmin <- vars.df[which(var==vars),]$var.min
+  vmax <- vars.df[which(var==vars),]$var.max
+  vmed <- vars.df[which(var==vars),]$default
+  lab <- vars.df[which(vars.df$vars == gsub('X', '', var)),]$description
   ggplot() + 
     geom_rect(aes(xmin = vmin, xmax = vmax, ymin = 0, ymax = nrow(samples.subset)/10), 
               fill = 'black', alpha = 0.1) +
@@ -730,6 +730,7 @@ Overall, we found that the channel parameters and hydrograph parameters made a m
 The final best-fit parameter values are shown in the table below. 
 
 ```{r include = FALSE}
+## look at proportion of each LULC category in the study area
 lulc.df %>% 
   group_by(vars = paste(value)) %>% 
   summarize(percent = length(value)/nrow(.)) %>% 
@@ -745,7 +746,7 @@ vars.important <- vars.df %>%
   filter(vars %in% important) %>%
   mutate(vars = factor(vars, levels = important)) %>% 
   arrange(vars) %>% 
-  mutate(newval = c(0.018, 0.71, NA, 44, NA, NA, NA, 0.1, NA, NA, 0.3, 0.05))
+  mutate(newval = c(0.03, 0.71, NA, 40, NA, 0.08, 0.12, 0.1, NA, NA, 0.3, 0.05))
 
 vars.important %>% 
   select(-var.min, -var.max) %>% 
@@ -763,7 +764,6 @@ vars.important %>%
   as_raw_html()
 
 ```
-
 
 ```{r newvals, include = FALSE}
 ## update parameter table to list best-fit values

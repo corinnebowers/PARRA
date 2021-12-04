@@ -58,12 +58,13 @@ generate_damage <- function(
   n.inun <- length(inundation)
 
   ## calculate flood depth = inundation height - foundation height
+  cat('   calculating first floor water depth...\n')
   pb <- txtProgressBar(min = 0, max = n.inun, style = 3)
   depth <- 
     foreach(i = 1:n.inun, 
       .packages = c('dplyr', 'purrr', 'sf', 'stringr'),
       .export = c('toNumber', 'assign_foundations'),
-      .options.snow = list(progress = function(n) setTxtProgressBar(pb, n))) %do% {
+      .options.snow = list(progress = function(n) setTxtProgressBar(pb, n))) %dorng% {
         if (probabilistic) {
           found_ht <- assign_foundations(buildings[wet.bldg,], foundations)/3.28084 #mft
         } else found_ht <- rep(0, length(wet.bldg))
@@ -82,13 +83,14 @@ generate_damage <- function(
   }
   
   ## generate damage ratios
+  cat('   converting depth to damage...\n')
   pb <- txtProgressBar(min = 0, max = n.inun, style = 3)
   damage <- 
     foreach (i = 1:n.inun,
       .packages = c('dplyr', 'purrr', 'pracma'),
       .export = c('generate_damage_deterministic', 'generate_damage_probabilistic',
                   'find_nearest', 'Min', 'Mean', 'Max'),
-      .options.snow = list(progress = function(n) setTxtProgressBar(pb, n))) %dopar% {
+      .options.snow = list(progress = function(n) setTxtProgressBar(pb, n))) %dorng% {
         if (probabilistic) {
           map_dfr(
             .x = 1:n.damage, 

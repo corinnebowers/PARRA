@@ -27,16 +27,14 @@ num_cores <- as.numeric(Sys.getenv("SLURM_CPUS_PER_TASK"))
 
 #### define user input parameters #################################################################
 
-n <- 50  			#number of LHS samples
-m <- 4.5  			#hydrograph shape parameter
-baseflow <- 3  			#baseflow (m3/s)
-
-## for the first round of simulations:
+n <- 1000  			#number of LHS samples
+m <- 4  			#hydrograph shape parameter
+baseflow <- 3  			#baseflow (m^3/s)
 hydrolength <- 30*24*3600  	#simulation length (s)
 spinup <- 30*24*3600  		#simulation spin-up time (s)
-## if the first simulation does not reach the outlet: 
-#hydrolength <- 50*24*3600  	#simulation length (s)
-#spinup <- 100*24*3600  	#simulation spin-up time (s)
+
+Qp_max <- 4000			#maximum Qp value in sample space (m^3/s)
+tp_max <- 240			#maximum tp value in sample space (hrs)
 
 
 #### generate samples #############################################################################
@@ -51,15 +49,16 @@ samples <- improvedLHS(n = n, k = 2) %>%
 samples <- samples %>%
   mutate(tp = (x1*2) %>% exp %>% 
            punif(min = 1, max = exp(2)) %>% 
-           qunif(min = 0, max = 240),
+           qunif(min = 0, max = tp_max),
          Qp = (x2*2) %>% exp %>% 
            punif(min = 1, max = exp(2)) %>% 
-           qunif(min = 0, max = 4000)) %>% 
+           qunif(min = 0, max = Qp_max)) %>% 
   select(tp, Qp)
 
 ## save to file
-write.table(samples, file = 'samples_grid.txt',
-            row.names = FALSE, quote = FALSE, sep = '\t')
+write.table(samples, 
+  file = 'samples_grid.txt',
+  row.names = FALSE, quote = FALSE, sep = '\t')
 
 
 #### generate bci and bdy files ###################################################################
@@ -78,7 +77,7 @@ null <- foreach (i = 1:n,
 
     ## define LHS parameters
     tp <- samples[i, 'tp']*3600  #seconds
-    Qp <- samples[i, 'Qp']  #m3/s
+    Qp <- samples[i, 'Qp']  	 #m^3/s
 
     ## calculate storm hydrograph
     t <- seq(0, hydrolength, 60)
@@ -112,8 +111,6 @@ null <- foreach (i = 1:n,
   }
 stopCluster(cl)
 cat('\n')
-
-# for (i in unlist(unname(read.table('id.txt', header = FALSE)))) {
 
 
 #### output simulation length #####################################################################

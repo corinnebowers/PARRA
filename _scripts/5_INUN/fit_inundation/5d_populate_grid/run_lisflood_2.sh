@@ -13,7 +13,7 @@ mkdir -p logfiles
 mkdir -p results
 
 ## load simulation length constant
-simlength=$(cat files/simlength.txt)
+simlength=$(cat files/simlength_2.txt)
 
 ## find the number of samples
 n=$(wc -l samples_grid.txt | cut -f1 -d ' ')
@@ -32,9 +32,9 @@ do \
   "1" 				`#simulation timestep (seconds)` \
   "files/russian.dem.asc" 	`#DEM raster file` \
   "files/russian.width.asc"	`#channel width raster file` \
-  "0.0300" 			`#channel roughness coefficient` \
+  "0.030" 			`#channel roughness coefficient` \
   ""		 		`#channel depth parameter, r` \
-  ""				`#channel depth parameter, p` \
+  "0.71"			`#channel depth parameter, p` \
   "files/bci/grid$i.bci" 	`#.bci file` \
   "files/bdy/grid$i.bdy" 	`#.bdy file` \
   "" 				`#starting .wd file` \

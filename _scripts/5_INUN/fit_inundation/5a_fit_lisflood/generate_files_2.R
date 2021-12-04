@@ -137,7 +137,7 @@ cat('\n')
 #### output simulation length #####################################################################
 print('saving simulation length as a known constant...')
 write.table(spinup + hydrolength,
-  file = 'files/simlength.txt', 
+  file = 'files/simlength_2.txt', 
   row.names = FALSE, col.names = FALSE, quote = FALSE, sep = '\t', na = '')
 
 

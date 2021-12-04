@@ -6,10 +6,11 @@ cd /home/groups/bakerjw/cbowers/PARRA
 ## create local copies of LISFLOOD input files
 cp _data/lisflood/*.asc _scripts/5_INUN/fit_inundation/5a_fit_lisflood/files
 
-## create necessary folders
+## move to working folder
 cd _scripts/5_INUN/fit_inundation/5a_fit_lisflood
+
+## create necessary folders
 mkdir -p logfiles
-mkdir -p results
 
 ## load simulation length constant
 simlength=$(cat files/simlength.txt)
@@ -19,7 +20,7 @@ n=$(wc -l samples_lisflood.txt | cut -f1 -d ' ')
 let "n-=1"
 
 ## submit lisflood jobs within for loop
-for i in $(seq 753 $n)
+for i in $(seq 1 $n)
 do \
   plusone=$(expr $i + 1)
   line=$(tail -n+$plusone samples_lisflood.txt | head -n1)

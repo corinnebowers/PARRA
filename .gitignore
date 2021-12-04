@@ -30,6 +30,9 @@ _scripts/5_INUN/fit_inundation/*/results/
 _scripts/5_INUN/fit_inundation/*/*.Rmd
 
 
+## _results
+_results/mitigated/results/*
+
 ## other
 _figures/
 _sensitivity/

@@ -52,7 +52,7 @@ generate_losses <- function(
       .combine = 'rbind',
       .packages = c('dplyr', 'purrr', 'tidyr'),
       .export = c('generate_group_losses', 'generate_sim_losses', 'toNumber'),
-      .options.snow = list(progress = function(n) setTxtProgressBar(pb, n))) %dopar% {
+      .options.snow = list(progress = function(n) setTxtProgressBar(pb, n))) %dorng% {
   
         ## determine building values
         if (probabilistic) {
@@ -88,7 +88,8 @@ generate_losses <- function(
     if (aggregate == 'group') {
       loss.total <- loss.total %>% 
         group_by(group) %>% 
-        summarize(loss = mean(loss), .groups = 'drop')
+        summarize(loss = mean(loss)) %>% 
+        ungroup
     }
     return(loss.total)
 }
@@ -124,7 +125,7 @@ generate_group_losses <- function(losses, buildings.wet) {
   losses.group <- losses.bldg %>% 
     right_join(buildings.wet %>% select(bldg, group), by = 'bldg') %>% 
     group_by(group) %>% 
-    summarize(loss = mean(loss)) %>% 
+    summarize(loss = sum(loss)) %>% 
     mutate(n.loss = NA)
   
   ## return grouped losses

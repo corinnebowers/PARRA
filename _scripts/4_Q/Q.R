@@ -114,16 +114,16 @@ fit_generate_runoff <- function(
 
 ###################################################################################################
 
-fit_Qp <- function(catalog, extremeratio = 0.1) {
+fit_Qp <- function(catalog, extremeratio = 0.9) {
   #'
   #' Fits a ordinary least squares linear regression model to peak streamflow records in the 
   #' catalog for use in the PARRA framework. 
   #' 
   #' @param catalog Catalog of ARs occurring in area of interest. Columns "precip_mm", "runoff_mm",
   #' and "Qp_m3s" must be present.
-  #' @param extremeratio Fraction of AR events in the catalog to be used in fitting the 
-  #' extremes component of the residuals mixture model. For example, a value of 0.1 means that 
-  #' the standard deviation of the extremes is calculated based on the top 10% of AR events.
+  #' @param extremeratio Percentile of AR events in the catalog to be used in fitting the 
+  #' extremes component of the residuals mixture model. For example, a value of 0.9 means that 
+  #' the standard deviation of extremes is calculated based on AR events above the 90th percentile.
   #'
   #' @return "model.Qp", the fitted lm regression model object; and "se.Qp", the fitted 
   #' parameters for the residuals mixture model.
@@ -139,8 +139,8 @@ fit_Qp <- function(catalog, extremeratio = 0.1) {
   ## characterize distribution of extreme residuals
   extreme.id <- catalog %>% 
     mutate(n.AR = 1:nrow(.)) %>% 
-    filter(precip_mm >= quantile(precip_mm, 1-extremeratio) & 
-             runoff_mm >= quantile(runoff_mm, 1-extremeratio)) %>% pull(n.AR)
+    filter(precip_mm >= quantile(precip_mm, extremeratio) & 
+             runoff_mm >= quantile(runoff_mm, extremeratio)) %>% pull(n.AR)
   extreme.resid <- model.Qp$residuals[extreme.id]
   se.extreme <- sd(extreme.resid)
 
@@ -169,7 +169,8 @@ fit_tp <- function(catalog) {
 ###################################################################################################
 
 generate_hydrograph <- function(
-  runoff, model.Qp, se.Qp, mixratio = 0.9, fit.tp, probabilistic = FALSE, n.hydro = 1) {
+  runoff, model.Qp, se.Qp, fit.tp, probabilistic = FALSE, n.hydro = 1, 
+  baseflow = 3, mixratio = 0.9) {
   #'
   #' Generates new realizations of hydrograph parameters Qp (peak streamflow) and tp 
   #' (time to peak streamflow) based on precipitation and runoff.
@@ -179,13 +180,14 @@ generate_hydrograph <- function(
   #' @param model.Qp Fitted lm regression model object for peak streamflow.
   #' @param se.prcp Two-element vector of fitted parameters for the peak streamflow residuals 
   #' mixture model.
-  #' @param mixratio Fraction of points to be pulled from the robust standard error 
-  #' distribution. The remainder of errors in the mixture model will be pulled from the 
-  #' distribution of extremes.
   #' @param fit.tp Fitted lognormal parameters for time to peak streamflow based on the catalog.
   #' @param probabilistic Logical binary that indicates whether to incorporate uncertainty into 
   #' new hydrograph parameter realizations.
   #' @param n.hydro Number of hydrograph parameter realizations to generate per runoff event.
+  #' @param baseflow Hydrologic baseflow at USGS gage 11463500 in m^3/s.
+  #' @param mixratio Fraction of points to be pulled from the robust standard error 
+  #' distribution. The remainder of errors in the mixture model will be pulled from the 
+  #' distribution of extremes.
   #' 
   #' @return a dataframe of synthetic hydrograph parameter realizations.
   #' 
@@ -229,13 +231,13 @@ generate_hydrograph <- function(
           runoff %>% 
             mutate(Qp_m3s = (prediction + error.mixture) %>% 
                      cbind(0) %>% apply(1, max)) %>% 
-            mutate(n.hydro = i)
+            mutate(Qp_m3s = Qp_m3s + baseflow, n.hydro = i)
         }) %>% 
       mutate(tp_hrs = rlnorm(nrow(.), meanlog = fit.tp[1], sdlog = fit.tp[2]))
     
   } else { #report deterministic expected value
     hydrograph <- runoff %>% 
-      mutate(Qp_m3s = ifelse(prediction < 0, 0, prediction),
+      mutate(Qp_m3s = ifelse(prediction < 0, 0, prediction) + baseflow,
              tp_hrs = exp(fit.tp[1])) %>% 
       select(-prediction) %>% 
       mutate(n.hydro = NA)

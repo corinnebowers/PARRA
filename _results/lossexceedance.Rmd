@@ -1,7 +1,7 @@
 ---
 title: "Sonoma County AR Flood Loss Analysis"
-author: "Corinne"
-date: "11/12/2021"
+author: "Corinne Bowers"
+date: "12/3/2021"
 output:
   html_document:
     toc: true 
@@ -41,15 +41,16 @@ load('_data/catalog/catalog.Rdata')
 load('_data/lisflood/dem.Rdata')
 load('_data/aoi/aoi.Rdata')
 load('_data/NHD/NHD.Rdata')
+load('_data/buildings/buildings.Rdata')
 
 ## load NFIP claims & policies
-load('D:/Research/_data/NFIP/NFIP.Rdata')
+load('_data/NFIP/NFIP.Rdata')
 
 ```
 
 ```{r echo = FALSE}
 ## should figures be saved out for the publication?
-publish <- FALSE
+publish <- TRUE
 
 if (!publish) {
   theme_set(
@@ -101,10 +102,10 @@ casestudy %>%
 
 ## Plot observed vs. simulated loss
 
-We started with the real maximum IVT and duration from the 2019 event 10,000 and generated 10,000 probabilistic realizations of loss using Sherlock, Stanford's high-performance computing cluster.
+We started with the real maximum IVT and duration from the 2019 event and generated 10,000 probabilistic realizations of loss using Sherlock, Stanford's high-performance computing cluster.
 All files associated with this calculation are stored in the `_results/2019event/` folder.
 
-The dataframe *loss.sim* contains the probabilistic realization of total loss for each of the 10,000 simulations.
+The dataframe *loss.sim* contains the probabilistic realizations of expected total loss for each of the 10,000 simulations.
 Figure 9(a) compares the distribution of these probabilistic loss realizations to the true loss experienced by Sonoma County households as a result of the 2019 event. 
 
 ```{r}
@@ -112,7 +113,7 @@ Figure 9(a) compares the distribution of these probabilistic loss realizations t
 loss.est <- 91.6e6
 
 ## load simulated loss from PARRA framework 
-load('_results/event/results/DV.Rdata')
+load('_results/event/checkpoints/DV.Rdata')
 
 ## plot figure 9(a): observed vs. simulated loss
 ```
@@ -135,15 +136,22 @@ ggsave('_figures/fig09/fig09_lossdist.png', width = 8.3, height = 5, units = 'cm
 ## Find the percentile of the observed loss within the simulated distribution
 
 We can compare the simulated distribution to the observed value numerically as well as visually. 
+The real loss estimate for the 2019 event was reported at \$91.6 million, which falls at the upper tail of the simulated distribution produced by the PARRA framework.
+However, the maximum loss estimate produced by the PARRA framework is significantly larger than the real value, which indicates that this is a distribution with very heavy tails.
 
-```{r}
+```{r echo = FALSE}
 ## calculate values of interest
 data.frame(
   event = 1 - (sum(loss.sim$loss > loss.est) / 1e4),
-  maxloss = max(loss.sim$loss)/1e6,
-  scalefactor = max(loss.sim$loss) / loss.est) %>% 
-  gt
-
+  maxloss = max(loss.sim$loss)) %>% 
+  gt %>%
+  fmt_percent('event', decimals = 1) %>% 
+  fmt_currency('maxloss', suffixing = TRUE, decimals = 0) %>% 
+  cols_label(event = 'Percentile of Observed Loss', maxloss = 'Max Simulated Loss') %>% 
+  tab_header('PARRA Loss Results for 2019 Event') %>% 
+  tab_options(heading.background.color = '#d9d9d9', 
+              column_labels.background.color = '#f2f2f2')
+  
 ```
 
 ## Plot spatial distribution of simulated loss
@@ -191,13 +199,30 @@ ggsave('_figures/fig09/fig09_lossmap.png', width = 6, height = 9, units = 'cm')
 We move now from examining the 2019 event to incorporating the full historic catalog into our analysis.
 This captures the full character of AR-induced fluvial flood risk in the lower Russian River study area.
 We generate 100 realizations of loss for each of the 382 events in the historic catalog. 
-This creates a 3200-year synthetic record. 
+Because the catalog spans 32 years, this creates a synthetic record representing $32 \times 100 = 3200$ years of AR events within the study area. 
 We refer the user to the paper for a more in-depth discussion of the generation of this stochastic record.
+We summarize the results of these simulations using the annual average loss (AAL), a common metric for risk assessment. 
+
+## Calculate AAL based on PARRA framework
+
+We calculate the AAL from the PARRA framework based on Equation 6 from the paper.
+The loss results from the stochastic record are stored in the `_results/lossexceedance/` folder.
+
+```{r}
+## load loss realizations for stochastic record 
+load('_results/stochastic/checkpoints/DV.Rdata')
+loss.stochastic <- loss.sim
+
+## calculate AAL
+AAL <- c('PARRA' = sum(loss.stochastic$loss)/3200)
+
+```
 
 ## Calculate AAL based on NFIP claims
 
-The flood AAL for the study area is a number subject to significant uncertainty. 
-Here we provide one estimate of that number from an independent source: flood insurance claims from the National Flood Insurance Program (NFIP).
+The flood AAL for the study area is a number subject to significant uncertainty, so it is difficult to directly validate the AAL estimate from the PARRA framework. 
+Instead we provide one additional estimate of the flood AAL in the study area using flood insurance claims from the National Flood Insurance Program (NFIP).
+
 We first find the average annual insured losses from the census tracts within the study area.
 We estimate insurance penetration rate by dividing the number of NFIP policies by the number of households, then scale the average annual insured losses by this penetration rate to estimate total AAL for all households. 
 The resulting number is reported in 2019 dollars.
@@ -207,30 +232,33 @@ The resulting number is reported in 2019 dollars.
 inflation <- read.csv('_data/NFIP/inflation2019.csv', header = FALSE) %>% 
   setNames(c('year', 'rate'))
 aal.claims <- claims %>%
-  mutate(year = year(dateofloss)) %>% 
-  left_join(inflation, by = 'year') %>% 
-  mutate(buildingclaim_2018 = amountpaidonbuildingclaim * rate,
-         contentsclaim_2018 = amountpaidoncontentsclaim * rate) %>% 
+  left_join(inflation, by = c('yearofloss' = 'year')) %>% 
+  mutate(
+    buildingclaim_2019 = case_when(
+      is.na(amountpaidonbuildingclaim) ~ 0, 
+      TRUE ~ amountpaidonbuildingclaim * rate),
+    contentsclaim_2019 = case_when(
+      is.na(amountpaidoncontentsclaim) ~ 0, 
+      TRUE ~ amountpaidoncontentsclaim * rate)) %>% 
   right_join(sonoma[aoi,] %>% st_drop_geometry %>% transmute(censustract = toNumber(GEOID))) %>% 
-  mutate(wateryear = year(dateofloss + months(3))) %>% 
+  mutate(wateryear = yearofloss + ifelse(month(dateofloss) %in% 10:12, 1, 0)) %>% 
   group_by(wateryear) %>% 
   summarize(min = min(dateofloss), 
             max = max(dateofloss),
-            structureloss = Sum(buildingclaim_2018),
-            contentsloss = Sum(contentsclaim_2018),
+            structureloss = sum(buildingclaim_2019),
+            contentsloss = sum(contentsclaim_2019),
             totalloss = structureloss + contentsloss) %>% 
-  filter(wateryear > 1978 & wateryear < 2019 & !is.na(wateryear)) %>% 
-  summarize(loss = sum(totalloss)/40) %>% .$loss
+  summarize(loss = Sum(totalloss)/40) %>% .$loss
 
 ## find the number of policies per year in the study area
 insurancepolicies <- policies %>% 
   right_join(sonoma[aoi,] %>% st_drop_geometry %>% transmute(censustract = toNumber(GEOID))) %>% 
-  mutate(wateryear = year(ymd(policyeffectivedate) + months(3))) %>% 
+  mutate(wateryear = year(policyeffectivedate) + 
+           ifelse(month(policyeffectivedate) %in% 10:12, 1, 0)) %>% 
   group_by(wateryear) %>% 
   summarize(min = min(ymd(policyeffectivedate)), 
             max = max(ymd(policyeffectivedate)), 
             n = length(policyeffectivedate)) %>% 
-  filter(wateryear > 2009 & wateryear < 2020 & !is.na(wateryear)) %>% 
   summarize(avg = mean(n)) %>% .$avg
 
 ## find the number of residences per year in the study area
@@ -242,47 +270,40 @@ housingunits <-
   select(-ends_with('M'), -ends_with('A'), -ends_with('PE')) %>% 
   pivot_longer(cols = ends_with('E'), names_to = 'variable', values_to = 'estimate') %>% 
   left_join(profile_vars %>% select('name', 'label'), by = c('variable' = 'name')) %>% 
+  filter(variable == 'DP04_0001E') %>% 
   mutate(censustract = 6*1e9 + toNumber(county)*1e6 + toNumber(tract)) %>% 
   right_join(sonoma[aoi,] %>% st_drop_geometry %>% transmute(censustract = toNumber(GEOID))) %>% 
-  group_by(variable, label) %>% 
-  summarize(estimate = sum(estimate)) %>% 
-  separate(label, c(NA, 'group_title', 'group', 'description'), sep = '!!', fill = 'right') %>% 
-  filter(variable == 'DP04_0001E') %>% .$estimate
+  pull(estimate) %>% Sum
 
 ## find the insurance penetration rate
 penetration <- insurancepolicies/housingunits
 
 ## find the average annual loss
-AAL <- c('NFIP' = aal.claims/penetration)
+AAL <- c(AAL, 'NFIP' = aal.claims/penetration)
 
 ```
 
-## Calculate AAL based on PARRA framework
-
-We calculate the AAL from the PARRA framework based on Equation 6 from the paper.
-The loss results from the stochastic record are stored in the `_results/lossexceedance/` folder.
-A table comparing the two AAL values is included below.
-
-```{r}
-## load loss realizations for stochastic record 
-load('_results/stochastic/results/DV.Rdata')
-loss.stochastic <- loss.sim
-
-## calculate AAL
-AAL <- c(AAL, 'PARRA' = sum(loss.stochastic$loss)/3200)
-
-## display formatted table
-```
-
-```{r}
-## put formatted table here
+```{r echo = FALSE}
+AAL %>% 
+  data.frame %>% 
+  rownames_to_column %>% 
+  setNames(c('source', 'value')) %>% 
+  gt %>%
+  fmt_markdown('source') %>% 
+  fmt_currency('value', suffixing = TRUE, decimals = 0) %>% 
+  cols_label(source = 'Estimate Source', value = 'AAL') %>% 
+  tab_header('AR Flood AAL Estimates', subtitle = 'Lower Russian River') %>% 
+  tab_options(heading.background.color = '#d9d9d9', 
+              column_labels.background.color = '#f2f2f2')
 
 ```
+
+These two numbers generally agree in terms of their order of magnitude, therefore our estimate is well within the tolerable range of uncertainty.
 
 
 # Loss Exceedance Curve
 
-The next loss metric to consider for the historic catalog is the loss exceedance curve, which plots loss values vs. their expected rate of occurrence $\lambda$. 
+The next loss metric to consider for the historic catalog is the loss exceedance curve, which plots a range of loss values vs. their expected rate of occurrence $\lambda$. 
 The loss exceedance is characterized theoretically in Equation 1 of the paper and approximated numerically in Equation 7.
 
 ## Plot the loss exceedance curve
@@ -313,33 +334,43 @@ ggplot(lossexceedance) +
 
 ## Examine points of interest on the loss exceedance curve 
 
-Based on the curve above, we can assess loss events in two ways: we can choose a specific threshold and estimate the occurrence rate of an event of that magnitude, or we can choose an occurrence rate and estimate what event is expected to exceed that value. 
-We provide examples of both.
+Based on the curve above, we can examine loss events in two ways: we can choose a specific loss threshold and estimate the occurrence rate of an event of that magnitude (the vertical line), or we can choose a specific occurrence rate and estimate what loss magnitude is expected for that value (the horizontal line). 
+We provide calculation examples for both.
 
 ### Estimate return period for the 2019 event
 
-One particular event of interest is the 2019 case study event, which caused \$91.6 million dollars of damage. 
+We start by looking vertically: choosing a loss threshold and estimating rate of occurrence.
+One particular loss event of interest is the 2019 case study event, which caused \$91.6 million dollars of damage. 
 We indicate this event with the solid vertical line on the figure above.
 We can see that this event is expected to occur more frequently than the 100-year return period. 
-The exact rate of occurrence an estimated return period are as follows:
+The exact rate of occurrence and estimated return period are as follows:
 
-```{r}
+```{r echo = FALSE}
 ## calculate rate of occurrence for 2019 event
 p <- sum(loss.stochastic$loss > 91.6e6)/3200
-percent(p, accuracy = 0.01)
 
-## calculate return period for 2019 event
-comma(1/p, accuracy = 0.01)
+## show values as formatted table
+data.frame(
+  label = c('Annual Rate of Occurrence', 'Estimated Return Period'),
+  value = c(p, round(1/p, 2))) %>% 
+  gt %>% 
+  fmt_markdown('label') %>% 
+  fmt_number('value', n_sigfig = 4, drop_trailing_zeros = TRUE) %>% 
+  cols_label(label = 'Parameter', value = 'Value') %>% 
+  tab_header('Frequency of 2019 Event in Stochastic Record') %>% 
+  tab_options(heading.background.color = '#d9d9d9', 
+              column_labels.background.color = '#f2f2f2')
 
 ```
 
 ### Estimate expected loss associated with the 100-year event
 
-We also examine the 100 year event $(\lambda = 0.01)$ because this is a common choice for risk management and mitigation planning.
-This is shown with the dashed horizontal line. 
-The exact estimated loss associated with the 100 year event is as follows: 
+Next we look horizontally: choosing a rate of occurrence and estimating the expected loss with that rate of occurrence.
+We examine the 100 year event $(\lambda = 0.01)$ because this is a common choice for risk management and mitigation planning.
+This is shown as the dashed horizontal line. 
+The loss estimate associated with the 100 year event is: 
 
-```{r}
+```{r echo = FALSE}
 ## calculate expected loss associated with the 100 year event
 loss.stochastic %>% 
   arrange(desc(loss)) %>% 
@@ -356,48 +387,135 @@ loss.stochastic %>%
 
 We considered home elevations as a potential mitigation action.
 Households in the study area were raised above the 100-year floodplain one-by-one, with priority assigned based on their proximity to the Russian River.
-We iteratively recalculated the AAL until it fell below the target threshold of 50% of the original value.
+We iteratively recalculated the AAL until it fell below the target threshold of 50% of the original AAL.
 Calculations were performed on Sherlock, Stanford's high-performance computing cluster, and results are stored in the `_results/mitigation` folder.
 
 ## Plot loss results for iterative mitigation strategy
 
 ```{r}
-## how many buildings are there total? 
-## also, add in correct target AAL
-## ALSO, run each one 10-100x to be able to put error bars on each number
+## define target AAL for mitigation strategy
+target <- strip(AAL['PARRA']/2)
 
-## plot AAL vs. number of buildings mitigated
-id <- c(0, 140:160, 1601)
-mitigated_AAL <- 
-  foreach (i = id, .combine = 'c') %do% {
-    load(paste0('_results/final/_results/mitigated/DV_dist_', i, '.Rdata'))
-    sum(loss.group$loss)*nrow(loss.sim)/3200
-  }
-ggplot() + 
-  geom_point(aes(x = id, y = mitigated_AAL)) + 
-  geom_hline(yintercept = 81.6e6, color = roma.colors[1]) + 
-  scale_x_origin('Number of Buildings Mitigated') + 
-  scale_y_origin('Average Annual Loss ($)', labels = comma_format(scale = 1e-6)) + 
-  coord_cartesian(clip = 'off')
+## load "best-guess" estimate of number of elevations necessary
+load('_results/mitigated/checkpoints/loss_bybldg.Rdata')
+n.mitigate <- which(loss.bldg$new_loss <= loss.bldg$new_loss[1]/2)[1]
 
-ggplot() + 
-  geom_point(aes(x = id, y = mitigated_AAL)) + 
-  geom_hline(yintercept = 81.6e6, color = roma.colors[1]) + 
-  scale_x_origin('Number of Buildings Mitigated') + 
-  scale_y_origin('Average Annual Loss ($)', labels = comma_format(scale = 1e-6)) + 
-  coord_cartesian(clip = 'off', xlim = c(100, 200))
+## load full mitigation results
+files <- list.files('_results/mitigated/results', full.names = TRUE)
+AAL_mitigated <- 
+  foreach (file = files, .combine = 'rbind') %do% {
+    load(file)
+    c('n.bldg' = file %>% 
+        str_remove('_results/mitigated/results/DV_') %>% 
+        str_remove('.Rdata') %>% toNumber,
+      'AAL' = sum(loss.sim$loss)/3200)
+  } %>% data.frame %>% arrange(n.bldg)
+
+## calculate 10-point moving average to smooth out probabilistic uncertainty
+roll <- 10
+AAL_mitigated$rollavg <- NA
+for (i in 1:(nrow(AAL_mitigated)-roll)) {
+  AAL_mitigated$rollavg[i+roll/2] <- mean(AAL_mitigated$AAL[i:(i+roll)])
+}
+
+## plot results
+```
+
+```{r echo = FALSE}
+ggplot(AAL_mitigated) + 
+  geom_point(aes(x = n.bldg, y = AAL)) + 
+  scale_color_manual('AAL Target Values', values = roma.colors[2:1]) + 
+  geom_hline(data = data.frame(z = AAL['PARRA']), aes(yintercept = z, color = 'Original AAL')) + 
+  geom_hline(aes(yintercept = target, color = 'Mitigated AAL')) +
+  ggnewscale::new_scale_color() + 
+  scale_color_manual('Required \nMitigation', values = roma.colors[4]) + 
+  geom_vline(data = data.frame(z = n.mitigate), 
+             aes(xintercept = z, color = 'Rough Estimate'),
+             linetype = 'dashed') +
+  scale_x_origin('Number of Mitigated Homes') + 
+  scale_y_origin(labels = comma_format(scale = 1e-6, prefix = '$', suffix = 'M'))
+
+ggplot(AAL_mitigated) + 
+  scale_color_manual('Simulation Results', values = c('black', 'grey70')) +
+  geom_point(aes(x = n.bldg, y = AAL, color = 'Raw Data')) + 
+  geom_line(aes(x = n.bldg, y = rollavg, color = '10-pt Rolling Average')) + 
+  geom_hline(yintercept = target, color = roma.colors[2]) +
+  geom_vline(xintercept = n.mitigate, color = roma.colors[4], linetype = 'dashed') +
+  scale_x_continuous('Number of Mitigated Homes', limits = n.mitigate + 50*c(-1,1)) + 
+  scale_y_origin(labels = comma_format(scale = 1e-6, prefix = '$', suffix = 'M'))
 
 ```
+
+We calculated the mitigated AAL using two different methods: one that was quick but inexact (the "rough estimate"), and one that took longer but included the probabilistic uncertainty in the damage and loss component models. 
+The rough estimate of the number of homes that needed to be mitigated in order to achieve the performance target was `r n.mitigate`. 
+When we zoom in on the full results in the second plot this seems to be fairly accurate. 
+We decided to choose 200 homes as a conservative estimate to increase confidence that the performance target will be achieved. 
+
+```{r}
+## define the number of buildings to mitigate
+n.mitigate <- 200
+
+## decide on optimal mitigation result
+load('_results/mitigated/results/DV_200.Rdata')
+loss.mitigated <- loss.sim
+
+## how many is this relative to the study area? 
+load('_results/stochastic/checkpoints/INUN.Rdata')
+print(paste(
+  'Percentage of buildings experiencing inundation:', 
+  (n.mitigate/length(attr(inundation, 'wet.bldg'))) %>% percent(accuracy = 0.1)))
+print(paste(
+  'Percentage of all buildings in study area:', 
+  (n.mitigate/nrow(buildings)) %>% percent(accuracy = 0.1)))
+  
+```
+
+The numbers above provide some context for how many buildings this is relative to the number of buildings considered in this analysis. 
+
+## Examine points of interest on the mitigated loss exceedance curve 
+
+We revisit the numbers of interest we analyzed for the original loss exceedance curve and compute them again for the mitigated loss exceedance curve.
+First we calculate the new return period for an event similar to the 2019 case study, then we calculate the new expected loss associated with the 100-year event.
+
+### Estimate return period for the 2019 event using the mitigated loss exceedance curve
+
+```{r echo = FALSE}
+## calculate rate of occurrence for 2019 event
+p <- sum(loss.mitigated$loss > 91.6e6)/3200
+
+## show values as formatted table
+data.frame(
+  label = c('Annual Rate of Occurrence', 'Estimated Return Period'),
+  value = c(p, round(1/p, 2))) %>% 
+  gt %>% 
+  fmt_markdown('label') %>% 
+  fmt_number('value', n_sigfig = 4, drop_trailing_zeros = TRUE) %>% 
+  cols_label(label = 'Parameter', value = 'Value') %>% 
+  tab_header('Frequency of 2019 Event in Stochastic Record') %>% 
+  tab_options(heading.background.color = '#d9d9d9', 
+              column_labels.background.color = '#f2f2f2')
+
+```
+
+### Estimate expected loss associated with the 100-year event using the mitigated loss exceedance curve
+
+```{r}
+## expected loss due to 1-in-100 year event
+loss.mitigated %>% 
+  arrange(desc(loss)) %>% 
+  mutate(p = (1:nrow(.))/3200) %>% 
+  mutate(RP = 1/p) %>% 
+  filter(p == 0.01) %>%
+  mutate(loss = loss/1e6) %>% pull(loss) %>% 
+  comma(prefix = '$', suffix = 'M', accuracy = 0.01)
+
+```
+
 
 ## Plot original vs. mitigated loss exceedance curve
 
-```{r}
-## decide on optimal mitigation result
-load('_results/final/_results/mitigated/DV_dist_150.Rdata')
-loss.mitigated <- loss.sim
-
-## figure 10: plot original vs. mitigated loss exceedance curve
-```
+Last but not least, we combine the original and mitigated loss exceedance curves into a single plot. 
+This is included as Figure 10 in the paper.
 
 ```{r echo = FALSE}
 ggplot() + 
@@ -405,10 +523,10 @@ ggplot() +
   annotate('text', x = 225e6, y = 1e-2, hjust = 0, vjust = -0.5,
            label = '"100 Year Event"', fontface = 'italic', 
            family = 'Segoe UI', size = 7/.pt, color = 'grey70') + 
-  geom_step(aes(x = sort(loss.stochastic$loss), 
-                y = (nrow(loss.stochastic):1)/3200, color = 'Original'), size = 0.75) +
-  geom_step(aes(x = sort(loss.mitigated$loss), 
-                y = (nrow(loss.mitigated):1)/3200, color = 'Mitigated'), size = 0.75) +
+  geom_step(aes(x = sort(loss.stochastic$loss, decreasing = TRUE)[-(1)], 
+                y = ((1:nrow(loss.stochastic))/3200)[-(1)], color = 'Original'), size = 0.75) +
+  geom_step(aes(x = sort(loss.mitigated$loss, decreasing = TRUE)[-(1)], 
+                y = ((1:nrow(loss.mitigated))/3200)[-(1)], color = 'Mitigated'), size = 0.75) +
   scale_color_manual('Building \nElevations', values = c('black', 'grey60'),
                      breaks = c('Original', 'Mitigated')) + 
   scale_x_origin('Loss Estimate ($M)', breaks = seq(0, 5e8, 5e7),
@@ -420,9 +538,8 @@ ggsave('_figures/fig10_mitigated.png', width = 8.3, height = 6, units = 'cm')
 
 ```
 
-## Plot horizontal difference
-```{r echo = FALSE}
-## what is the average horizontal difference?
+```{r include = FALSE}
+## what is the average horizontal difference between the two loss exceedance curves?
 cbind(
   stochastic = sort(loss.stochastic$loss),
   mitigated = sort(loss.mitigated$loss),
@@ -437,33 +554,4 @@ cbind(
   annotation_logticks(sides = 'l')
   
 ```
-
-## Examine points of interest on the loss exceedance curve 
-
-### Estimate return period for the 2019 event
-
-```{r}
-## calculate rate of occurrence for 2019 event
-p <- sum(loss.mitigated$loss > 91.6e6)/3200
-percent(p, accuracy = 0.01)
-
-## calculate return period for 2019 event
-comma(1/p, accuracy = 0.01)
-
-```
-
-### Estimate expected loss associated with the 100-year event
-
-```{r}
-## expected loss due to 1-in-100 year event
-loss.mitigated %>% 
-  arrange(desc(loss)) %>% 
-  mutate(p = (1:nrow(.))/3200) %>% 
-  mutate(RP = 1/p) %>% 
-  filter(p == 0.01) %>%
-  mutate(loss = loss/1e6) %>% pull(loss) %>% 
-  comma(prefix = '$', suffix = 'M', accuracy = 0.01)
-
-```
-
 

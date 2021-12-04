@@ -5,12 +5,13 @@ cd /home/groups/bakerjw/cbowers/PARRA
 
 ## create local copies of LISFLOOD input files
 cp _data/lisflood/*.asc _scripts/5_INUN/fit_inundation/5d_populate_grid/files
+
+## move to working folder
 cd _scripts/5_INUN/fit_inundation/5d_populate_grid
 cp ../5b_run_bestfit/files/russian.n.asc files
 
 ## create necessary folders
 mkdir -p logfiles
-mkdir -p results
 
 ## load simulation length constant
 simlength=$(cat files/simlength.txt)
@@ -19,7 +20,7 @@ simlength=$(cat files/simlength.txt)
 n=$(wc -l samples_grid.txt | cut -f1 -d ' ')
 let "n-=1"
 
-for i in $(seq 1 5)
+for i in $(seq 1 $n)
 do \
   plusone=$(expr $i + 1)
   line=$(tail -n+$plusone samples_grid.txt | head -n1)
@@ -32,9 +33,9 @@ do \
   "1" 				`#simulation timestep (seconds)` \
   "files/russian.dem.asc" 	`#DEM raster file` \
   "files/russian.width.asc"	`#channel width raster file` \
-  "0.0300" 			`#channel roughness coefficient` \
+  "0.030" 			`#channel roughness coefficient` \
   ""		 		`#channel depth parameter, r` \
-  ""				`#channel depth parameter, p` \
+  "0.71"			`#channel depth parameter, p` \
   "files/bci/grid$i.bci" 	`#.bci file` \
   "files/bdy/grid$i.bdy" 	`#.bdy file` \
   "" 				`#starting .wd file` \

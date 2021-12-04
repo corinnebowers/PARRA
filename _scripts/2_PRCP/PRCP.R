@@ -1,26 +1,23 @@
 
 ###################################################################################################
 
-fit_precip <- function(catalog, extremeratio = 0.1) { 
+fit_precip <- function(catalog, extremeratio = 0.9) { 
   #'
   #' Fits a weighted least squares linear regression to characterize the precipitation component 
   #' model, $f(PRCP|AR)$, for use in the PARRA framework. 
   #' 
   #' @param catalog Catalog of ARs occurring in area of interest. 
   #' Columns "IVT_max", "duration", and "precip_mm" must be present.
-  #' @param extremeratio Fraction of AR events in the catalog to be used in fitting the 
-  #' extremes component of the residuals mixture model. For example, a value of 0.1 means that 
-  #' the standard deviation of the extremes is calculated based on the top 10% of AR events.
+  #' @param extremeratio Percentile of AR events in the catalog to be used in fitting the 
+  #' extremes component of the residuals mixture model. For example, a value of 0.9 means that 
+  #' the standard deviation of extremes is calculated based on AR events above the 90th percentile.
   #'
   #' @return "model.prcp", the fitted lm regression model object; and "se.prcp", the 
   #' fitted parameters for the residuals mixture model.
   #' 
 
   ## fit weighted linear regression to predict PRCP
-  fun <- precip_mm ~ IVT_max*duration
-  model.prcp <- lm(fun, data = catalog, weights = 1/(IVT_max*duration))
-  
-  ## save out regression object
+  model.prcp <- lm(precip_mm ~ IVT_max*duration, data = catalog, weights = 1/(IVT_max*duration))
   model.prcp <<- model.prcp
   
   ## calculate robust standard errors (sigma_i^2 = sigma^2 * IVT_max * duration)
@@ -28,8 +25,8 @@ fit_precip <- function(catalog, extremeratio = 0.1) {
     mutate(
       precip.star = precip_mm / sqrt(IVT_max*duration),
       c.star = 1 / sqrt(IVT_max*duration),
-      IVT.star = IVT_max / sqrt(IVT_max*duration),
-      dur.star = duration / sqrt(IVT_max*duration),
+      IVT.star = sqrt(IVT_max) / sqrt(duration),
+      dur.star = sqrt(duration) / sqrt(IVT_max),
       interact.star = sqrt(IVT_max*duration))
   model.wls <- lm(
     precip.star ~ c.star + IVT.star + dur.star + interact.star + 0, data = catalog) 
@@ -38,8 +35,8 @@ fit_precip <- function(catalog, extremeratio = 0.1) {
   ## characterize distribution of extreme residuals
   extreme.id <- catalog %>% 
     mutate(n.AR = 1:nrow(.)) %>% 
-    filter(duration >= quantile(duration, 1-extremeratio) & 
-             IVT_max >= quantile(IVT_max, 1-extremeratio)) %>% pull(n.AR)
+    filter(duration >= quantile(duration, extremeratio) & 
+             IVT_max >= quantile(IVT_max, extremeratio)) %>% pull(n.AR)
   extreme.resid <- model.prcp$residuals[extreme.id]
   se.extreme <- sd(extreme.resid)
   
@@ -51,7 +48,7 @@ fit_precip <- function(catalog, extremeratio = 0.1) {
 ###################################################################################################
 
 generate_precip <- function(
-  AR, model.prcp, se.prcp, mixratio = 0.9, probabilistic = FALSE, n.precip = 1) {
+  AR, model.prcp, se.prcp, probabilistic = FALSE, n.precip = 1, mixratio = 0.9) {
   #'
   #' Generates new realizations of precipitation based on IVT and duration.
   #' 
@@ -59,12 +56,12 @@ generate_precip <- function(
   #' @param model.prcp Fitted lm regression model object for precipitation.
   #' @param se.prcp Two-element vector of fitted parameters for the precipitation residuals 
   #' mixture model.
-  #' @param mixratio Fraction of points to be pulled from the robust standard error 
-  #' distribution. The remainder of errors in the mixture model will be pulled from the 
-  #' distribution of extremes.
   #' @param probabilistic Logical binary that indicates whether to incorporate uncertainty into 
   #' new precipitation realizations.
   #' @param n.precip Number of precipitation realizations to generate per AR event.
+  #' @param mixratio Fraction of points to be pulled from the robust standard error 
+  #' distribution. The remainder of errors in the mixture model will be pulled from the 
+  #' distribution of extremes.
   #' 
   #' @return a dataframe of synthetic precipitation realizations.
   #' 
@@ -93,7 +90,7 @@ generate_precip <- function(
             pull(error.mix)
           data.frame(
             n.AR = i, n.precip = 1:n.precip, 
-            precip_mm = (prediction.hetskd[i] + error.mixture))
+            precip_mm = prediction.hetskd[i] + error.mixture)
           })
     
   } else { #report deterministic expected value

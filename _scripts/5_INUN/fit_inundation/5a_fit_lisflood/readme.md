@@ -172,16 +172,18 @@ outline of that process is enumerated below.
         parameter values for each sample index.
 3.  Run `run_lisflood.sh` to generate .par files and calculate LISFLOOD
     inundation maps for each sample index.
-4.  Once all simulations have finished running, run
-    `cleanup_lisflood.sh` to organize LISFLOOD output files. *Please
-    note that this could be several hours or days.*
-5.  Run `generate_files_2.sbatch` to identify failed LISFLOOD model runs
+4.  Update user-defined information at the top of `generate_files_2.R`
+    to match `generate_files.R`.
+5.  *Once all simulations have finished,* run `cleanup_lisflood.sh` to
+    organize LISFLOOD output files. Please note that this could take
+    several hours or days.
+6.  Run `generate_files_2.sbatch` to identify failed LISFLOOD model runs
     (either did not finish or did not reach the ocean) and recalculate
     .bci, .bdy, and .n.asc files for these indices.
-6.  Run `run_lisflood_2.sh` to regenerate .par files and recalculate
+7.  Run `run_lisflood_2.sh` to regenerate .par files and recalculate
     LISFLOOD inundation maps for the failed model runs.
-7.  Iterate steps 4-6 until the number of failed model runs meets some
+8.  Iterate steps 5-7 until the number of failed model runs meets some
     acceptable threshold, i.e. less than 5% of all indices.
-8.  Run `fit_lisflood.Rmd` to identify sensitive parameters and
+9.  Run `fit_lisflood.Rmd` to identify sensitive parameters and
     determine best-fit values based on the database of LISFLOOD model
     runs.

@@ -20,6 +20,39 @@ rm(list = ls())
 
 ```
 
+```{r}
+## setup information
+source('_data/setup.R')
+source('_data/plots.R')
+
+## load required packages
+require(plotly)
+
+## load location information
+load('_data/lisflood/dem.Rdata')
+load('_data/aoi/aoi.Rdata')
+load('_data/NHD/NHD.Rdata')
+
+## load nonzero cells
+load('_data/nonzero/nonzero.Rdata')
+
+```
+
+```{r echo = FALSE}
+## should figures be saved out for the publication?
+publish <- FALSE
+
+if (!publish) {
+  theme_set(
+    theme_classic() + theme(
+      text = element_text(family = 'Segoe UI', size = 12),
+      axis.line = element_line(size = 0.5),
+      axis.ticks = element_line(size = 0.5, color = 'black'),
+      legend.key.size = unit(0.5, 'cm')))
+  }
+
+```
+
 # Set up best-fit parameter optimization problem
 
 ## Define the surrogate model
@@ -71,6 +104,17 @@ The extent of the study area inundation 1\% of the time vs. 50\% of the time is 
 
 ```{r}
 ## plot 1% inundation area vs. 50% inundation area
+ggplot(raster.df(nonzero)) + 
+  geom_sf(data = sonoma %>% st_union %>% st_crop(aoi), 
+          color = 'black', fill = 'grey95') + 
+  # geom_sf(data = aoi, fill = NA) + 
+  geom_raster(data = raster.df(nonzero) %>% filter(value >= 10),
+              aes(x=x, y=y, fill = '1% Inundation Area')) + 
+  geom_raster(data = raster.df(nonzero) %>% filter(value >= 500),
+              aes(x=x, y=y, fill = '50% Inundation Area')) +
+  scale_fill_manual('', values = c('grey70', 'grey30')) + 
+  geom_sf(data = russian %>% st_crop(aoi)) + 
+  theme_void() + theme(legend.position = 'bottom')
 
 ```
 
@@ -81,27 +125,34 @@ This is shown in the histogram below for a single hyperparameter combination.
 Therefore we aggregate our error metrics even further.
 
 ```{r}
-# ## load error data
-# files <- paste0('_scripts/5_INUN/fit_inundation/5e_fit_surrogate/results/error', 1:10, '.csv')
-# columns <- cols(
-#   X1 = col_double(),
-#   sim = col_double(),
-#   n = col_double(),
-#   p = col_double(),
-#   alpha = col_double(),
-#   SRSS = col_double(),
-#   RMSE = col_double(),
-#   max.resid = col_double(),
-#   max.loc = col_double()
-# )
-# error <- foreach(file = files) %do% {
-#   read_csv(file, col_types = columns) %>% select(sim, n, p, alpha, RMSE, SRSS)} %>% 
-#   do.call(rbind, .)
+## load error data
+files <- paste0('_scripts/5_INUN/fit_inundation/5e_fit_surrogate/results/error', 1:10, '.csv')
+error <- foreach(file = files) %do% {
+  read_csv(file)} %>%
+  do.call(rbind, .)
+
+const01 <- (error$SRSS01/error$RMSE01)[1]
+const50 <- (error$SRSS50/error$RMSE50)[1]
+error <- error %>% 
+  mutate(MAE01 = MAE01/const01^2, MAE50 = MAE50/const50^2)
 
 ```
 
 ```{r}
 ## plot error histogram for one hyperparameter combination
+error %>% 
+  filter(n == 5 & p == 1 & alpha == 0.6) %>% 
+  arrange(desc(RMSE50)) %>% 
+  # .[-(1:100),] %>% 
+  ggplot() + 
+  geom_density(aes(x = MAE01, color = 'MAE01'), size = 1) + 
+  geom_density(aes(x = RMSE01, color = 'RMSE01'), size = 1) + 
+  geom_density(aes(x = MAE50, color = 'MAE50'), size = 1) + 
+  geom_density(aes(x = RMSE50, color = 'RMSE50'), size = 1) + 
+  scale_color_manual('Error Metric', values = roma.colors[-3]) + 
+  scale_x_origin() + scale_y_origin() + 
+  coord_cartesian(xlim = c(0,0.5)) + 
+  theme(legend.position = c(0.8, 0.8))
 
 ```
 
@@ -110,4 +161,245 @@ Therefore we aggregate our error metrics even further.
 Rather than the rigorous parameter fit process we conducted for the LISFLOOD environmental parameters in **5a_fit_lisflood**, this is more of a qualitative assessment. 
 Using the interactive plotly tool in R, we iteratively removed values of $n$, $p$, and $\alpha$ that led to unfavorable error outcomes. 
 A few iterations are shown below for demonstration purposes.
+
+```{r}
+g1 <- ggplot(error) + 
+  geom_point(aes(x = MAE01, y = MAE50), color = 'grey40', alpha = 0.01) + 
+  scale_x_origin() + scale_y_origin() + 
+  geom_parity() + coord_fixed()
+g2 <- ggplot(error) + 
+  geom_point(aes(x = RMSE01, y = RMSE50), color = 'grey40', alpha = 0.01) + 
+  scale_x_origin() + scale_y_origin() + 
+  geom_parity() + coord_fixed()
+plot_grid(g1, g2, nrow = 1)
+ggsave('C:/Users/cbowers/Desktop/error1.png')
+
+g3 <- ggplot(error) + 
+  geom_point(aes(x = MAE01, y = RMSE01), color = 'grey40', alpha = 0.01) + 
+  scale_x_origin() + scale_y_origin() + 
+  geom_parity() + coord_fixed()
+g4 <- ggplot(error) + 
+  geom_point(aes(x = MAE50, y = RMSE50), color = 'grey40', alpha = 0.01) + 
+  scale_x_origin() + scale_y_origin() + 
+  geom_parity() + coord_fixed()
+plot_grid(g3, g4, nrow = 1)
+ggsave('C:/Users/cbowers/Desktop/error2.png')
+
+```
+
+```{r}
+error.npalpha <- error %>% 
+  group_by(n, p, alpha) %>% 
+  summarize(
+    MAE01.mean = mean(MAE01), MAE50.mean = mean(MAE50),
+    MAE01.05 = quantile(MAE01, 0.05), MAE01.95 = quantile(MAE01, 0.95),
+    MAE50.05 = quantile(MAE50, 0.05), MAE50.95 = quantile(MAE50, 0.95),
+    RMSE01.rms = sqrt(mean(RMSE01^2)), RMSE50.rms = sqrt(mean(RMSE50^2)),
+    # RMSE01.mean = mean(RMSE01), RMSE50.mean = mean(RMSE50),
+    RMSE01.05 = quantile(RMSE01, 0.05), RMSE01.95 = quantile(RMSE01, 0.95),
+    RMSE50.05 = quantile(RMSE50, 0.05), RMSE50.95 = quantile(RMSE50, 0.95)) %>% 
+  ungroup
+
+require(GGally)
+error.npalpha %>% 
+  select(starts_with('MAE')) %>% 
+  ggpairs
+error.npalpha %>% 
+  select(starts_with('RMSE')) %>% 
+  # select(-ends_with('mean')) %>% 
+  ggpairs
+
+error.npalpha %>% 
+  select(contains('01')) %>% 
+  ggpairs
+error.npalpha %>% 
+  select(contains('50')) %>% 
+  ggpairs
+
+error.npalpha %>% 
+  select(starts_with('RMSE')) %>% 
+  select(ends_with('rms'), ends_with('05'), ends_with('95')) %>% 
+  ggpairs
+error.npalpha %>% 
+  select(starts_with('RMSE')) %>% 
+  select(ends_with('05'), ends_with('95'), ends_with('rms')) %>% 
+  ggpairs
+error.npalpha %>% 
+  select(starts_with('RMSE')) %>% 
+  select(ends_with('95'), ends_with('rms'), ends_with('05')) %>% 
+  ggpairs
+
+error.npalpha %>% 
+  select('RMSE50.rms', 'RMSE01.05', 'RMSE01.95') %>% 
+  ggpairs
+
+```
+
+```{r}
+n.best <- c()
+p.best <- c()
+alpha.best <- c()
+
+```
+
+```{r}
+## balance MAE01.mean & RMSE50.rms
+
+error.subset <- error.npalpha %>% 
+  filter(alpha > 0.25 & alpha < 0.85) %>% 
+  filter(n > 3 & n < 20) %>% 
+  filter(p > 0.75 & p < 4) %>% 
+  filter(alpha > 0.35 & alpha < 0.75) %>% 
+  filter(n < 10) %>% 
+  filter(p > 1.5) %>% 
+  filter(n > 4 & alpha > 0.45)
+nrow(error.subset)/nrow(error.npalpha)
+
+plot_ly(
+  data = error.subset,
+  x = ~MAE01.mean, y = ~RMSE50.rms, color = ~factor(n),
+  colors = scico(n = length(unique(error.subset$n)), palette = 'roma'))
+plot_ly(
+  data = error.subset,
+  x = ~MAE01.mean, y = ~RMSE50.rms, color = ~factor(p),
+  colors = scico(n = length(unique(error.subset$p)), palette = 'roma'))
+plot_ly(
+  data = error.subset,
+  x = ~MAE01.mean, y = ~RMSE50.rms, color = ~factor(alpha),
+  colors = scico(n = length(unique(error.subset$alpha)), palette = 'roma'))
+  
+n.best <- c(n.best, unique(error.subset$n))
+p.best <- c(p.best, unique(error.subset$p))
+alpha.best <- c(alpha.best, unique(error.subset$alpha))
+
+```
+
+```{r}
+## balance MAE50.mean & RMSE01.rms
+
+error.subset <- error.npalpha %>% 
+  filter(alpha > 0.3 & alpha < 0.75) %>% 
+  filter(n > 3 & n < 12) %>% 
+  filter(p > 1 & p < 4) %>% 
+  filter(alpha > 0.45 & alpha < 0.7) %>% 
+  filter(n > 4 & n < 10) %>% 
+  filter(p > 1.5 & alpha > 0.5)
+nrow(error.subset)/nrow(error.npalpha)
+
+plot_ly(
+  data = error.subset,
+  x = ~MAE50.mean, y = ~RMSE01.rms, color = ~factor(n),
+  colors = scico(n = length(unique(error.subset$n)), palette = 'roma'))
+plot_ly(
+  data = error.subset,
+  x = ~MAE50.mean, y = ~RMSE01.rms, color = ~factor(p),
+  colors = scico(n = length(unique(error.subset$p)), palette = 'roma'))
+plot_ly(
+  data = error.subset,
+  x = ~MAE50.mean, y = ~RMSE01.rms, color = ~factor(alpha),
+  colors = scico(n = length(unique(error.subset$alpha)), palette = 'roma'))
+
+n.best <- c(n.best, unique(error.subset$n))
+p.best <- c(p.best, unique(error.subset$p))
+alpha.best <- c(alpha.best, unique(error.subset$alpha))
+
+```
+
+```{r}
+## balance RMSE01.95 & RMSE50.05
+
+error.subset <- error.npalpha %>% 
+  filter(n > 2 & n < 15) %>% 
+  filter(p < 4) %>% 
+  filter(alpha > 0.35 & alpha < 0.75) %>% 
+  filter(p > 0.5) %>% 
+  filter(n > 3 & n < 12) %>% 
+  filter(alpha > 0.45 & alpha < 0.7) %>% 
+  filter(p > 1) %>% 
+  filter(n > 4 & n < 10) %>% 
+  filter(alpha > 0.5)
+nrow(error.subset)/nrow(error.npalpha)
+
+plot_ly(
+  data = error.subset,
+  x = ~RMSE01.95, y = ~RMSE50.05, color = ~factor(n),
+  colors = scico(n = length(unique(error.subset$n)), palette = 'roma'))
+plot_ly(
+  data = error.subset,
+  x = ~RMSE01.95, y = ~RMSE50.05, color = ~factor(p),
+  colors = scico(n = length(unique(error.subset$p)), palette = 'roma'))
+plot_ly(
+  data = error.subset,
+  x = ~RMSE01.95, y = ~RMSE50.05, color = ~factor(alpha),
+  colors = scico(n = length(unique(error.subset$alpha)), palette = 'roma'))
+
+n.best <- c(n.best, unique(error.subset$n))
+p.best <- c(p.best, unique(error.subset$p))
+alpha.best <- c(alpha.best, unique(error.subset$alpha))
+
+```
+
+```{r}
+## balance MAE01.95 & MAE50.05
+
+error.subset <- error.npalpha %>% 
+  filter(alpha > 0.35 & alpha < 0.85) %>% 
+  filter(n > 1 & n < 10) %>% 
+  filter(p > 1 & p < 4) %>% 
+  filter(alpha > 0.5 & alpha < 0.8) %>% 
+  filter(n > 4) %>% 
+  filter(alpha > 0.55 & alpha < 0.75) %>% 
+  filter(n < 8) %>% 
+  filter(p < 3)
+nrow(error.subset)/nrow(error.npalpha)
+
+plot_ly(
+  data = error.subset,
+  x = ~MAE01.95, y = ~MAE50.05, color = ~factor(n),
+  colors = scico(n = length(unique(error.subset$n)), palette = 'roma'))
+plot_ly(
+  data = error.subset,
+  x = ~MAE01.95, y = ~MAE50.05, color = ~factor(p),
+  colors = scico(n = length(unique(error.subset$p)), palette = 'roma'))
+plot_ly(
+  data = error.subset,
+  x = ~MAE01.95, y = ~MAE50.05, color = ~factor(alpha),
+  colors = scico(n = length(unique(error.subset$alpha)), palette = 'roma'))
+
+n.best <- c(n.best, unique(error.subset$n))
+p.best <- c(p.best, unique(error.subset$p))
+alpha.best <- c(alpha.best, unique(error.subset$alpha))
+
+```
+
+```{r}
+n.best <- sort(unique(n.best))
+p.best <- sort(unique(p.best))
+alpha.best <- sort(unique(alpha.best))
+
+error.best <- error.npalpha %>% 
+  filter(n %in% n.best & p %in% p.best & alpha %in% alpha.best)
+
+error.best %>% 
+  select(-n, -p, -alpha) %>% 
+  apply(2, function(x) x/max(x)) %>% 
+  apply(1, sum) %>% 
+  cbind(error.best %>% select(n, p, alpha), error.total = .) %>% 
+  arrange(error.total)
+
+error.best %>% 
+  select(-n, -p, -alpha) %>% 
+  apply(2, function(x) x/max(x)) %>% 
+  as.data.frame %>% 
+  mutate(central = select(., ends_with('mean'), ends_with('rms')) %>% apply(1, sum),
+         extreme = select(., ends_with('05'), ends_with('95')) %>% apply(1, sum)) %>% 
+  transmute(error.weighted = central*2/3 + extreme/3) %>% 
+  cbind(error.best %>% select(n, p, alpha), .) %>% 
+  arrange(error.weighted)
+
+n = 6
+p = 2.5
+alpha = 0.6
+
+```
 

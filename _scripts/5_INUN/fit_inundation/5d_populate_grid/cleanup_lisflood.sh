@@ -15,4 +15,4 @@ rm *.dem
 
 ## zip .max files
 cd max
-zip maxes.zip *
+zip -u maxes.zip *

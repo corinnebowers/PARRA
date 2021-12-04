@@ -7,7 +7,7 @@
 
 generate_inundation <- function(
   hydrograph, samples, buildings, probabilistic = FALSE, n.inun = 1, 
-  n = 6, p = 2.5, alpha = 0.75) {
+  n = 6, p = 2, alpha = 0.7) {
   #'
   #' Generates new realizations of inundation at all specified buildings locations based on 
   #' the hydrograph parameterss and site conditions. 
@@ -40,9 +40,6 @@ generate_inundation <- function(
   ## fix input parameters
   if (!probabilistic) n.inun <- 1
 
-  ## separate building coordinates from building information
-  buildings.coord <- buildings %>% arrange(bldg) %>% st_coordinates
-  
   ## rescale hydrograph parameters in sample space to standard normal
   samples_scaled <- samples %>% 
     filter(!is.na(cv)) %>% 
@@ -52,28 +49,40 @@ generate_inundation <- function(
     mutate(tp.std = tp %>% punif(min = 0, max = 240) %>% 
              qunif(min = 1, max = exp(2)) %>% log,
            tp.norm = qnorm(tp.std/2))
-
-  ## calculate inundation depth at each building
-  pb <- txtProgressBar(min = 0, max = n.inun*nrow(hydrograph), style = 3)
-  inundation.list <-
-    foreach (inun = 1:n.inun) %:%
+  
+  ## separate building coordinates from building information
+  buildings.coord <- buildings %>% arrange(bldg) %>% st_coordinates
+  
+  ## create a list of inundation values for every building + simulation
+  surrogate.loop <- function(inun) {
+    ## retrieve variables from parent environment
+    alpha <- get('alpha', envir = parent.frame())
+    buildings.coord <- get('buildings.coord', envir = parent.frame())
+    hydrograph <- get('hydrograph', envir = parent.frame())
+    n <- get('n', envir = parent.frame())
+    p <- get('p', envir = parent.frame())
+    samples_scaled <- get('samples_scaled', envir = parent.frame())
+    probabilistic <- get('probabilistic', envir = parent.frame())
+    
+    ## calculate inundation values at building locations
+    pb <- txtProgressBar(min = 0, max = nrow(hydrograph), style = 3)
     foreach (i = 1:nrow(hydrograph),
       .packages = c('raster', 'terra', 'dplyr', 'foreach', 'pracma'),
-      .export = c('surrogate'),
-      .combine = 'cbind',
-      .options.snow = list(progress = function(n) setTxtProgressBar(pb, n))) %dopar% {
+      .options.snow = list(progress = function(n) setTxtProgressBar(pb,n)),
+      .export = c('surrogate'), .combine = 'cbind') %dorng% {
         surrogate(
           Qp = hydrograph$Qp_m3s[i],
           tp = hydrograph$tp_hrs[i],
           sample.table = samples_scaled,
-          # sample.loc = '/home/groups/bakerjw/cbowers/LISFLOOD/grid_final/results/max/',
-          sample.loc = '_sensitivity/surrogate/sherlock_grid/results/',
+          sample.loc = '_scripts/5_INUN/fit_inundation/5d_populate_grid/results/max/',
           n, p, alpha, probabilistic) %>%
           rast %>% terra::extract(buildings.coord) %>%
           unlist %>% unname
-        }
+      }
+  }
+  inundation.list <- map(.x = 1:n.inun, .f = ~surrogate.loop(.x))
   cat('\n')
-
+  
   ## clean out buildings + simulations that never flood
   wet.bldg <- inundation.list %>%
     lapply(FUN = function(inun) apply(data.frame(inun), 1, function(x) sum(x)>0)) %>%
@@ -132,7 +141,7 @@ surrogate <- function(Qp, tp, sample.table, sample.loc, n, p, alpha, probabilist
 
   if (distances[1,'dist'] == 0) {
     ## predict based on exact match
-    prediction <- raster(paste0(sample.loc, 'gridded', distances[1,'sim'], '.max'))
+    prediction <- raster(paste0(sample.loc, 'grid', distances[1,'sim'], '.max'))
     
   } else {
     ## find the nearest maps
@@ -145,10 +154,10 @@ surrogate <- function(Qp, tp, sample.table, sample.loc, n, p, alpha, probabilist
     if (probabilistic) {
       ## choose a random map from weighted sampling
       random <- sample(nearest, 1, prob = weights)
-      prediction <- raster(paste0(sample.loc, 'gridded', random, '.max'))      
+      prediction <- raster(paste0(sample.loc, 'grid', random, '.max'))      
     } else {
       ## calculate weighted average of all maps
-      files <- paste0(sample.loc, 'gridded', nearest, '.max')
+      files <- paste0(sample.loc, 'grid', nearest, '.max')
       prediction <- foreach (ii = 1:n, .combine = '+') %do% (raster(files[ii])*weights[ii])
     }
   }

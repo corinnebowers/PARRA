@@ -5,7 +5,7 @@ cd /home/groups/bakerjw/cbowers/PARRA
 cd _scripts/5_INUN/fit_inundation/5a_fit_lisflood
 
 ## load simulation length constant
-simlength=$(cat files/simlength.txt)
+simlength=$(cat files/simlength_2.txt)
 
 for i in $(cat id.txt)
 do \
