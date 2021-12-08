@@ -1,5 +1,7 @@
 # Performance-based Atmospheric River Analysis (PARRA) Framework
 
+<a href="https://zenodo.org/badge/latestdoi/390500385"><img src="https://zenodo.org/badge/390500385.svg" alt="DOI"></a>
+
 This repository provides supplementary information to the paper "A Performance-Based Approach to Quantify Atmospheric River Flood Risk" (https://doi.org/10.5194/nhess-2021-337, in review). 
 It contains the code to implement the Performance-Based Atmospheric River Risk Analysis (PARRA) framework, which is illustrated in Figure 1 from the paper:
 
