@@ -206,7 +206,7 @@ registerDoSNOW(cl)
 pb <- txtProgressBar(min = 0, max = 500, style = 3)
 temp <- 
   foreach (
-#    i = (n.bldg-10):(n.bldg+10),
+#    i = seq(100, 1000, 100),
     i = c(1:500, seq(550, 1000, 50)),
     .packages = c('sf', 'pracma', 'tidyverse'),
     .export = c('generate_damage', 'generate_damage_probabilistic'),

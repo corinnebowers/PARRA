@@ -1,7 +1,7 @@
 ---
-title: "Sonoma County 2019 AR Case Study Demonstration"
+title: "Sonoma County AR Case Study"
 author: "Corinne Bowers"
-date: "11/22/2021"
+date: "3/9/2022"
 output:
   html_document:
     toc: true 
@@ -14,7 +14,7 @@ output:
 ---
 
 The purpose of this script is to reproduce figures and numeric results for the paper "A Performance-Based Approach to Quantify Atmospheric River Flood Risk" (https://doi.org/10.5194/nhess-2021-337). 
-We implement a model-by-model comparison of the PARRA simulations at each pinch point vs. the observed values from a severe 2019 atmospheric river (AR) event in Sonoma County, California. 
+We implement a model-by-model comparison of the PARRA simulations at each pinch point vs. the observed values from a selection of notable atmospheric river (AR) events in Sonoma County, California. 
 
 Please note: all figures are formatted for publication, therefore certain features may not display correctly in this markdown file. 
 
@@ -72,14 +72,9 @@ if (!publish) {
 
 ```
 
-# $f(AR)$
+# Define area of interest
 
-The first component model in the PARRA framework is $f(AR)$, or the representation of AR magnitude. 
-Instead of generating simulated realizations, we use the observed maximum IVT and duration from the 2019 event as inputs to the next component model. 
-
-## Define area of interest
-
-Figure 2 in the paper shows the study area as a two-part figure.
+Figure 2 in the paper shows the study area.
 The first panel is a map of Sonoma County, with important cities/towns and rivers/creeks identified and with the study area marked by a shaded rectangle.
 The second plot is a map of California with the Russian River and Sonoma County highlighted for geographic context.
 Additional text and callout lines were added outside of R through the image editing software Inkscape.
@@ -148,14 +143,19 @@ ggsave('_figures/fig02/fig02_california.png', width = 3, units = 'cm', dpi = 600
 
 ```
 
+# $f(AR)$
+
+The first component model in the PARRA framework is $f(AR)$, or the representation of AR intensity.  
+
 ## Generate historic catalog
 
 We first start by generating a historic catalog of ARs that have occurred in the Sonoma County study area over a 32-year period from 1997 to 2019. 
-<!-- All data sources and calculations can be found in the script `catalog.Rmd`. -->
-Results are summarized in Table 1 below.
+All data sources and calculations can be found in the script `catalog.Rmd`.
+Results are summarized below and included in the paper as Table 1.
 
 ```{r tab1, echo = FALSE}
 catalog %>% 
+  mutate(cat = case_when(cat==0~1, TRUE~cat)) %>% 
   group_by(cat) %>% 
   summarize(
     n = length(AR),
@@ -182,47 +182,12 @@ catalog %>%
 
 ```
 
-## Identify case study AR
-
-We have identified the 2019 AR event as well-suited for a case study for two reasons: first because it was a relatively extreme event that caused significant flooding and damage along the lower Russian River, and second because it was recent enough that we have validation data available for almost every pinch point in the PARRA framework.
-The table below shows some of the values recorded in Sonoma County due to this AR event. 
-
-```{r}
-## identify 2019 case study AR event 
-casestudy <- catalog %>% filter(start_day == ymd('2019-02-25'))
-
-## show the 2019 event variables as a formatted table
-```
-
-```{r echo = FALSE}
-casestudy %>% 
-  select(start_day, end_day, cat, IVT_max, duration, precip_mm, runoff_mm, Qp_m3s, tp_hrs, sm) %>% 
-  gt %>%
-  fmt_date(columns = c(start_day, end_day), date_style = 'iso') %>%
-  fmt_number(columns = c(cat, IVT_max, duration), decimals = 0) %>% 
-  fmt_number(columns = c(precip_mm, runoff_mm, Qp_m3s, tp_hrs, sm)) %>% 
-  cols_label(
-    start_day = 'Start Day', end_day = 'End Day', cat = 'AR Category',
-    IVT_max = 'Maximum IVT (kg/m/s)', 
-    duration = 'Storm Duration (hrs)', 
-    precip_mm = 'Total Precipitation (mm)', 
-    runoff_mm = 'Total Runoff (mm)', 
-    Qp_m3s = 'Peak Streamflow (m^3/s)', 
-    tp_hrs = 'Time to Peak Streamflow (hrs)',
-    sm = 'Antecedent Soil Moisture (mm/m)') %>% 
-  tab_header(title = '2019 Case Study AR Event') %>% 
-  tab_options(heading.background.color = '#d9d9d9', 
-              column_labels.background.color = '#f2f2f2')
-
-```
-
 ## Plot AR characteristics from the historic catalog
 
 We summarize ARs in terms of two variables: maximum recorded integrated water vapor transport (IVT, kg/m/s) and duration (hrs).
-Figure 3 from the paper summarizes the maximum IVT and duration values from the Sonoma County historic catalog and highlights the 2019 case study AR in relation to the rest of the catalog.
+Figure 3 from the paper summarizes the maximum IVT and duration values from the Sonoma County historic catalog.
 The bottom and left histograms represent the marginal distributions of maximum IVT and duration, respectively. 
-The scatterplot shows the joint distribution of these two variables for all ARs in the historic catalog.
-The background colors show the AR intensity categories from Ralph et al. (2020), and the dashed bullseye lines represent the 2019 case study event. 
+The scatterplot shows the joint distribution of these two variables for all ARs in the historic catalog, and the background colors show the AR intensity categories from Ralph et al. (2020). 
 
 ```{r}
 ## create dataframe to represent AR intensity categories as background colors
@@ -252,8 +217,6 @@ df <- df %>% mutate(cat = ifelse(cat == 0, 1, cat))
 g <- ggplot(df) + 
   geom_raster(aes(x = IVT, y = duration, fill = factor(cat)), alpha = 0.6) +
   geom_point(data = catalog, aes(x = IVT_max, y = duration), color = 'grey10', size = 0.5) + 
-  geom_vline(xintercept = casestudy$IVT_max, linetype = 'dashed') + 
-  geom_hline(yintercept = casestudy$duration, linetype = 'dashed') + 
   scale_fill_manual('Intensity \nCategory', values = roma.colors[5:1]) + 
   scale_x_continuous(
     limits = c(250, NA), expand = c(0,0), 
@@ -291,16 +254,12 @@ g.dur <- ggplot(catalog) +
         axis.ticks.x = element_blank(), axis.line.x = element_line(color = NA),
         plot.margin = margin(2,2,2,2))
 
-## empty plot (for formatting purposes)
-g.void <- ggplot() + theme_void() + 
-  theme(plot.margin = margin(2,2,2,2))
-
 ## combine plot panels into one figure
 plot_grid(g, g.ivt, nrow = 2, align = 'v', axis = 'lr', rel_heights = c(3,1)) %>% 
   plot_grid(
-    plot_grid(g.dur, g.void, nrow = 2, rel_heights = c(3,1)), ., 
-    align = 'h', rel_widths = c(1,3)) 
-if (publish) ggsave('_figures/fig03_AR.png', height = 5.75, width = 8.3, units = 'cm', dpi = 600)
+    plot_grid(g.dur, NULL, nrow = 2, rel_heights = c(3,1)), ., 
+    align = 'h', rel_widths = c(1,4)) 
+if (publish) ggsave('_figures/fig03_AR.png', height = 6, width = 8.3, units = 'cm', dpi = 600)
 
 ```
 
@@ -348,6 +307,7 @@ model.prcp$coefficients %>%
 Figures 4(a)-(b) show the regression fit vs. the observed data.
 In 4(a) the relationship between maximum IVT and precipitation is shown at three specified duration values (*DUR* = 6, 24, & 72 hours). 
 In 4(b) the relationship between duration and precipitation is shown at three specified maximum IVT values (*IVT* = 250, 500, & 1000 kg/m/s).
+Colors in each panel represent the values of the unplotted dimension in each, i.e., duration in the first panel (maximum IVT vs. precipitation) and maximum IVT in the second panel (duration vs. precipitation)
 
 ```{r}
 ## plot figures
@@ -357,11 +317,15 @@ In 4(b) the relationship between duration and precipitation is shown at three sp
 
 ```{r fig4ab, echo = FALSE}
 g1 <- ggplot(catalog) + 
-  geom_point(aes(x = IVT_max, y = precip_mm), size = 0.5) + 
-  geom_point(data = casestudy, aes(x = IVT_max, y = precip_mm), color = roma.colors[1]) + 
-  annotate('text', x = casestudy$IVT_max, y = casestudy$precip_mm, 
-    label = '2019', color = roma.colors[1], hjust = 1.2, vjust = 0.25,
-    family = 'Segoe UI', fontface = 'bold', size = 8/.pt) + 
+  geom_point(data = catalog %>% filter(duration <= 6), 
+    aes(x = IVT_max, y = precip_mm), color = roma.colors[3], size = 0.5) + 
+  geom_point(data = catalog %>% filter(duration >= 72), 
+    aes(x = IVT_max, y = precip_mm), color = roma.colors[5], size = 0.5) + 
+  geom_point(data = catalog %>% filter(duration >= 6 & duration <= 72),
+    aes(x = IVT_max, y = precip_mm, color = duration), 
+    size = 0.5, show.legend = FALSE) + 
+  scale_color_scico(palette = 'roma', begin = 0.5) +
+  ggnewscale::new_scale_color() + 
   geom_line(aes(x = IVT_max,
     y = catalog %>% select(IVT_max) %>% 
       mutate(duration = 6) %>% predict(model.prcp, .),
@@ -383,16 +347,21 @@ g1 <- ggplot(catalog) +
     values = roma.colors[5:3], 
     breaks = c('72', '24', '6')) + 
   coord_cartesian(clip = 'off') + 
+  # guides(color = guide_legend(title.vjust = 1.5)) +
   theme(legend.position = 'bottom', 
         legend.background = element_rect(fill = NA, color = NA),
         legend.text = element_text(margin = margin(0, 0, 0, -4)))
 
 g2 <- ggplot(catalog) + 
-  geom_point(aes(x = duration, y = precip_mm), size = 0.5) + 
-  geom_point(data = casestudy, aes(x = duration, y = precip_mm), color = roma.colors[1]) + 
-  annotate('text', x = casestudy$duration, y = casestudy$precip_mm, 
-    label = '2019', color = roma.colors[1], hjust = -0.2, vjust = 0.25,
-    family = 'Segoe UI', fontface = 'bold', size = 8/.pt) + 
+  geom_point(data = catalog %>% filter(IVT_max <= 250), 
+    aes(x = duration, y = precip_mm), color = roma.colors[3], size = 0.5) + 
+  geom_point(data = catalog %>% filter(IVT_max >= 1000), 
+    aes(x = duration, y = precip_mm), color = roma.colors[1], size = 0.5) + 
+  geom_point(data = catalog %>% filter(IVT_max >= 250 & IVT_max <= 1000),
+    aes(x = duration, y = precip_mm, color = IVT_max), 
+    size = 0.5, show.legend = FALSE) + 
+  scale_color_scico(palette = 'roma', end = 0.5, direction = -1) +
+  ggnewscale::new_scale_color() + 
   geom_line(aes(x = duration,
     y = catalog %>% select(duration) %>% 
       mutate(IVT_max = 250) %>% predict(model.prcp, .),
@@ -408,25 +377,29 @@ g2 <- ggplot(catalog) +
   scale_x_continuous(
     'Storm Duration (hrs)', expand = c(0,0), 
     breaks = seq(0, 240, 24), minor_breaks = seq(0, 240, 24)) + 
-  scale_y_origin('Storm Total Precipitation (mm)') + 
+  # scale_y_origin('Storm Total Precipitation (mm)') + 
+  scale_y_origin() + 
   scale_color_manual(expression(paste('Maximum IVT (kg⋅', m^{-1}, s^{-1}, ')')), 
-    values = roma.colors[5:3], 
+    values = roma.colors[1:3], 
     breaks = c('1000', '500', '250')) + 
-  coord_cartesian(clip = 'off') + 
+  coord_cartesian(xlim = c(0,NA), clip = 'off') + 
+  guides(color = guide_legend(title.vjust = 1.5)) +
   theme(legend.position = 'bottom', 
         legend.background = element_rect(fill = NA, color = NA),
         legend.text = element_text(margin = margin(0, 0, 0, -4)))
 
-if (!publish) g1; g2
+if (!publish) g1
+if (!publish) g2
 
 ```
+
 
 ## Assess distribution fit
 
 Because we are using the component model for generating new synthetic precipitation realizations, we assessed model fit based on the accuracy in reproducing the entire distribution of precipitation rather than in replicating individual records. 
 We present two assessment tools here. 
 
-The first is the quantile plot, which plots the sorted values of one distribution against the sorted values of another and visually checks for linearity. 
+The first assessment is a visual check for linearity in the quantile plot, which plots the sorted values of one distribution against the sorted values of another. 
 This is shown as Figure 4(c) in the paper.
 
 ```{r}
@@ -448,10 +421,39 @@ precip.max <- max(c(max(precip.qq$precip_sim), max(precip.qq$precip_obs)))
 g3 <- ggplot(precip.qq) + 
   geom_point(aes(x = sort(precip_obs), y = sort(precip_sim)), size = 0.75) + 
   coord_cartesian(xlim = c(NA, precip.max), ylim = c(NA, precip.max)) + 
-  scale_x_origin('Observed Precipitation Quantile (mm)') + 
-  scale_y_origin('Simulated Precipitation Quantile (mm)') + 
-  geom_parity() + coord_fixed(xlim = c(0, precip.max), ylim = c(0, precip.max))
+  scale_x_continuous(
+    'Observed Precipitation Quantile (mm)',
+    limits = c(0, precip.max), expand = expansion(mult = c(0, 0.25))) + 
+  scale_y_continuous(
+    'Simulated Precipitation Quantile (mm)',
+    limits = c(0, precip.max), expand = expansion(mult = c(0, 0.25))) + 
+  geom_parity()
 if (!publish) g3 
+
+```
+
+```{r fig4, include = publish, echo = FALSE}
+## generate figure 4
+plot_grid(
+  g1 + 
+    theme(
+      legend.position = 'none',
+      axis.title.y = element_text(color = NA), 
+      plot.margin = margin(c(1,25,1,25)),
+      plot.background = element_rect(fill = NA, color = NA)), 
+  plot_grid(NULL, get_legend(g1), rel_widths = c(1,100)), 
+  g2 + 
+    labs(y = rep(' ', 60) %>% paste(collapse = '') %>% paste('Storm Total Precipitation (mm)')) +
+    theme(legend.position = 'none', plot.margin = margin(c(1,25,1,25))), 
+  plot_grid(NULL, get_legend(g2), rel_widths = c(1,100)), 
+  g3 + 
+    theme_bw_custom() + 
+    theme(plot.margin = margin(c(0,25,5,25))),
+  nrow = 5, align = 'v', rel_heights = c(10,1.5,10,2,18),
+  labels = c('(a)', '', '(b)', '', '(c)'), label_fontfamily = 'Segoe UI', label_size = 12, 
+  label_x = 0.225, label_y = 0.95
+)
+ggsave('_figures/fig04_prcpfit.png', width = 8.3, height = 15, units = 'cm', dpi = 600)
 
 ```
 
@@ -525,59 +527,232 @@ mean(ks.value) %>% as.data.frame %>%
 
 Based on a visual assessment of the quantile plot and the fact that the test statistic is much smaller than 1, we consider the fit of the precipitation component model as sufficient to accurately represent the historic catalog.
 
-## Assess case study performance
+## Identify case study AR events
 
-Once we have confirmed that the WLS regression model produces an accurate representation of the precipitation distribution, we can also consider how well it is able to reproduce the 2019 event. 
-We generate 1,000 realizations of precipitation given the observed maximum IVT and duration from the 2019 event, then compare that distribution to the true observed precipitation. 
-The results are included as Figure 4(d) in the paper. 
+We have chosen four events as case studies to show how the comparison between observed and simulated values can generate new insights about the precipitation totals associated with different AR events. 
+The four events are the two most recent Category 3 (strong) and the two most recent Category 5 (exceptional) events.
+Of these four events, one of each category was a "notable"  event (caused significant and newsworthy losses that were totaled at the community level, and led to state and/or federal disaster declarations) and one of each category was not notable. 
+The table below shows the AR and precipitation values associated with each of these four events.
 
 ```{r}
-## generate 1,000 probabilistic realizations of PRCP for the 2019 event
-precip <- 
+## identify case study AR events
+casestudy <- catalog %>% 
+  arrange(desc(start_day)) %>% 
+  group_by(cat) %>% 
+  slice(1:2) %>% 
+  ungroup %>% 
+  filter(cat == 3 | cat == 5) %>% 
+  arrange(start_day)
+
+## show the event characteristics as a formatted table
+```
+
+```{r echo = FALSE}
+casestudy %>%
+  select(start_day, end_day, cat, IVT_max, duration, precip_mm, Qp_m3s, tp_hrs, sm) %>%
+  gt %>%
+  fmt_date(columns = c(start_day, end_day), date_style = 'iso') %>%
+  fmt_number(columns = c(cat, IVT_max, duration), decimals = 0) %>%
+  fmt_number(columns = c(precip_mm, Qp_m3s, tp_hrs, sm), decimals = 1) %>%
+  cols_label(
+    start_day = 'Start Day', end_day = 'End Day', cat = 'AR Category',
+    IVT_max = 'Maximum IVT (kg/m/s)',
+    duration = 'Storm Duration (hrs)',
+    precip_mm = 'Total Precipitation (mm)',
+    Qp_m3s = 'Peak Streamflow (m^3/s)',
+    tp_hrs = 'Time to Peak Streamflow (hrs)',
+    sm = 'Antecedent Soil Moisture (mm/m)') %>%
+  tab_header(title = 'Case Study AR Events') %>%
+  tab_options(heading.background.color = '#d9d9d9',
+              column_labels.background.color = '#f2f2f2')
+
+```
+
+
+## Compare observed vs. simulated values
+
+We generate 1,000 realizations of precipitation given the observed maximum IVT and duration from each event, then compare those distributions to the true observed precipitation. 
+The results are included as Figure 5 in the paper. 
+
+```{r}
+## generate 1,000 probabilistic realizations of PRCP for each of the cast study events
+
+## cat 3 impactful
+cat3a <- catalog %>% filter(cat == 3) %>% arrange(desc(start_day)) %>% .[2,]
+precip3a <- 
   generate_precip(
-    AR = casestudy %>% transmute(n.AR = 1, IVT_max, duration, sm), 
+    AR = cat3a %>% transmute(n.AR = 1:nrow(.), IVT_max, duration, sm), 
     model.prcp, se.prcp,
     probabilistic = TRUE,
     n.precip = 1e3)
 
-## plot figure 4(d): histogram of observed vs. simulated precipitation for the 2019 event
+## cat 3 non-impactful
+cat3b <- catalog %>% filter(cat == 3) %>% arrange(desc(start_day)) %>% .[1,]
+precip3b <- 
+  generate_precip(
+    AR = cat3b %>% transmute(n.AR = 1:nrow(.), IVT_max, duration, sm), 
+    model.prcp, se.prcp,
+    probabilistic = TRUE,
+    n.precip = 1e3)
+
+## cat 5 impactful
+cat5b <- catalog %>% filter(cat == 5) %>% arrange(desc(start_day)) %>% .[1,]
+precip5b <- 
+  generate_precip(
+    AR = cat5b %>% transmute(n.AR = 1:nrow(.), IVT_max, duration, sm), 
+    model.prcp, se.prcp,
+    probabilistic = TRUE,
+    n.precip = 1e3)
+
+## cat 5 non-impactful
+cat5a <- catalog %>% filter(cat == 5) %>% arrange(desc(start_day)) %>% .[2,]
+precip5a <- 
+  generate_precip(
+    AR = cat5a %>% transmute(n.AR = 1:nrow(.), IVT_max, duration, sm), 
+    model.prcp, se.prcp,
+    probabilistic = TRUE,
+    n.precip = 1e3)
+
+## plot figure 5: histogram of observed vs. simulated precipitation for case study events
 ```
 
-```{r fig4d, echo = FALSE}
-g4 <- ggplot(precip) + 
-  geom_histogram(aes(x = precip_mm, y = ..count../nrow(precip)), 
-                 color = 'black', fill = 'grey90', 
-                 bins = sqrt(nrow(precip)), boundary = 0, size = 0.25) + 
-  geom_vline(xintercept = casestudy$precip_mm, linetype = 'dashed') + 
-  annotate(geom = 'text', 
-           x = casestudy$precip_mm, y = 0.035, hjust = 0, vjust = -0.5,
-           label = '2019 Observed', family = 'Segoe UI', size = 8/.pt,
-           angle = 90) + 
-  scale_x_origin('Storm Total Precipitation (mm)') + 
-  scale_y_origin('Probability of Occurrence') + 
-  coord_cartesian(xlim = c(0, precip.max))
-if (!publish) g4 
+```{r fig5, include = publish, echo = FALSE}
+## set shared parameters for all panels
+ymax <- 0.135
+g.base <- ggplot() + 
+  scale_color_manual(name = '', values = 'grey25') +
+  scale_x_continuous(limits = c(0,500), expand = expansion(mult = c(0,0.01))) + 
+  scale_y_origin(breaks = seq(0, 0.5, 0.025)) + 
+  labs(x = 'Storm Total Precipitation (mm)', y = 'Probability of Occurrence') +
+  theme(
+    legend.background = element_blank(),
+    legend.key.size = unit(2, 'mm'), 
+    legend.spacing.x = unit(0.5, 'mm'),
+    plot.background = element_rect(fill = NA, color = NA)) +
+  coord_cartesian(ylim = c(0, ymax)) 
 
-```
+## plot cat 3 impactful
+gTL <- g.base + 
+  ggtitle(label = waiver(), subtitle = 'February 2019') + 
+  geom_histogram(
+    data = precip3b, aes(x = precip_mm, y = ..count../1e3), 
+    color = 'black', fill = 'grey90', binwidth = 10, boundary = 0, size = 0.25) + 
+  geom_segment(data = catalog %>% filter(cat == 3),
+    aes(x = precip_mm, xend = precip_mm, y = ymax-0.0025, yend = 1,
+        color = 'All Cat 3 Events'),
+    lineend = 'square', size = 0.25) +
+  geom_vline(xintercept = cat3b$precip_mm, linetype = 'dashed') + 
+  annotate(geom = 'text', angle = 90,
+    x = cat3b$precip_mm, y = 0.075, hjust = 0, vjust = 1.5,
+    label = 'Observed', family = 'Segoe UI', size = 8/.pt) +
+  theme(axis.title.x = element_blank()) + 
+  theme(legend.position = c(0.55, 1.035), plot.margin = margin(5,5,5,5))
 
-```{r fig4, include = publish, echo = FALSE}
-## generate figure 4
+## plot cat 3 non-impactful
+gBL <- g.base + 
+  ggtitle(label = waiver(), subtitle = 'January 2019') + 
+  geom_histogram(
+    data = precip3a, aes(x = precip_mm, y = ..count../1e3), 
+    color = 'black', fill = 'grey90', binwidth = 10, boundary = 0, size = 0.25) + 
+  geom_segment(data = catalog %>% filter(cat == 3),
+    aes(x = precip_mm, xend = precip_mm, y = ymax-0.0025, yend = 1,
+        color = 'All Cat 3 Events'),
+    lineend = 'square', size = 0.25) +
+  geom_vline(xintercept = cat3a$precip_mm, linetype = 'dashed') + 
+  annotate(geom = 'text', angle = 90,
+    x = cat3a$precip_mm, y = 0.0875, hjust = 0, vjust = 1.5,
+    label = 'Observed', family = 'Segoe UI', size = 8/.pt) +
+  theme(legend.position = c(0.55, 1.035), plot.margin = margin(5,5,5,5))
+
+## plot cat 5 impactful
+cat5b <- catalog %>% filter(cat == 5) %>% arrange(desc(start_day)) %>% .[1,]
+gTR <- g.base + 
+  ggtitle(label = waiver(), subtitle = 'January 2017') + 
+  geom_histogram(
+    data = precip5b, aes(x = precip_mm, y = ..count../1e3), 
+    color = 'black', fill = 'grey90', binwidth = 10, boundary = 0, size = 0.25) + 
+  geom_segment(data = catalog %>% filter(cat == 5),
+    aes(x = precip_mm, xend = precip_mm, y = ymax-0.0025, yend = 1,
+        color = 'All Cat 5 Events'),
+    lineend = 'square', size = 0.25) +
+  geom_vline(xintercept = cat5b$precip_mm, linetype = 'dashed') + 
+  annotate(geom = 'text', angle = 90,
+    x = cat5b$precip_mm, y = 0.075, hjust = 0, vjust = 1.5,
+    label = 'Observed', family = 'Segoe UI', size = 8/.pt) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) + 
+  theme(legend.position = c(0.675, 1.035), plot.margin = margin(5,10,5,5))
+
+## plot cat 5 non-impactful
+gBR <- g.base + 
+  ggtitle(label = waiver(), subtitle = 'October 2016') + 
+  geom_histogram(
+    data = precip5a, aes(x = precip_mm, y = ..count../1e3), 
+    color = 'black', fill = 'grey90', binwidth = 10, boundary = 0, size = 0.25) + 
+  geom_segment(data = catalog %>% filter(cat == 5),
+    aes(x = precip_mm, xend = precip_mm, y = ymax-0.0025, yend = 1,
+        color = 'All Cat 5 Events'),
+    lineend = 'square', size = 0.25) +
+  geom_vline(xintercept = cat5a$precip_mm, linetype = 'dashed') + 
+  annotate(geom = 'text', angle = 90,
+    x = cat5a$precip_mm, y = 0.075, hjust = 0, vjust = 1.5,
+    label = 'Observed', family = 'Segoe UI', size = 8/.pt) +
+  theme(axis.title.y = element_blank()) + 
+  theme(legend.position = c(0.675, 1.035), plot.margin = margin(5,10,5,5))
+
+## plot left/right and top/bottom labels
+g.sides <- ggplot() + 
+  theme(
+    axis.line = element_line(color = NA), 
+    plot.background = element_rect(fill = NA, color = NA),
+    axis.title = element_blank(), 
+    axis.text = element_blank(), 
+    axis.ticks = element_blank()) + 
+  coord_cartesian(clip = 'off')
+gL <- g.sides + 
+  annotate(
+    geom = 'text', label = 'Strong (Cat 3) Events ', x = 0, y = 0, 
+    family = 'Segoe UI', size = 12/.pt) + 
+  theme(
+    axis.title.y = element_text(color = NA),
+    axis.text.y = element_text(color = NA), 
+    axis.ticks.y = element_line(color = NA),
+    plot.margin = margin(5,5,5,5))
+gR <- g.sides + 
+  annotate(
+    geom = 'text', label = 'Exceptional (Cat 5) Events ', x = 0, y = 0, 
+    family = 'Segoe UI', size = 12/.pt, color = 'black') + 
+  theme(
+    axis.text.y = element_text(color = NA), 
+    axis.ticks.y = element_line(color = NA),
+    plot.margin = margin(5,10,5,5))
+gT <- g.sides + 
+  annotate(
+    geom = 'text', label = 'Impactful', x = 0, y = 0, angle = 90,
+    family = 'Segoe UI', size = 12/.pt) + 
+  ggtitle(label = waiver(), subtitle = 'x') + 
+  theme(
+    axis.title.x = element_text(color = NA),
+    axis.text.x = element_text(color = NA), 
+    axis.ticks.x = element_line(color = NA),
+    plot.margin = margin(5,5,5,5),
+    plot.subtitle = element_text(color = NA))
+gB <- g.sides + 
+  annotate(
+    geom = 'text', label = 'Non-Impactful', x = 0, y = 0, angle = 90,
+    family = 'Segoe UI', size = 12/.pt) + 
+  theme(
+    axis.text.x = element_text(color = NA), 
+    axis.ticks.x = element_line(color = NA),
+    plot.margin = margin(5,5,5,5))
+
 plot_grid(
-  plot_grid(ggplot() + theme_void(), ggplot() + theme_void(), 
-            nrow = 1, rel_widths = c(1,1),
-    labels = c('(a)', '(b)'), label_fontfamily = 'Segoe UI', label_size = 12,
-    label_x = c(0.2, 0.7), label_y = 0.95), 
-  plot_grid(get_legend(g1), get_legend(g2), nrow = 1, rel_widths = c(1,1)),
-  plot_grid(
-    g1 + theme(legend.position = 'none'), g2 + theme(legend.position = 'none'), 
-    nrow = 1, align = 'h', rel_widths = c(1,1)),
-  plot_grid(
-    g3, g4, nrow = 1, align = 'h',
-    labels = c('(c)', '(d)'), label_fontfamily = 'Segoe UI', label_size = 12,
-    label_x = c(0.2, 0.7), label_y = 0.95), 
-  nrow = 4, 
-  rel_heights = c(1.25,1,9,10))
-ggsave('_figures/fig04_precip.png', width = 12, height = 12, units = 'cm', dpi = 600)
+  NULL, gL, gR, 
+  gT, gTL, gTR, 
+  gB, gBL, gBR, 
+  nrow = 3, rel_widths = c(1,6.15,6), rel_heights = c(1,8,8.4), axis = 'tl',
+  labels = c('', '', '', '', '(a)', '(c)', '', '(b)', '(d)'), label_fontfamily = 'Segoe UI', label_size = 12,
+    label_x = 0.8, label_y = 0.8)
+ggsave('_figures/fig05_prcpevents.png', width = 12, height = 12, units = 'cm', dpi = 600)
 
 ```
 
@@ -591,7 +766,7 @@ Soil moisture is measured as the equivalent height of water (mm) in the top mete
 ## Fit lognormal distribution to soil moisture
 
 We found that soil moisture records in the historic catalog were well represented by a lognormal distribution. 
-The parameters of the distribution are displayed below, and the empirical vs. modeled distribution is shown in Figure 6(a).
+The parameters of the distribution are displayed below.
 
 ```{r results = 'hide'}
 ## load antecedent hydrologic condition function(s)
@@ -607,7 +782,7 @@ fit_soilmoisture(catalog)
 fit.sm %>% 
   t %>% as.data.frame %>% 
   gt %>% 
-  fmt_number(c('meanlog', 'sdlog'), n_sigfig = 4) %>% 
+  fmt_number(c('meanlog', 'sdlog'), n_sigfig = 3) %>% 
   cols_label('meanlog' = 'Lognormal Mean', 'sdlog' = 'Lognormal Std. Dev.') %>% 
   tab_header(title = 'Soil Moisture Parameters') %>% 
   tab_options(heading.background.color = '#d9d9d9', 
@@ -615,37 +790,17 @@ fit.sm %>%
 
 ```
 
-```{r}
-## plot figure 6(a): observed vs. simulated soil moisture data
-```
+## Compare observed vs. simulated values
 
-```{r fig6a, echo = FALSE}
-g5 <- data.frame(dx = seq(0, 200, length.out = 1e3)) %>% 
-  mutate(fit = dlnorm(dx, meanlog = fit.sm[1], sdlog = fit.sm[2])) %>% 
-  ggplot() + 
-  geom_histogram(
-    data = catalog, 
-    aes(x = sm, y = ..density.., fill = 'Observed Historic Catalog'),
-    color = 'black', size = 0.25) + 
-  geom_line(aes(x = dx, y = fit, size = 'Lognormal Distribution')) + 
-  geom_vline(xintercept = casestudy$sm, linetype = 'dashed') +
-  annotate(geom = 'text', 
-    x = casestudy$sm - 6, y = 0.0125, angle = 90,
-    label = '2019 Observed', family = 'Segoe UI', size = 8/.pt) + 
-  scale_fill_manual(values = 'grey90') + 
-  scale_size_manual(values = 0.5) + 
-  scale_x_origin('Antecedent Soil Moisture (mm)') + 
-  scale_y_origin('Probability of Occurrence') + 
-  theme(legend.title = element_blank(), 
-        legend.position = 'bottom',
-        legend.margin = margin(0,0,0,0))
-if (!publish) g5 
-
-```
+We now take a deeper dive into the February 2019 event. 
+We calculate the percentile of the February 2019 antecedent soil moisture within the observed lognormal distribution.
 
 ```{r include = FALSE}
-## find percentile of 2019 event
-plnorm(casestudy$sm, meanlog = fit.sm[1], sdlog = fit.sm[2])
+## subset case study events to only February 2019 event
+feb2019 <- casestudy[4,]
+
+## find percentile of February 2019 event
+plnorm(feb2019$sm, meanlog = fit.sm[1], sdlog = fit.sm[2])
 
 ```
 
@@ -696,7 +851,7 @@ model.Qp$coefficients %>%
 ### Assess distribution fit
 
 We follow the same process as the precipitation component model to fit and validate this equation. 
-We present both a quantile plot for visual inspection in Figure 5(a) and a formal two-sample K-S test to validate the fit of the overall peak streamflow distribution as compared to the historic catalog. 
+We present both a quantile plot for visual inspection in Figure 6(a) and a formal two-sample K-S test to validate the fit of the overall peak streamflow distribution as compared to the historic catalog. 
 
 ```{r results = 'hide', echo = FALSE}
 ## fit lognormal distribution to time to peak streamflow records in the historic catalog 
@@ -721,20 +876,19 @@ hydro.qq <- generate_hydrograph(
             by = c('n.AR', 'n.precip', 'n.hc', 'n.runoff', 'n.hydro'))
 hydro.max <- max(c(max(hydro.qq$Qp_obs), max(hydro.qq$Qp_sim)))
 
-## plot panel 5(a): quantile plot of observed vs. simulated peak streamflow for the historic catalog
+## plot panel 6(a): quantile plot of observed vs. simulated peak streamflow for the historic catalog
 ```
 
-```{r fig5a, echo = FALSE}
+```{r fig6a, echo = FALSE}
 g7 <- ggplot(hydro.qq) + 
   geom_point(aes(x = sort(Qp_obs), y = sort(Qp_sim)), size = 0.75) + 
   geom_parity() + 
-  coord_cartesian(xlim = c(NA, hydro.max), ylim = c(NA, hydro.max)) + 
   scale_x_continuous(
     expression(paste('Observed ', Q[p], ' Quantile (', m^{3}, s^{-1}, ')')), 
-    expand = expansion(mult = c(0, 0.05)), labels = comma) + 
+    expand = expansion(mult = c(0, 0.05)), limits = c(NA, hydro.max), labels = comma) + 
   scale_y_continuous(
     expression(paste('Simulated ', Q[p], ' Quantile (', m^{3}, s^{-1}, ')')), 
-    expand = expansion(mult = c(0, 0.05)), labels = comma)
+    expand = expansion(mult = c(0, 0.05)), limits = c(NA, hydro.max), labels = comma)
 if (!publish) g7
 
 ```
@@ -827,7 +981,7 @@ fit_tp(catalog)
 fit.tp %>% 
   t %>% as.data.frame %>% 
   gt %>% 
-  fmt_number(c('meanlog', 'sdlog'), n_sigfig = 4) %>% 
+  fmt_number(c('meanlog', 'sdlog'), n_sigfig = 3) %>% 
   cols_label('meanlog' = 'Lognormal Mean', 'sdlog' = 'Lognormal Std. Dev.') %>% 
   tab_header(title = 'Time to Peak Streamflow Parameters') %>% 
   tab_options(heading.background.color = '#d9d9d9', 
@@ -840,30 +994,43 @@ fit.tp %>%
 ```
 
 ```{r fig6b, echo = FALSE}
-g6 <- data.frame(dx = seq(0, 60, length.out = 1e3)) %>% 
+g6 <- 
+  data.frame(dx = seq(0, 60, length.out = 1e3)) %>% 
   mutate(fit = dlnorm(dx, meanlog = fit.tp[1], sdlog = fit.tp[2])) %>% 
   ggplot() + 
   geom_histogram(
     data = catalog, 
-    aes(x = tp_hrs, y = ..density.., fill = 'Observed Historic Catalog'),
-    color = 'black', size = 0.25) + 
-  geom_line(aes(x = dx, y = fit, size = 'Lognormal Distribution')) + 
-  geom_vline(xintercept = casestudy$tp_hrs, linetype = 'dashed') + 
+    aes(x = tp_hrs, y = ..density.., fill = 'Observed \nCatalog'),
+    color = 'black', size = 0.25, key_glyph = draw_key_blank) + 
+  geom_line(aes(x = dx, y = fit, size = 'Simulated \nDistribution')) + 
+  geom_vline(xintercept = feb2019$tp_hrs, linetype = 'dashed') + 
   annotate(geom = 'text', 
-    x = casestudy$tp_hrs - 1.8, y = 0.0425, angle = 90,
-    label = '2019 Observed', family = 'Segoe UI', size = 8/.pt) + 
+    x = feb2019$tp_hrs, y = 0.0425, angle = 90, vjust = -0.5,
+    label = 'February 2019', family = 'Segoe UI', size = 8/.pt) + 
   scale_fill_manual(values = 'grey90') + 
   scale_size_manual(values = 0.5) + 
-  scale_x_origin('Time to Peak Streamflow @ USGS 11463500 (h)') + 
+  scale_x_origin(expression('Time to Peak Streamflow,' ~ t[p] ~ '(h)')) +
   scale_y_origin('Probability of Occurrence') + 
-  theme(legend.title = element_blank())
+  guides(fill = guide_legend(order = 1, override.aes = list(size = 0.025, color = 'pink')),
+         color = guide_legend(order = 2)) +
+  annotate('rect', xmin = 49.25, xmax = 53.9, ymin = 0.0345, ymax = 0.03875, 
+           fill = 'grey90', color = 'black', size = 0.25) + 
+  theme(legend.title = element_blank(),
+        legend.margin = margin(1, 0, 1, 0, unit = 'mm'),
+        legend.spacing.y = unit(0.1, 'mm'),
+        legend.key.width = unit(4, 'mm'),
+        legend.spacing.x = unit(1, 'mm'),
+        legend.background = element_rect(fill = NA),
+        # legend.key = element_rect(color = 'black'),
+        plot.margin = margin(5.5, 25, 5.5, 5.5),
+        legend.position = c(0.85, 0.5))
 if (!publish) g6
 
 ```
 
 ```{r include = FALSE}
-## find percentile of 2019 event
-plnorm(casestudy$tp_hrs, meanlog = fit.tp[1], sdlog = fit.tp[2])
+## find percentile of February 2019 event
+plnorm(feb2019$tp_hrs, meanlog = fit.tp[1], sdlog = fit.tp[2])
 
 ```
 
@@ -873,26 +1040,39 @@ A value of $m=4$ was chosen based on an inspection of observed hydrographs for t
 
 ## Plot real vs. simulated streamflow hydrograph
 
-After validating the estimation of $Q_p$, $t_p$, and $m$, we now assess how well the streamflow component model can replicate the 2019 case study event.
-We first generate simulated realizations of streamflow given the real precipitation, then compare the realizations to the true observed hydrograph.
+After validating the estimation of $Q_p$, $t_p$, and $m$, we now compare the observed vs. simulated streamflow timeseries for the 2019 case study event.
+We generate simulated realizations of streamflow given the real precipitation, then compare the realizations to the true observed hydrograph.
 
-### Load observed streamflow hydrographs for the 2019 event
+### Load observed streamflow hydrographs for the February 2019 event
 
-We start by finding the true streamflow hydrograph for the 2019 event for comparison. 
+We start by finding the true hourly precipitation and 15-minute streamflow hydrograph for the February 2019 event for comparison. 
 For this case study, streamflow was measured at USGS gage 11463500, which is at the inlet to the study area.  
 
 ```{r}
+## download observed hourly precipitation for the February 2019 event
+# https://www.ncei.noaa.gov/products/land-based-station/cooperative-observer-network
+hourly <- read.csv('_data/USC00048885.csv') %>% 
+  filter(ymd(DATE) >= ymd(feb2019$start_day) - days(14) & 
+           ymd(DATE) <= ymd(feb2019$end_day) + days(14)) %>% 
+  select(DATE, starts_with('HR')) %>% 
+  select(DATE, ends_with('Val')) %>% 
+  pivot_longer(cols = -DATE) %>% 
+  mutate(hour = name %>% str_remove('HR') %>% str_remove('Val') %>% toNumber) %>% 
+  mutate(datetime = ymd(DATE) + hours(hour)) %>% 
+  filter(value > 0) %>% 
+  mutate(value = value/100*25.4) #convert from hundreds of an inch to mm
+
 ## define parameters & statistics to request from USGS streamgage service
 param <- c('00060', '00065')
 names(param) <- c('discharge_cfs', 'gageht_ft')
 statcode <- c('00001', '00002', '00003', '00008')
 names(statcode) <- c('max', 'min', 'mean', 'median')
 
-## download real gauge information
+## download observed gauge information for the February 2019 event
 flow <- readNWISdata(
   sites = 11463500, parameterCd = param, 
-  startDate = ymd(casestudy$start_day) - days(1), 
-  endDate = ymd(casestudy$end_day) + days(2), 
+  startDate = ymd(feb2019$start_day) - days(1), 
+  endDate = ymd(feb2019$end_day) + days(5), 
   service = 'iv', tz = 'America/Los_Angeles') %>% 
   renameNWISColumns
 
@@ -900,12 +1080,12 @@ flow <- readNWISdata(
 
 ### Generate simulated realizations of streamflow parameters
 
-We then generate 1,000 realizations of peak streamflow $Q_p$ and time to peak streamflow $t_p$. 
+We generate 1,000 realizations of peak streamflow $Q_p$ and time to peak streamflow $t_p$. 
 The hydrograph shape parameter $m$ is held constant. 
 
 ```{r}
-## load observed precipitation for the 2019 event
-precip <- casestudy %>%
+## load observed precipitation for the February 2019 event
+precip <- feb2019 %>%
   transmute(n.AR = 1, n.precip = 1, IVT_max, duration, precip_mm)
 
 ## generate probabilistic realizations of HC (soil moisture) for the 2019 event
@@ -931,8 +1111,8 @@ hydrograph <-
 
 ### Generate simulated hydrographs for the 2019 event
 
-Finally, we use our simulated parameters to construct synthetic hydrographs for the 2019 event. 
-These hydrographs are aggregated and the overall statistics of the timeseries distribution are shown in Figure 5(b).
+Finally, we use our simulated parameters to construct synthetic hydrographs for the February 2019 event. 
+These hydrographs are aggregated and the overall statistics of the timeseries distribution are shown in Figure 6(c).
 
 ```{r}
 ## set constants
@@ -942,6 +1122,7 @@ t <- seq(0, simlength, 360)
 m <- 4
 
 ## create synthetic streamflow timeseries records
+maxflow <- which.max(flow$Flow_Inst)
 num_cores <- 5
 cl <- parallel::makeCluster(num_cores)
 registerDoSNOW(cl)
@@ -952,12 +1133,36 @@ flow.sim <-
     tp <- hydrograph$tp_hrs[i]*60^2 #seconds
     q <- apply(cbind(exp(m*(1-t/tp)) * (t/tp)^m * Qp, rep(baseflow, length(t))), 1, max)
     sim <- data.frame(t = lubridate::now() + seconds(t), q = q)
-    dt <- sim[which.max(sim$q), 't'] - flow[which.max(flow$Flow_Inst), 'dateTime']
+    dt <- sim[which.max(sim$q), 't'] - flow[maxflow, 'dateTime']
     sim$t <- sim$t - dt
     sim
-  } %>% reduce(full_join, by = 't')
+  } 
 stopCluster(cl)
+
+t.min <- flow.sim %>% lapply(function(x) Min(x$t)) %>% do.call('c', .) %>% Min
+t.max <- flow.sim %>% lapply(function(x) Max(x$t)) %>% do.call('c', .) %>% Max
+flow.sim <- flow.sim %>%
+  lapply(function(x) {
+    right_join(x, data.frame(t = seq(t.min, t.max, '6 min')), by = 't') %>% 
+      arrange(t) %>% pull(q)
+  }) %>% 
+  do.call(cbind, .) %>% 
+  as.data.frame %>% 
+  mutate(
+    t = flow.sim[[1]] %>% 
+      right_join(data.frame(t = seq(t.min, t.max, '6 min')), by = 't') %>% 
+      arrange(t) %>% pull(t)) %>% 
+  select(t, 1:last_col(1))
 flow.sim[is.na(flow.sim)] <- baseflow
+
+## find USGS flood stage for gage 11463500
+# https://waterdata.usgs.gov/nwis/dv?referred_module=sw&site_no=11463500
+floodstage <- 39.7 
+
+## convert to m3/s using the USGS rating curve for gage 11463500
+floodflow <- readNWISrating(siteNumber = 11463500, type = 'exsa') %>% 
+  mutate(m3s = DEP / mft^3) %>% 
+  filter(INDEP == floodstage) %>% pull(m3s)
 
 ## calculate statistics of synthetic streamflow timeseries records
 sequence <- flow.sim$t
@@ -975,54 +1180,110 @@ flow.df <- data.frame(t = sequence) %>%
          mean = ifelse(is.nan(mean), NA, mean), 
          max = ifelse(is.infinite(max), NA, max))
 
-## plot panel 5(b): observed vs. simulated hydrograph for the 2019 event
+## plot panel 6(c): observed vs. simulated hydrograph for the 2019 event
 ```
 
-```{r fig5b, echo = FALSE}
+```{r fig6c, echo = FALSE}
 g8 <- ggplot(flow.df) + 
-  geom_ribbon(aes(x = t, ymin = q05, ymax = q95, fill = '90th p.')) + 
-  geom_ribbon(aes(x = t, ymin = q25, ymax = q75, fill = '50th p.')) +
-  geom_line(aes(x = t, y = med, fill = 'Median'), color = 'grey25') + 
+  geom_ribbon(aes(x = t, ymin = 2003 - q05, ymax = 2003 - q95, fill = '90th p.')) + 
+  geom_ribbon(aes(x = t, ymin = 2003 - q25, ymax = 2003 - q75, fill = '50th p.')) +
+  geom_line(aes(x = t, y = 2003 - med, fill = 'Median'), color = 'grey25') + 
   scale_fill_manual('Simulated \nStreamflow',
     breaks = c('Median', '50th p.', '90th p.'),
     labels = c('Median', '50% P.I.', '90% P.I.'),
     values = c('grey25', 'grey70', 'grey90')) + 
   geom_line(data = flow, 
-    aes(x = ymd_hms(dateTime, tz = 'America/Los_Angeles'), y = Flow_Inst/mft^3, 
-        color = '2019 Event'), size = 0.75, linetype = 'dashed') + 
+    aes(x = ymd_hms(dateTime, tz = 'America/Los_Angeles'), y = 2000 - Flow_Inst/mft^3, 
+        color = 'February 2019'), size = 0.75, linetype = 'dashed') + 
+  geom_col(data = hourly %>% filter(value > 1),
+    aes(x = datetime, y = value*50), 
+    fill = roma.colors[5], color = roma.colors[5], size = 0.25) +
+  scale_y_reverse(
+    name = expression(paste('Observed Precipitation (mm⋅', h^{-1}, ')')),
+    labels = comma_format(scale = 0.02),
+    expand = expansion(mult = c(0,0)),
+    sec.axis = sec_axis(~ 2000 - .,
+      name = expression(paste('Streamflow (', m^{3}, s^{-1}, ')')),
+      labels = comma)) + 
+  theme(axis.title.y.left = element_text(color = roma.colors[5]),
+        axis.text.y.left = element_text(color = roma.colors[5]),
+        axis.line.y.left = element_line(color = roma.colors[5]),
+        axis.ticks.y.left = element_line(color = roma.colors[5])) +
   scale_color_manual('Observed \nStreamflow', values = 'black') + 
-  scale_y_origin(expression(paste('Streamflow (', m^{3}, s^{-1}, ')')), labels = comma) + 
+  geom_hline(yintercept = 2000 - floodflow, color = roma.colors[1]) + 
+  annotate('text', label = 'Flood Flow', 
+           x = ymd_hms('2019-03-01 8:00:00PM'), y = 2000 - floodflow, 
+           family = 'Segoe UI', size = 8/.pt, color = roma.colors[1], vjust = -0.5) +
   scale_x_datetime('Date',
     limits = c(ymd_hms('2019-02-24 12:00:00PM', tz = 'America/Los_Angeles'),
-               ymd_hms('2019-03-02 12:00:00AM', tz = 'America/Los_Angeles')), 
-    date_breaks = 'day', date_labels = '%b %d', expand = c(0,0)) + 
-  theme(legend.position = c(0.9,0.65), 
-        legend.margin = margin(-1, 0, -1, 0), 
-        plot.margin = margin(10,25,10,10))
-if (!publish) g8 
+               ymd_hms('2019-03-03 12:00:00PM', tz = 'America/Los_Angeles')),
+    date_breaks = 'day', date_labels = '%b %d', expand = c(0,0), 
+    sec.axis = dup_axis()) + 
+  theme(axis.title.x.top = element_blank(),
+        axis.text.x.top = element_blank(),
+        axis.ticks.x.top = element_blank(),
+        axis.line.x.top = element_line(color = roma.colors[5])) +
+  guides(colour = guide_legend(override.aes = list(size = 0.5))) +
+  theme(legend.margin = margin(1, 0, 1, 0, unit = 'mm'),
+        legend.spacing.y = unit(0.75, 'mm'),
+        legend.key.width = unit(4, 'mm'),
+        legend.spacing.x = unit(0.5, 'mm'),
+        axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  theme(plot.margin = margin(5.5, 45, 5.5, 16))
+if (!publish) g8
 
 ```
 
-```{r fig5, include = publish, echo = FALSE}
-## generate figure 5
-plot_grid(
-  g7, g8, nrow = 2, align = 'v',
-  labels = c('(a)', '(b)'), label_fontfamily = 'Segoe UI', label_size = 12,
-  label_x = 0.2, label_y = 0.95,
-  rel_heights = c(5,4))
-ggsave('_figures/fig05_hydrograph.png', width = 8.3, height = 12, units = 'cm')
+```{r}
+## find simulated quantile of observed peak streamflow
+peak.sim <- flow.matrix %>% apply(2, max)
+peak.obs <- max(flow$Flow_Inst)/mft^3
+p.peak <- sum(peak.sim <= peak.obs) / length(peak.sim)
+
+## define length of observed floodwave
+floodwave <- flow %>% 
+  mutate(diff = c(0, abs(diff(Flow_Inst)))) %>% 
+  mutate(pass = diff > 50, count = 0)
+for (i in 5:nrow(floodwave)) floodwave$count[i] <- sum(floodwave$pass[(i-4):i])
+floodwave <- floodwave %>% 
+  slice(which(count>0)[1]:nrow(.)) %>% 
+  slice(1:which(count==0)[1])
+# ggplot(floodwave) + 
+#   geom_line(aes(x = dateTime, y = Flow_Inst))
+
+## find simulated quantile of observed flood wave duration
+dur.sim <- apply(flow.matrix>3, 2, sum) / 10 #hours
+dur.obs <- difftime(max(floodwave$dateTime), min(floodwave$dateTime), units = 'hours') %>% as.numeric
+p.dur <- sum(dur.sim <= dur.obs) / length(dur.sim)
+
+## report quantile values
+```
+
+```{r echo = FALSE}
+data.frame(p.peak, p.dur) %>% 
+  gt %>% 
+  fmt_percent(c(p.peak, p.dur), decimals = 1) %>% 
+  cols_label(
+    p.peak = 'Peak Streamflow',
+    p.dur = 'Flood Wave Duration') %>% 
+  tab_header(title = 'Simulated Quantiles of Observed Values') %>% 
+  tab_options(heading.background.color = '#d9d9d9', 
+              column_labels.background.color = '#f2f2f2')
 
 ```
 
 ```{r fig6, include = publish, echo = FALSE}
 ## generate figure 6
 plot_grid(
-  g5 + theme(legend.position = 'none'), g6 + theme(legend.position = 'none'),
-  align = 'v', nrow = 2,
-  labels = c('(a)', '(b)'), label_fontfamily = 'Segoe UI', label_size = 12,
-  label_x = 0.15, label_y = 0.95) %>% 
-  plot_grid(get_legend(g5), nrow = 2, rel_heights = c(12,1))
-ggsave('_figures/fig06_lognormal.png', width = 8.3, height = 10, units = 'cm')
+  plot_grid(
+    g7 + theme_bw_custom(), g6, 
+    nrow = 1, axis = 'b', align = 'h',
+    labels = c('(a)', '(b)'), label_fontfamily = 'Segoe UI', label_size = 12,
+    label_x = c(0.25, 0.75), label_y = 0.925),
+  g8, nrow = 2, labels = c('', '(c)'), rel_heights = c(5,6),
+  label_fontfamily = 'Segoe UI', label_size = 12,
+  label_x = 0.6, label_y = 0.9)
+ggsave('_figures/fig06_hydrograph.png', width = 12, height = 12, units = 'cm')
 
 ```
 
@@ -1039,7 +1300,7 @@ We then applied a low-dimensional surrogate model to rapidly estimate inundation
 We refer the user to these locations for more information about the fit and validation of the inundation component model.
 Here we focus on the results of the 2019 event case study, which are found in the `5c_run_2019event` folder.
 
-For the 2019 event, we looked at prediction accuracy in three ways. 
+For the 2019 event, we compared simulated results to the "observed" inundation in three ways. 
 The first approach was to assess how well we were able to reproduce downstream hydrographs. 
 This is a "channel-focused" method that looks at the amount of water in the river at various points in time and space.
 The second approach is a "floodplain-focused" method that compares the number of dry vs. wet cells between the observed and simulated inundation maps. 
@@ -1066,8 +1327,8 @@ gages <- whatNWISsites(stateCd = '06', countyCd = '097') %>%
 flow.obs <- readNWISdata(
   sites = gages$site_no, 
   parameterCd = param, 
-  startDate = ymd(casestudy$start_day) - days(30), 
-  endDate = ymd(casestudy$end_day) + days(7), 
+  startDate = ymd(feb2019$start_day) - days(30), 
+  endDate = ymd(feb2019$end_day) + days(7), 
   service = 'iv', tz = 'America/Los_Angeles') %>% 
   renameNWISColumns %>% 
   filter(!is.na(Flow_Inst) | !is.na(GH_Inst))
@@ -1152,21 +1413,15 @@ stage.plot <- stage %>%
   filter(site_no != 11463980) %>% 
   left_join(gages.elev, by = 'site_no') %>% 
   mutate(h.obs = h.obs+usgs_m-lisflood_m) %>% 
-  filter(dateTime >= ymd_hms('2019-02-23 12:00:00AM') & 
-           dateTime <= ymd_hms('2019-03-04 12:00:00AM')) 
-offset <- 0 #mean(stage.plot$h.obs) - mean(stage.plot$h.sim)
+  filter(dateTime >= ymd_hms('2019-02-23 12:00:00AM') &
+           dateTime <= ymd_hms('2019-03-04 12:00:00AM'))
 
 ggplot(stage.plot) + 
-  geom_rect(aes(
-    xmin = ymd_hms('2019-02-25 12:00:00AM'), 
-    xmax = ymd_hms('2019-02-28 12:00:00AM'),
-    ymin = 0, ymax = max(c(max(h.obs), Max(h.sim+offset)))*1.05),
-    fill = 'grey90', alpha = 0.25) + 
   geom_line(
     aes(x = dateTime, y = h.obs, linetype = 'Observed', 
         color = factor(site_no)), size = 0.5) +
   geom_line(
-    aes(x = dateTime, y = h.sim+offset, linetype = 'Simulated', 
+    aes(x = dateTime, y = h.sim, linetype = 'Simulated', 
         color = factor(site_no)), size = 0.5) + 
   facet_wrap(~site_no, nrow = 4,
     labeller = labeller(site_no = function(x) paste('USGS', x))) + 
@@ -1174,12 +1429,15 @@ ggplot(stage.plot) +
   scale_color_manual('USGS Gauge', guide = FALSE, values = roma.colors[-3]) + 
   scale_x_datetime('Date', labels = function(z) gsub("^0", "", strftime(z, "%m/%d")),
     date_breaks = 'day', minor_breaks = 'day') +
-  scale_y_origin('Water Surface (m)') + 
+  scale_y_continuous('Water Surface (m)', limits = c(0, NA), expand = expansion(mult = c(0, 0.1))) + 
+  guides(linetype = guide_legend(override.aes = list(size = 0.5))) +
   theme_bw_custom() + 
   theme(strip.background = element_blank(),
         strip.text = element_text(color = 'black', size = 8),
         legend.position = 'bottom',
         legend.margin = margin(-5, 0, 0, 0),
+        legend.key.width = unit(5, 'mm'),
+        legend.spacing.x = unit(1, 'mm'),
         axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
 ggsave('_figures/fig07/fig07_timeseries.png', width = 6, height = 12, units = 'cm')
 
@@ -1195,6 +1453,7 @@ The simulated data is the inundation map in the `5c_run_2019event` folder.
 ```{r}
 ## load "observed" inundation map
 source('_data/flood_sonoma/flood_sonoma.R')
+flow.obs %>% filter(site_no == 11467002) %>% pull(GH_Inst) %>% max
 flood.sonoma <- flood_sonoma(45)*0.64 + flood_sonoma(46)*0.36
 
 ## load simulated inundation map
@@ -1316,9 +1575,9 @@ data.frame(
 
 ## Validate number of inundated buildings
 
-The accuracy statistics presented above consider the entire map with equal importance. 
+The observed vs. comparison statistics presented above consider the entire map with equal importance. 
 However, because the density of residential housing is not constant over the study area, these inundation depths do not have equal impacts.
-Therefore we also consider the total number of inundated buildings as a final validation metric.
+Therefore we also consider the total number of inundated buildings as a final comparison metric.
 
 Here we compare the number of inundated buildings in the "observed" vs. simulated case, but we also have one additional data point to consider.
 We described earlier how the "observed" (Sonoma GIS) inundation map is not directly tied to the flooding experienced during the 2019 event. 

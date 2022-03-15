@@ -1,7 +1,7 @@
 ---
 title: "Sonoma County AR Flood Loss Analysis"
 author: "Corinne Bowers"
-date: "12/3/2021"
+date: "3/9/2022"
 output:
   html_document:
     toc: true 
@@ -30,9 +30,13 @@ rm(list=ls())
 ## setup information
 source('_data/setup.R')
 source('_data/plots.R')
+xmax <- 350e6
 
 ## load required packages
 require(units)
+require(httr)
+require(jsonlite)
+require(curl)
 
 ## load historic catalog
 load('_data/catalog/catalog.Rdata')
@@ -46,11 +50,15 @@ load('_data/buildings/buildings.Rdata')
 ## load NFIP claims & policies
 load('_data/NFIP/NFIP.Rdata')
 
+## load inflation rate relative to 2019
+inflation <- read.csv('_data/NFIP/inflation2019.csv', header = FALSE) %>% 
+  setNames(c('year', 'rate'))
+
 ```
 
 ```{r echo = FALSE}
 ## should figures be saved out for the publication?
-publish <- TRUE
+publish <- FALSE
 
 if (!publish) {
   theme_set(
@@ -64,80 +72,49 @@ if (!publish) {
 ```
 
 
-# 2019 Loss Results
+# Scenario Loss Results
 
-We chose a particularly damaging AR event from 2019 as the case study.
-This decision is discussed further in the paper and in the `demonstration.Rmd` file.
+We chose two particularly damaging AR events as defined in the `demonstration.Rmd` file to examine as scenarios: the February 2019 event and the January 2017 event.
+We started with the real maximum IVT and duration from each event and generated 10,000 probabilistic realizations of loss using Sherlock, Stanford's high-performance computing cluster.
+We also include a third hypothetical scenario based on the February 2019 event with perfect information about predicted precipitation, where Sherlock simulations started with the observed precipitation rather than observed AR characteristics.
+The loss histograms for all three of these scenarios are included in Figure 9.
 
-## Identify case study AR
-
-```{r}
-## identify 2019 case study AR event 
-casestudy <- catalog %>% filter(start_day == ymd('2019-02-25'))
-
-## show the 2019 event variables as a formatted table
-```
-
-```{r echo = FALSE}
-casestudy %>% 
-  select(start_day, end_day, cat, IVT_max, duration, precip_mm, runoff_mm, Qp_m3s, tp_hrs, sm) %>% 
-  gt %>%
-  fmt_date(columns = c(start_day, end_day), date_style = 'iso') %>%
-  fmt_number(columns = c(cat, IVT_max, duration), decimals = 0) %>% 
-  fmt_number(columns = c(precip_mm, runoff_mm, Qp_m3s, tp_hrs, sm)) %>% 
-  cols_label(
-    start_day = 'Start Day', end_day = 'End Day', cat = 'AR Category',
-    IVT_max = 'Maximum IVT (kg/m/s)', 
-    duration = 'Storm Duration (hrs)', 
-    precip_mm = 'Total Precipitation (mm)', 
-    runoff_mm = 'Total Runoff (mm)', 
-    Qp_m3s = 'Peak Streamflow (m^3/s)', 
-    tp_hrs = 'Time to Peak Streamflow (hrs)',
-    sm = 'Antecedent Soil Moisture (mm/m)') %>% 
-  tab_header(title = '2019 Case Study AR Event') %>% 
-  tab_options(heading.background.color = '#d9d9d9', 
-              column_labels.background.color = '#f2f2f2')
-
-```
-
-## Plot observed vs. simulated loss
-
-We started with the real maximum IVT and duration from the 2019 event and generated 10,000 probabilistic realizations of loss using Sherlock, Stanford's high-performance computing cluster.
 All files associated with this calculation are stored in the `_results/2019event/` folder.
+The dataframe *loss.sim* within the `DV.Rdata` file contains the probabilistic realizations of expected total loss for each of the 10,000 simulations.
 
-The dataframe *loss.sim* contains the probabilistic realizations of expected total loss for each of the 10,000 simulations.
-Figure 9(a) compares the distribution of these probabilistic loss realizations to the true loss experienced by Sonoma County households as a result of the 2019 event. 
+## February 2019 event
 
 ```{r}
-## input observed residential loss for the 2019 event from news reports
+## load observed loss
 loss.est <- 91.6e6
 
 ## load simulated loss from PARRA framework 
-load('_results/event/checkpoints/DV.Rdata')
+load('_results/event_feb2019/checkpoints/DV.Rdata')
 
 ## plot figure 9(a): observed vs. simulated loss
 ```
 
 ```{r fig9a, echo = FALSE}
-ggplot(loss.sim) + 
+g2019 <- loss.sim %>% 
+  right_join(data.frame(n.precip = 1:1e4)) %>% 
+  mutate(loss = case_when(!is.na(loss) ~ loss, TRUE ~ 0)) %>% 
+  ggplot() + 
     geom_histogram(aes(x = loss, y = ..density..), color = 'black', fill = 'grey90', 
-      bins = sqrt(nrow(loss.sim)), boundary = 0, size = 0.25) + 
+      binwidth = 5e6, boundary = 0, size = 0.25) + 
     geom_vline(xintercept = loss.est, linetype = 'dashed') + 
-    annotate('text', x = loss.est, y = 2e-8, vjust = -0.5, angle = 90,
-      label = '2019 Observed', family = 'Segoe UI', size = 8/.pt) +
-    scale_x_origin('Loss Estimate ($M)', 
-      labels = comma_format(scale = 1e-6, accuracy = 1)) + 
+    annotate('text', x = loss.est, y = 2.5e-8, vjust = 1.35, angle = 90,
+      label = 'Observed', family = 'Segoe UI', size = 8/.pt) +
+    scale_x_origin('Loss Estimate',
+      labels = comma_format(scale = 1e-6, accuracy = 1, prefix = '$', suffix = 'M')) + 
     scale_y_origin('Frequency of Occurrence') + 
-    coord_cartesian(xlim = c(0, 225e6))
-ggsave('_figures/fig09/fig09_lossdist.png', width = 8.3, height = 5, units = 'cm')
+  coord_cartesian(xlim = c(0, xmax), ylim = c(0, 4.25e-8)) + 
+  theme(
+    plot.background = element_rect(fill = NA, color = NA), 
+    axis.title.y = element_text(color = NA),
+    axis.title.x = element_blank())
+if(!publish) g2019
 
 ```
-
-## Find the percentile of the observed loss within the simulated distribution
-
-We can compare the simulated distribution to the observed value numerically as well as visually. 
-The real loss estimate for the 2019 event was reported at \$91.6 million, which falls at the upper tail of the simulated distribution produced by the PARRA framework.
-However, the maximum loss estimate produced by the PARRA framework is significantly larger than the real value, which indicates that this is a distribution with very heavy tails.
 
 ```{r echo = FALSE}
 ## calculate values of interest
@@ -148,18 +125,132 @@ data.frame(
   fmt_percent('event', decimals = 1) %>% 
   fmt_currency('maxloss', suffixing = TRUE, decimals = 0) %>% 
   cols_label(event = 'Percentile of Observed Loss', maxloss = 'Max Simulated Loss') %>% 
-  tab_header('PARRA Loss Results for 2019 Event') %>% 
+  tab_header('PARRA Loss Results for February 2019 Event') %>% 
   tab_options(heading.background.color = '#d9d9d9', 
               column_labels.background.color = '#f2f2f2')
   
 ```
 
+## January 2017 event 
+
+```{r}
+## load observed loss
+loss.est <- 12.5e6 * inflation$rate[inflation$year==2017]
+
+## load simulated loss from PARRA framework 
+load('_results/event_jan2017/checkpoints/DV.Rdata')
+
+## plot figure 9(b): observed vs. simulated loss
+```
+
+```{r fig9b, echo = FALSE}
+g2017 <- loss.sim %>% 
+  right_join(data.frame(n.precip = 1:1e4)) %>% 
+  mutate(loss = case_when(!is.na(loss) ~ loss, TRUE ~ 0)) %>% 
+  ggplot() + 
+    geom_histogram(aes(x = loss, y = ..density..), color = 'black', fill = 'grey90', 
+      binwidth = 5e6, boundary = 0, size = 0.25) + 
+    geom_vline(xintercept = loss.est, linetype = 'dashed') + 
+    annotate('text', x = loss.est, y = 2.5e-8, vjust = 1.35, angle = 90,
+      label = 'Observed', family = 'Segoe UI', size = 8/.pt) +
+    scale_x_origin('Loss Estimate',
+      labels = comma_format(scale = 1e-6, accuracy = 1, prefix = '$', suffix = 'M')) + 
+    scale_y_origin('Frequency of Occurrence') + 
+  coord_cartesian(xlim = c(0, xmax), ylim = c(0, 4.25e-8)) + 
+  theme(axis.title.x = element_blank())
+if(!publish) g2017
+
+```
+
+```{r echo = FALSE}
+## calculate values of interest
+data.frame(
+  event = 1 - (sum(loss.sim$loss > loss.est) / 1e4),
+  maxloss = max(loss.sim$loss)) %>% 
+  gt %>%
+  fmt_percent('event', decimals = 1) %>% 
+  fmt_currency('maxloss', suffixing = TRUE, decimals = 0) %>% 
+  cols_label(event = 'Percentile of Observed Loss', maxloss = 'Max Simulated Loss') %>% 
+  tab_header('PARRA Loss Results for January 2017 Event') %>% 
+  tab_options(heading.background.color = '#d9d9d9', 
+              column_labels.background.color = '#f2f2f2')
+  
+```
+
+## February 2019 event with perfect precipitation information
+
+```{r}
+## load observed loss
+loss.est <- 91.6e6
+
+## load simulated loss from PARRA framework 
+load('_results/event_feb2019_prcpconst/checkpoints/DV.Rdata')
+
+## plot figure 9(c): observed vs. simulated loss
+```
+
+```{r fig9c, echo = FALSE}
+g2019_obsprcp <-
+  ggplot(loss.sim) + 
+    geom_histogram(aes(x = loss, y = ..density..), color = 'black', fill = 'grey90', 
+      binwidth = 5e6, boundary = 0, size = 0.25) + 
+    geom_vline(xintercept = loss.est, linetype = 'dashed') + 
+    annotate('text', x = loss.est, y = 2.5e-8, vjust = 1.35, angle = 90,
+      label = 'Observed', family = 'Segoe UI', size = 8/.pt) +
+    scale_x_origin('Loss Estimate',
+      labels = comma_format(scale = 1e-6, accuracy = 1, prefix = '$', suffix = 'M')) + 
+    scale_y_origin('Frequency of Occurrence') + 
+  coord_cartesian(xlim = c(0, xmax), ylim = c(0, 4.25e-8)) + 
+  theme(
+    plot.background = element_rect(fill = NA, color = NA), 
+    axis.title.y = element_text(color = NA))
+if(!publish) g2019_obsprcp
+
+```
+
+```{r echo = FALSE}
+## calculate values of interest
+data.frame(
+  event = 1 - (sum(loss.sim$loss > loss.est) / 1e4),
+  maxloss = max(loss.sim$loss)) %>% 
+  gt %>%
+  fmt_percent('event', decimals = 1) %>% 
+  fmt_currency('maxloss', suffixing = TRUE, decimals = 0) %>% 
+  cols_label(event = 'Percentile of Observed Loss', maxloss = 'Max Simulated Loss') %>% 
+  tab_header(
+    'PARRA Loss Results for Hypothetical Event', 
+    subtitle = 'February 2019 with Known Precipitation (Perfect Information Case)') %>% 
+  tab_options(heading.background.color = '#d9d9d9', 
+              column_labels.background.color = '#f2f2f2')
+  
+```
+
+## Combine plots and save as Figure 10
+```{r fig9, include = publish, echo = FALSE}
+## generate figure 9
+plot_grid(
+  g2019 + ggtitle(label = waiver(), subtitle = 'February 2019'), 
+  g2017 + ggtitle(label = waiver(), subtitle = 'January 2017'), 
+  g2019_obsprcp + ggtitle(label = waiver(), subtitle = 'February 2019 - Known Precipitation'), 
+  nrow = 3, rel_heights = c(8,8,9),
+  labels = c('(a)', '(b)', '(c)'), label_fontfamily = 'Segoe UI', label_size = 12,
+  label_x = 0.8, label_y = 0.9)
+ggsave('_figures/fig09_lossevents.png', width = 8.3, height = 12, units = 'cm')
+
+```
+
 ## Plot spatial distribution of simulated loss
 
 The dataframe *loss.group* contains the average total loss aggregated by some spatial grouping, which in this case is census block groups.
-Figure 9(b) shows the expected spatial distribution of loss as predicted by the PARRA framework.
+Figure 10 shows the expected spatial distribution of loss for the February 2019 event as predicted by the PARRA framework.
 
 ```{r}
+## load observed loss
+loss.est <- 91.6e6
+
+## load simulated loss for February 2019 from PARRA framework 
+load('_results/event_feb2019/checkpoints/DV.Rdata')
+
 ## attach loss information to Sonoma County census block groups
 sonoma_cbgs <- block_groups(state = 'CA', county = 'Sonoma') %>% 
   mutate(group = toNumber(GEOID)) %>% 
@@ -168,10 +259,19 @@ sonoma_cbgs <- block_groups(state = 'CA', county = 'Sonoma') %>%
   st_transform(6417) %>% 
   st_crop(aoi)
 
-## plot figure 9(b): spatial distribution of simulated loss
+## save loss information as CSV files for Github
+loss.sim %>% 
+  right_join(data.frame(n.precip = 1:1e4), by = 'n.precip') %>%
+  mutate(loss = case_when(is.na(loss)~0, TRUE~loss)) %>% 
+  write.table(file = '_results/event_feb2019/loss_sim.csv', row.names = FALSE, col.names = TRUE, sep = ',')
+loss.group %>% 
+  rename('censusblockgroup' = group) %>% 
+  write.table(file = '_results/event_feb2019/loss_group.csv', row.names = FALSE, col.names = TRUE, sep = ',')
+
+## plot figure 10: spatial distribution of simulated loss
 ```
 
-```{r fig9b, echo = FALSE}
+```{r fig10, echo = FALSE}
 ggplot(sonoma_cbgs) + 
   geom_sf(data = sonoma, fill = 'grey90', color = 'grey60', size = 0.25) +
   geom_sf(aes(fill = loss/1e6), color = NA) + 
@@ -189,14 +289,14 @@ ggplot(sonoma_cbgs) +
         axis.ticks = element_blank(), axis.line = element_blank(),
         panel.background = element_blank(), plot.background = element_blank(),
         legend.position = c(0.1, 0.275), legend.background = element_blank())
-ggsave('_figures/fig09/fig09_lossmap.png', width = 6, height = 9, units = 'cm')
+ggsave('_figures/fig10_lossmap.png', width = 8.3, height = 6, units = 'cm')
 
 ```
 
 
 # Average Annual Loss (AAL)
 
-We move now from examining the 2019 event to incorporating the full historic catalog into our analysis.
+We move now from examining scenario events to incorporating the full historic catalog into our analysis.
 This captures the full character of AR-induced fluvial flood risk in the lower Russian River study area.
 We generate 100 realizations of loss for each of the 382 events in the historic catalog. 
 Because the catalog spans 32 years, this creates a synthetic record representing $32 \times 100 = 3200$ years of AR events within the study area. 
@@ -205,16 +305,27 @@ We summarize the results of these simulations using the annual average loss (AAL
 
 ## Calculate AAL based on PARRA framework
 
-We calculate the AAL from the PARRA framework based on Equation 6 from the paper.
+We calculate the AAL from the PARRA framework based on Equation 6 from the paper and repeat the calculate 1000 times to estimate the mean and standard deviation.
 The loss results from the stochastic record are stored in the `_results/lossexceedance/` folder.
 
 ```{r}
 ## load loss realizations for stochastic record 
-load('_results/stochastic/checkpoints/DV.Rdata')
-loss.stochastic <- loss.sim
+files <- list.files('_results/stochastic/checkpoints', full.names = TRUE)
 
-## calculate AAL
-AAL <- c('PARRA' = sum(loss.stochastic$loss)/3200)
+## calculate AAL for each of the Monte Carlo runs
+AAL_uncertainty <- 
+  foreach(file = files, .combine = 'c') %do% {
+    load(file)
+    sum(loss.sim$loss)/3200
+  }
+
+## calculate quantiles of the simulated AAL distribution
+quantile(
+  AAL_uncertainty/1e6, 
+  c(0.005, 0.025, 0.05, 0.25, 0.5, 0.75, 0.95, 0.975, 0.995)) %>% round
+
+## record mean AAL
+AAL <- c('PARRA' = mean(AAL_uncertainty))
 
 ```
 
@@ -228,9 +339,7 @@ We estimate insurance penetration rate by dividing the number of NFIP policies b
 The resulting number is reported in 2019 dollars.
 
 ```{r}
-## find the average annual insured losses from claims data
-inflation <- read.csv('_data/NFIP/inflation2019.csv', header = FALSE) %>% 
-  setNames(c('year', 'rate'))
+## find the average annual insured losses from NFIP claims data
 aal.claims <- claims %>%
   left_join(inflation, by = c('yearofloss' = 'year')) %>% 
   mutate(
@@ -245,12 +354,13 @@ aal.claims <- claims %>%
   group_by(wateryear) %>% 
   summarize(min = min(dateofloss), 
             max = max(dateofloss),
-            structureloss = sum(buildingclaim_2019),
-            contentsloss = sum(contentsclaim_2019),
+            structureloss = Sum(buildingclaim_2019),
+            contentsloss = Sum(contentsclaim_2019),
             totalloss = structureloss + contentsloss) %>% 
-  summarize(loss = Sum(totalloss)/40) %>% .$loss
+  filter(wateryear >= 1978 & wateryear <= 2019) %>% 
+  summarize(loss = Sum(totalloss)/nrow(.)) %>% .$loss
 
-## find the number of policies per year in the study area
+## find the number of NFIP policies per year in the study area
 insurancepolicies <- policies %>% 
   right_join(sonoma[aoi,] %>% st_drop_geometry %>% transmute(censustract = toNumber(GEOID))) %>% 
   mutate(wateryear = year(policyeffectivedate) + 
@@ -259,6 +369,7 @@ insurancepolicies <- policies %>%
   summarize(min = min(ymd(policyeffectivedate)), 
             max = max(ymd(policyeffectivedate)), 
             n = length(policyeffectivedate)) %>% 
+  filter(wateryear >= 2010 & wateryear <= 2019) %>% 
   summarize(avg = mean(n)) %>% .$avg
 
 ## find the number of residences per year in the study area
@@ -291,8 +402,8 @@ AAL %>%
   gt %>%
   fmt_markdown('source') %>% 
   fmt_currency('value', suffixing = TRUE, decimals = 0) %>% 
-  cols_label(source = 'Estimate Source', value = 'AAL') %>% 
-  tab_header('AR Flood AAL Estimates', subtitle = 'Lower Russian River') %>% 
+  cols_label(source = 'Source', value = 'Estimate') %>% 
+  tab_header('AR Flood AAL', subtitle = 'Lower Russian River, Sonoma County, CA') %>% 
   tab_options(heading.background.color = '#d9d9d9', 
               column_labels.background.color = '#f2f2f2')
 
@@ -309,24 +420,32 @@ The loss exceedance is characterized theoretically in Equation 1 of the paper an
 ## Plot the loss exceedance curve
 
 ```{r}
+## load mean simulation for stochastic record 
+data.frame(file = files, aal = AAL_uncertainty) %>% 
+  arrange(aal) %>% 
+  filter(aal > AAL['PARRA']) %>% .[1,] %>% 
+  pull(file) %>% load
+loss.stochastic <- loss.sim
+
 ## estimate occurrence rates for every loss realization
-n <- nrow(loss.stochastic)
 lossexceedance <- loss.stochastic %>% 
-  transmute(x = sort(loss), y = (n:1)/(n+1))
+  right_join(expand.grid(n.AR = 1:nrow(catalog), n.precip = 1:100)) %>%
+  mutate(loss = case_when(!is.na(loss) ~ loss, TRUE ~ 0)) %>%
+  transmute(rp = (nrow(.):1)/3200, stochastic = sort(loss))
 
 ## plot the loss exceedance curve
 ```
 
 ```{r echo = FALSE}
 ggplot(lossexceedance) + 
-  geom_step(aes(x = x, y = y), size = 1) + 
+  geom_step(aes(x = stochastic, y = rp), size = 1) + 
   geom_hline(aes(yintercept = 1e-2, color = '100 Year Event'), linetype = 'dashed') + 
-  geom_point(aes(x = x[y<1e-2][1], y = 1e-2, color = '100 Year Event'), size = 3) +
+  geom_point(aes(x = stochastic[rp<1e-2][1], y = 1e-2, color = '100 Year Event'), size = 3) +
   geom_vline(aes(xintercept = loss.est, color = '2019 Event')) + 
-  geom_point(aes(x = loss.est, y = y[x>loss.est][1], color = '2019 Event'), size = 3) +
+  geom_point(aes(x = loss.est, y = rp[stochastic>loss.est][1], color = '2019 Event'), size = 3) +
   scale_color_manual('Points of Interest', values = c('grey40', 'grey70')) + 
   scale_x_origin('Loss ($M)', labels = comma_format(scale = 1e-6), breaks = seq(0, 5e8, 5e7)) + 
-  scale_y_log10('Rate of Occurrence, \u03bb', labels = scientific) +
+  scale_y_log10('Annual Rate of Occurrence, \u03bb', labels = scientific) +
   annotation_logticks(sides = 'l') +
   theme(legend.position = c(0.8,0.8))
 
@@ -390,6 +509,65 @@ Households in the study area were raised above the 100-year floodplain one-by-on
 We iteratively recalculated the AAL until it fell below the target threshold of 50% of the original AAL.
 Calculations were performed on Sherlock, Stanford's high-performance computing cluster, and results are stored in the `_results/mitigation` folder.
 
+## Calculate Sonoma's mitigation investment through FEMA HMAP (hazard mitigation assistance projects)
+```{r}
+## get number of data points from FEMA API
+h <- handle_setopt(new_handle())
+api_call <- paste0(
+  'https://www.fema.gov/api/open/v2/HazardMitigationAssistanceProjects?',
+  '$inlinecount=allpages&', '$top=1&',
+  '$filter=state%20eq%20%27California%27&')
+api <- curl_download(api_call, tempfile(), handle = h)
+n <- fromJSON(api)$metadata$count  #should be around 2,000
+
+## get HMA projects dataset from FEMA API
+hmap <- 
+  foreach(
+    i = 0:(n/1000), .combine = 'rbind', 
+    .packages = c('httr', 'curl', 'jsonlite')) %do% {
+      h <- handle_setopt(new_handle())
+      api_call <- paste0(
+        'https://www.fema.gov/api/open/v2/HazardMitigationAssistanceProjects?',
+        '$skip=', i*1000, '&$filter=state%20eq%20%27California%27')
+      api <- curl_download(api_call, tempfile(), handle = h)
+      fromJSON(api)$HazardMitigationAssistanceProjects
+    }
+
+## filter to relevant
+hmap <- hmap %>% 
+  filter(county == 'Sonoma') %>% 
+  filter(!grepl('seismic', str_to_lower(projectType))) %>% 
+  filter(!grepl('wildfire', str_to_lower(projectType))) %>%
+  filter(grepl('elevation', str_to_lower(projectType)) |
+           grepl('acquisition', str_to_lower(projectType))) %>% 
+  filter(!grepl('public', str_to_lower(projectType)))
+# summary(hmap$programFy)
+
+## calculate amount spent on elevations and acquisitions
+hmap %>%
+  left_join(inflation, by = c('programFy' = 'year')) %>%
+  mutate(costShareAmount = projectAmount * costSharePercentage) %>%
+  summarize(projectAmount = sum(projectAmount*rate)/1e6,
+            numberOfProperties = sum(numberOfProperties),
+            federalShareObligated = sum(federalShareObligated*rate)/1e6,
+            costShareAmount = sum(costShareAmount*rate)/1e6) %>% 
+  transmute(`Number of Properties` = numberOfProperties, 
+            `Total Investment ($M)` = projectAmount, 
+            `Federal Obligation ($M)` = federalShareObligated) %>% 
+  t %>% as.data.frame %>% rownames_to_column %>% 
+  setNames(c('label', 'value')) %>% 
+  gt %>% 
+  fmt_markdown('label') %>% 
+  fmt_number('value', decimals = 2, drop_trailing_zeros = TRUE) %>% 
+  cols_label(label = 'Parameter', value = 'Value') %>%
+  tab_header('FEMA HMAP Grants in Sonoma County, 1995-2018') %>% 
+  tab_options(heading.background.color = '#d9d9d9', 
+              column_labels.background.color = '#f2f2f2')
+  
+
+```
+
+
 ## Plot loss results for iterative mitigation strategy
 
 ```{r}
@@ -411,7 +589,7 @@ AAL_mitigated <-
       'AAL' = sum(loss.sim$loss)/3200)
   } %>% data.frame %>% arrange(n.bldg)
 
-## calculate 10-point moving average to smooth out probabilistic uncertainty
+## calculate 10-point moving average to smooth out variation
 roll <- 10
 AAL_mitigated$rollavg <- NA
 for (i in 1:(nrow(AAL_mitigated)-roll)) {
@@ -441,7 +619,7 @@ ggplot(AAL_mitigated) +
   geom_line(aes(x = n.bldg, y = rollavg, color = '10-pt Rolling Average')) + 
   geom_hline(yintercept = target, color = roma.colors[2]) +
   geom_vline(xintercept = n.mitigate, color = roma.colors[4], linetype = 'dashed') +
-  scale_x_continuous('Number of Mitigated Homes', limits = n.mitigate + 50*c(-1,1)) + 
+  scale_x_continuous('Number of Mitigated Homes', limits = n.mitigate + 100*c(-1,1)) + 
   scale_y_origin(labels = comma_format(scale = 1e-6, prefix = '$', suffix = 'M'))
 
 ```
@@ -449,7 +627,7 @@ ggplot(AAL_mitigated) +
 We calculated the mitigated AAL using two different methods: one that was quick but inexact (the "rough estimate"), and one that took longer but included the probabilistic uncertainty in the damage and loss component models. 
 The rough estimate of the number of homes that needed to be mitigated in order to achieve the performance target was `r n.mitigate`. 
 When we zoom in on the full results in the second plot this seems to be fairly accurate. 
-We decided to choose 200 homes as a conservative estimate to increase confidence that the performance target will be achieved. 
+We decided to choose 200 homes as a reasonable estimate of the mitigation threshold. 
 
 ```{r}
 ## define the number of buildings to mitigate
@@ -459,18 +637,8 @@ n.mitigate <- 200
 load('_results/mitigated/results/DV_200.Rdata')
 loss.mitigated <- loss.sim
 
-## how many is this relative to the study area? 
-load('_results/stochastic/checkpoints/INUN.Rdata')
-print(paste(
-  'Percentage of buildings experiencing inundation:', 
-  (n.mitigate/length(attr(inundation, 'wet.bldg'))) %>% percent(accuracy = 0.1)))
-print(paste(
-  'Percentage of all buildings in study area:', 
-  (n.mitigate/nrow(buildings)) %>% percent(accuracy = 0.1)))
-  
 ```
 
-The numbers above provide some context for how many buildings this is relative to the number of buildings considered in this analysis. 
 
 ## Examine points of interest on the mitigated loss exceedance curve 
 
@@ -518,15 +686,19 @@ Last but not least, we combine the original and mitigated loss exceedance curves
 This is included as Figure 10 in the paper.
 
 ```{r echo = FALSE}
-ggplot() + 
+lossexceedance <- lossexceedance %>% 
+  mutate(mitigated = c(rep(0, nrow(.)-nrow(loss.mitigated)), sort(loss.mitigated$loss)))
+
+```
+
+```{r echo = FALSE}
+ggplot(lossexceedance) + 
   geom_hline(yintercept = 1e-2, color = 'grey70', linetype = 'dashed') + 
-  annotate('text', x = 225e6, y = 1e-2, hjust = 0, vjust = -0.5,
+  annotate('text', x = 275e6, y = 1e-2, hjust = 0, vjust = -0.5,
            label = '"100 Year Event"', fontface = 'italic', 
            family = 'Segoe UI', size = 7/.pt, color = 'grey70') + 
-  geom_step(aes(x = sort(loss.stochastic$loss, decreasing = TRUE)[-(1)], 
-                y = ((1:nrow(loss.stochastic))/3200)[-(1)], color = 'Original'), size = 0.75) +
-  geom_step(aes(x = sort(loss.mitigated$loss, decreasing = TRUE)[-(1)], 
-                y = ((1:nrow(loss.mitigated))/3200)[-(1)], color = 'Mitigated'), size = 0.75) +
+  geom_step(aes(x = stochastic, y = rp, color = 'Original'), size = 0.75) +
+  geom_step(aes(x = mitigated, y = rp, color = 'Mitigated'), size = 0.75) +
   scale_color_manual('Building \nElevations', values = c('black', 'grey60'),
                      breaks = c('Original', 'Mitigated')) + 
   scale_x_origin('Loss Estimate ($M)', breaks = seq(0, 5e8, 5e7),
@@ -534,21 +706,17 @@ ggplot() +
   scale_y_log10('Rate of Occurrence, \u03bb', labels = scientific) +
   annotation_logticks(sides = 'l') + 
   theme(legend.position = c(0.75, 0.75))
-ggsave('_figures/fig10_mitigated.png', width = 8.3, height = 6, units = 'cm')
+ggsave('_figures/fig11_mitigated.png', width = 8.3, height = 6, units = 'cm')
 
 ```
 
 ```{r include = FALSE}
 ## what is the average horizontal difference between the two loss exceedance curves?
-cbind(
-  stochastic = sort(loss.stochastic$loss),
-  mitigated = sort(loss.mitigated$loss),
-  p = (nrow(loss.stochastic):1)/(nrow(loss.stochastic)+1)) %>% 
-  as.data.frame %>% 
+lossexceedance %>% 
   mutate(diff = stochastic-mitigated) %>% 
   ggplot() + 
-  geom_hline(yintercept = 10^c(-4:0), color = 'grey90') + 
-  geom_point(aes(x = diff, y = p)) + 
+  geom_hline(yintercept = 10^c(-4:0), color = 'grey90') +
+  geom_point(aes(x = diff, y = rp)) + 
   scale_x_origin('Original - Mitigated Differential ($M)', labels = comma_format(scale = 1e-6)) + 
   scale_y_log10('Rate of Occurrence, \u03bb', labels = scientific) +
   annotation_logticks(sides = 'l')
