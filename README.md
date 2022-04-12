@@ -1,4 +1,4 @@
-# Performance-based Atmospheric River Analysis (PARRA) Framework
+# Performance-based Atmospheric River Analysis (PARRA) Framework: Supplemental Code Release
 
 <a href="https://zenodo.org/badge/latestdoi/390500385"><img src="https://zenodo.org/badge/390500385.svg" alt="DOI"></a>
 
