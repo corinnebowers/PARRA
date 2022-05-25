@@ -163,7 +163,7 @@ decades preceding the report.
 
 <center>
 
-<img src="readme_files/sonomahazardmitigationplan.png" id="id" class="class" style="width:70.0%;height:70.0%" />
+<img src="readme_files/sonomahazardmitigationplan.png" id="id" class="class" style="width:50.0%;height:50.0%" />
 
 </center>
 
