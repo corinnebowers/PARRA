@@ -163,7 +163,7 @@ decades preceding the report.
 
 <center>
 
-<img src="D:/1-PARRA/_results/all_events/sonomahazardmitigationplan.png" id="id" class="class" style="width:70.0%;height:70.0%" />
+<img src="D:/1-PARRA/_results/additional/readme_files/sonomahazardmitigationplan.png" id="id" class="class" style="width:70.0%;height:70.0%" />
 
 </center>
 
@@ -185,7 +185,7 @@ the simulated loss histograms for each event.
     ## load simulated loss
     loss.sim <- 
       foreach (event = loss.obs$event, .combine = 'rbind') %do% {
-        load(paste0('_results/all_events/', event, '/checkpoints/DV.Rdata'))
+        load(paste0('_results/additional/', event, '/checkpoints/DV.Rdata'))
         data.frame(event = event, loss = loss.sim$loss)
       }
 
